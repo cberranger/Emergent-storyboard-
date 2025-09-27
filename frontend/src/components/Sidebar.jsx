@@ -13,7 +13,7 @@ const Sidebar = ({ currentView, onViewChange, activeProject, onProjectSelect }) 
     {
       id: 'timeline',
       label: 'Timeline',
-      icon: Timeline,
+      icon: Clock,
       description: 'Edit clips and sequences',
       disabled: !activeProject
     },
