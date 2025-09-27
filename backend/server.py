@@ -261,6 +261,10 @@ class ComfyUIClient:
 
 # API Routes
 
+@api_router.get("/")
+async def root():
+    return {"message": "StoryCanvas API is running", "status": "healthy"}
+
 # ComfyUI Server Management
 @api_router.post("/comfyui/servers", response_model=ComfyUIServer)
 async def add_comfyui_server(server_data: ComfyUIServerCreate):
