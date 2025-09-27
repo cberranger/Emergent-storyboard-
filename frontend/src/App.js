@@ -6,10 +6,10 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 
 // Import components
-import Sidebar from "@/components/Sidebar";
-import ProjectView from "@/components/ProjectView";
-import ComfyUIManager from "@/components/ComfyUIManager";
-import Timeline from "@/components/Timeline";
+import Sidebar from "./components/Sidebar";
+import ProjectView from "./components/ProjectView";
+import ComfyUIManager from "./components/ComfyUIManager";
+import Timeline from "./components/Timeline";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
