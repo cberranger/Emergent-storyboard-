@@ -1,6 +1,6 @@
 import React from 'react';
 import { Film, Server, FolderOpen, Clock, Settings } from 'lucide-react';
-import { Button } from '../components/ui/button';
+import { Button } from '@/components/ui/button';
 
 const Sidebar = ({ currentView, onViewChange, activeProject, onProjectSelect }) => {
   const menuItems = [
