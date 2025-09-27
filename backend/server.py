@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -6,9 +6,14 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional, Dict, Any
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
+import aiohttp
+import json
+import asyncio
+from fastapi.staticfiles import StaticFiles
+import shutil
 
 
 ROOT_DIR = Path(__file__).parent
@@ -25,32 +30,406 @@ app = FastAPI()
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# Create uploads directory
+UPLOADS_DIR = Path("uploads")
+UPLOADS_DIR.mkdir(exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# Define Models
-class StatusCheck(BaseModel):
+# Pydantic Models
+class ComfyUIServer(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    name: str
+    url: str
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
+class ComfyUIServerCreate(BaseModel):
+    name: str
+    url: str
 
-# Add your routes to the router instead of directly to app
-@api_router.get("/")
-async def root():
-    return {"message": "Hello World"}
+class Model(BaseModel):
+    name: str
+    type: str  # checkpoint, lora, vae, etc.
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.dict()
-    status_obj = StatusCheck(**status_dict)
-    _ = await db.status_checks.insert_one(status_obj.dict())
-    return status_obj
+class ComfyUIServerInfo(BaseModel):
+    server: ComfyUIServer
+    models: List[Model] = []
+    loras: List[Model] = []
+    is_online: bool = False
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    status_checks = await db.status_checks.find().to_list(1000)
-    return [StatusCheck(**status_check) for status_check in status_checks]
+class Project(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: Optional[str] = ""
+    music_file_path: Optional[str] = None
+    music_duration: Optional[float] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ProjectCreate(BaseModel):
+    name: str
+    description: Optional[str] = ""
+
+class Scene(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    project_id: str
+    name: str
+    description: Optional[str] = ""
+    order: int = 0
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class SceneCreate(BaseModel):
+    project_id: str
+    name: str
+    description: Optional[str] = ""
+    order: int = 0
+
+class ClipVersion(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    version_number: int
+    image_url: Optional[str] = None
+    video_url: Optional[str] = None
+    image_prompt: Optional[str] = None
+    video_prompt: Optional[str] = None
+    generation_params: Optional[Dict[str, Any]] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class Clip(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    scene_id: str
+    name: str
+    lyrics: Optional[str] = ""
+    length: float = 5.0  # seconds
+    timeline_position: float = 0.0  # position on timeline
+    order: int = 0
+    versions: List[ClipVersion] = []
+    active_version: int = 1
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ClipCreate(BaseModel):
+    scene_id: str
+    name: str
+    lyrics: Optional[str] = ""
+    length: float = 5.0
+    timeline_position: float = 0.0
+    order: int = 0
+
+class GenerationRequest(BaseModel):
+    clip_id: str
+    server_id: str
+    prompt: str
+    negative_prompt: Optional[str] = ""
+    model: Optional[str] = None
+    lora: Optional[str] = None
+    generation_type: str  # "image" or "video"
+    params: Optional[Dict[str, Any]] = None
+
+# ComfyUI API Helper
+class ComfyUIClient:
+    def __init__(self, base_url: str):
+        self.base_url = base_url.rstrip('/')
+        
+    async def check_connection(self) -> bool:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{self.base_url}/system_stats", timeout=5) as response:
+                    return response.status == 200
+        except:
+            return False
+    
+    async def get_models(self) -> Dict[str, List[str]]:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{self.base_url}/object_info") as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        # Extract model information from ComfyUI object_info
+                        models = {"checkpoints": [], "loras": [], "vaes": []}
+                        
+                        # Parse the complex object_info structure
+                        for node_type, node_info in data.items():
+                            if "input" in node_info and "required" in node_info["input"]:
+                                required_inputs = node_info["input"]["required"]
+                                for input_name, input_info in required_inputs.items():
+                                    if isinstance(input_info, list) and len(input_info) > 0:
+                                        if "ckpt_name" in input_name.lower() or "checkpoint" in input_name.lower():
+                                            if isinstance(input_info[0], list):
+                                                models["checkpoints"].extend(input_info[0])
+                                        elif "lora" in input_name.lower():
+                                            if isinstance(input_info[0], list):
+                                                models["loras"].extend(input_info[0])
+                                        elif "vae" in input_name.lower():
+                                            if isinstance(input_info[0], list):
+                                                models["vaes"].extend(input_info[0])
+                        
+                        # Remove duplicates
+                        for key in models:
+                            models[key] = list(set(models[key]))
+                        
+                        return models
+        except Exception as e:
+            logging.error(f"Error getting models: {e}")
+        return {"checkpoints": [], "loras": [], "vaes": []}
+    
+    async def generate_image(self, prompt: str, negative_prompt: str = "", model: str = None, params: Dict = None) -> Optional[str]:
+        try:
+            # Basic ComfyUI workflow for text-to-image
+            workflow = {
+                "3": {
+                    "inputs": {
+                        "seed": params.get("seed", 42) if params else 42,
+                        "steps": params.get("steps", 20) if params else 20,
+                        "cfg": params.get("cfg", 8) if params else 8,
+                        "sampler_name": params.get("sampler", "euler") if params else "euler",
+                        "scheduler": params.get("scheduler", "normal") if params else "normal",
+                        "denoise": 1,
+                        "model": ["4", 0],
+                        "positive": ["6", 0],
+                        "negative": ["7", 0],
+                        "latent_image": ["5", 0]
+                    },
+                    "class_type": "KSampler"
+                },
+                "4": {
+                    "inputs": {
+                        "ckpt_name": model or "v1-5-pruned-emaonly.ckpt"
+                    },
+                    "class_type": "CheckpointLoaderSimple"
+                },
+                "5": {
+                    "inputs": {
+                        "width": params.get("width", 512) if params else 512,
+                        "height": params.get("height", 512) if params else 512,
+                        "batch_size": 1
+                    },
+                    "class_type": "EmptyLatentImage"
+                },
+                "6": {
+                    "inputs": {
+                        "text": prompt,
+                        "clip": ["4", 1]
+                    },
+                    "class_type": "CLIPTextEncode"
+                },
+                "7": {
+                    "inputs": {
+                        "text": negative_prompt,
+                        "clip": ["4", 1]
+                    },
+                    "class_type": "CLIPTextEncode"
+                },
+                "8": {
+                    "inputs": {
+                        "samples": ["3", 0],
+                        "vae": ["4", 2]
+                    },
+                    "class_type": "VAEDecode"
+                },
+                "9": {
+                    "inputs": {
+                        "filename_prefix": "ComfyUI",
+                        "images": ["8", 0]
+                    },
+                    "class_type": "SaveImage"
+                }
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                # Queue the prompt
+                async with session.post(f"{self.base_url}/prompt", json={"prompt": workflow}) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        prompt_id = result.get("prompt_id")
+                        
+                        if prompt_id:
+                            # Poll for completion
+                            for _ in range(60):  # 60 seconds timeout
+                                await asyncio.sleep(1)
+                                async with session.get(f"{self.base_url}/history/{prompt_id}") as hist_response:
+                                    if hist_response.status == 200:
+                                        history = await hist_response.json()
+                                        if prompt_id in history:
+                                            outputs = history[prompt_id].get("outputs", {})
+                                            for node_id, output in outputs.items():
+                                                if "images" in output:
+                                                    image_info = output["images"][0]
+                                                    filename = image_info["filename"]
+                                                    return f"{self.base_url}/view?filename={filename}"
+        except Exception as e:
+            logging.error(f"Error generating image: {e}")
+        return None
+
+# API Routes
+
+# ComfyUI Server Management
+@api_router.post("/comfyui/servers", response_model=ComfyUIServer)
+async def add_comfyui_server(server_data: ComfyUIServerCreate):
+    server_dict = server_data.dict()
+    server = ComfyUIServer(**server_dict)
+    await db.comfyui_servers.insert_one(server.dict())
+    return server
+
+@api_router.get("/comfyui/servers", response_model=List[ComfyUIServer])
+async def get_comfyui_servers():
+    servers = await db.comfyui_servers.find().to_list(100)
+    return [ComfyUIServer(**server) for server in servers]
+
+@api_router.get("/comfyui/servers/{server_id}/info", response_model=ComfyUIServerInfo)
+async def get_server_info(server_id: str):
+    server_data = await db.comfyui_servers.find_one({"id": server_id})
+    if not server_data:
+        raise HTTPException(status_code=404, detail="Server not found")
+    
+    server = ComfyUIServer(**server_data)
+    client = ComfyUIClient(server.url)
+    
+    is_online = await client.check_connection()
+    models_data = {"checkpoints": [], "loras": [], "vaes": []} if not is_online else await client.get_models()
+    
+    models = [Model(name=name, type="checkpoint") for name in models_data.get("checkpoints", [])]
+    loras = [Model(name=name, type="lora") for name in models_data.get("loras", [])]
+    
+    return ComfyUIServerInfo(
+        server=server,
+        models=models,
+        loras=loras,
+        is_online=is_online
+    )
+
+# Project Management
+@api_router.post("/projects", response_model=Project)
+async def create_project(project_data: ProjectCreate):
+    project_dict = project_data.dict()
+    project = Project(**project_dict)
+    await db.projects.insert_one(project.dict())
+    return project
+
+@api_router.get("/projects", response_model=List[Project])
+async def get_projects():
+    projects = await db.projects.find().to_list(100)
+    return [Project(**project) for project in projects]
+
+@api_router.get("/projects/{project_id}", response_model=Project)
+async def get_project(project_id: str):
+    project_data = await db.projects.find_one({"id": project_id})
+    if not project_data:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return Project(**project_data)
+
+@api_router.post("/projects/{project_id}/upload-music")
+async def upload_music(project_id: str, file: UploadFile = File(...)):
+    project_data = await db.projects.find_one({"id": project_id})
+    if not project_data:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Save the uploaded file
+    file_path = UPLOADS_DIR / f"{project_id}_{file.filename}"
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    # Update project with music file path
+    await db.projects.update_one(
+        {"id": project_id},
+        {"$set": {"music_file_path": str(file_path), "updated_at": datetime.now(timezone.utc)}}
+    )
+    
+    return {"message": "Music uploaded successfully", "file_path": str(file_path)}
+
+# Scene Management
+@api_router.post("/scenes", response_model=Scene)
+async def create_scene(scene_data: SceneCreate):
+    scene_dict = scene_data.dict()
+    scene = Scene(**scene_dict)
+    await db.scenes.insert_one(scene.dict())
+    return scene
+
+@api_router.get("/projects/{project_id}/scenes", response_model=List[Scene])
+async def get_project_scenes(project_id: str):
+    scenes = await db.scenes.find({"project_id": project_id}).sort("order").to_list(100)
+    return [Scene(**scene) for scene in scenes]
+
+# Clip Management
+@api_router.post("/clips", response_model=Clip)
+async def create_clip(clip_data: ClipCreate):
+    clip_dict = clip_data.dict()
+    clip = Clip(**clip_dict)
+    await db.clips.insert_one(clip.dict())
+    return clip
+
+@api_router.get("/scenes/{scene_id}/clips", response_model=List[Clip])
+async def get_scene_clips(scene_id: str):
+    clips = await db.clips.find({"scene_id": scene_id}).sort("order").to_list(100)
+    return [Clip(**clip) for clip in clips]
+
+@api_router.get("/clips/{clip_id}", response_model=Clip)
+async def get_clip(clip_id: str):
+    clip_data = await db.clips.find_one({"id": clip_id})
+    if not clip_data:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    return Clip(**clip_data)
+
+@api_router.put("/clips/{clip_id}/timeline-position")
+async def update_clip_timeline_position(clip_id: str, position: float):
+    result = await db.clips.update_one(
+        {"id": clip_id},
+        {"$set": {"timeline_position": position}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    return {"message": "Timeline position updated"}
+
+# Generation
+@api_router.post("/generate")
+async def generate_content(request: GenerationRequest):
+    # Get server info
+    server_data = await db.comfyui_servers.find_one({"id": request.server_id})
+    if not server_data:
+        raise HTTPException(status_code=404, detail="Server not found")
+    
+    server = ComfyUIServer(**server_data)
+    client = ComfyUIClient(server.url)
+    
+    # Check if server is online
+    if not await client.check_connection():
+        raise HTTPException(status_code=503, detail="ComfyUI server is offline")
+    
+    # Generate content
+    if request.generation_type == "image":
+        result_url = await client.generate_image(
+            prompt=request.prompt,
+            negative_prompt=request.negative_prompt or "",
+            model=request.model,
+            params=request.params or {}
+        )
+        
+        if result_url:
+            # Create new version for the clip
+            clip_data = await db.clips.find_one({"id": request.clip_id})
+            if clip_data:
+                clip = Clip(**clip_data)
+                new_version = ClipVersion(
+                    version_number=len(clip.versions) + 1,
+                    image_url=result_url,
+                    image_prompt=request.prompt,
+                    generation_params=request.params
+                )
+                
+                # Add version to clip
+                await db.clips.update_one(
+                    {"id": request.clip_id},
+                    {"$push": {"versions": new_version.dict()}}
+                )
+                
+                return {"message": "Image generated successfully", "version": new_version.dict()}
+        
+        raise HTTPException(status_code=500, detail="Failed to generate image")
+    
+    elif request.generation_type == "video":
+        # Video generation would be implemented similarly
+        raise HTTPException(status_code=501, detail="Video generation not implemented yet")
+    
+    else:
+        raise HTTPException(status_code=400, detail="Invalid generation type")
 
 # Include the router in the main app
 app.include_router(api_router)
