@@ -789,21 +789,21 @@ async def generate_content(request: GenerationRequest):
                 
                 # Create new generated content
                 new_content = GeneratedContent(
-                content_type="image",
-                url=result_url,
-                prompt=request.prompt,
-                negative_prompt=request.negative_prompt or "",
-                server_id=request.server_id,
-                server_name=server.name,
-                model_name=request.model or "unknown",
-                model_type=model_type,
-                generation_params=request.params or {},
-                is_selected=False
-            )
-            
-            # Add to clip gallery
-            clip_data = await db.clips.find_one({"id": request.clip_id})
-            if clip_data:
+                    content_type="image",
+                    url=result_url,
+                    prompt=request.prompt,
+                    negative_prompt=request.negative_prompt or "",
+                    server_id=request.server_id,
+                    server_name=server.name,
+                    model_name=request.model or "unknown",
+                    model_type=model_type,
+                    generation_params=request.params or {},
+                    is_selected=False
+                )
+                
+                # Add to clip gallery
+                clip_data = await db.clips.find_one({"id": request.clip_id})
+                if clip_data:
                 logging.info(f"Found clip: {clip_data}")
                 
                 # Initialize clip with default values for new fields
