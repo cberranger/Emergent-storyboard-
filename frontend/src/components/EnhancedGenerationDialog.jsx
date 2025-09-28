@@ -55,6 +55,43 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
     scheduler: 'normal'
   });
 
+  // Advanced parameters
+  const [advancedParams, setAdvancedParams] = useState({
+    // Refiner
+    use_refiner: false,
+    refiner_model: '',
+    refiner_switch: 0.8,
+    
+    // Face processing
+    use_reactor: false,
+    reactor_face_image: '',
+    use_faceswap: false,
+    
+    // Upscaling
+    use_upscale: false,
+    upscale_factor: 2.0,
+    upscale_model: 'RealESRGAN_x2plus',
+    
+    // Advanced settings
+    pag_scale: 0.0, // Perturbed-Attention Guidance Scale
+    clip_skip: 1,
+    
+    // ComfyUI workflow
+    use_custom_workflow: false,
+    workflow_json: ''
+  });
+
+  // Available samplers and schedulers
+  const samplers = [
+    'euler', 'euler_a', 'heun', 'heunpp2', 'dpm_2', 'dpm_2_a', 'lms', 'dpm_fast',
+    'dpm_adaptive', 'dpmpp_2s_a', 'dpmpp_sde', 'dpmpp_2m', 'dpmpp_2m_sde', 
+    'ddim', 'uni_pc', 'uni_pc_bh2'
+  ];
+
+  const schedulers = [
+    'normal', 'karras', 'exponential', 'sgm_uniform', 'simple', 'ddim_uniform'
+  ];
+
   useEffect(() => {
     if (clip && open) {
       // Load clip prompts
