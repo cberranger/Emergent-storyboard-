@@ -105,9 +105,11 @@ class GeneratedContent(BaseModel):
     server_id: str
     server_name: str
     model_name: str
-    model_type: Optional[str] = None  # "sdxl", "flux_dev", "flux_krea", "wan_2_1", "wan_2_2", "hidream"
+    model_type: Optional[str] = None  # "sdxl", "flux_dev", "flux_krea", "wan_2_1", "wan_2_2", "hidream", "infinitetalk"
     generation_params: Dict[str, Any] = {}
     is_selected: bool = False  # Whether this is the active content for the clip
+    is_archived: bool = False  # Whether content is in archived state
+    archived_at: Optional[datetime] = None  # When content was archived
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ClipVersion(BaseModel):
