@@ -633,6 +633,36 @@ async def upload_music(project_id: str, file: UploadFile = File(...)):
     
     return {"message": "Music uploaded successfully", "file_path": str(file_path)}
 
+@api_router.post("/upload-face-image")
+async def upload_face_image(file: UploadFile = File(...)):
+    """Upload face image for reactor/face swap"""
+    # Validate file type
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    
+    # Create faces directory if it doesn't exist
+    faces_dir = UPLOADS_DIR / "faces"
+    faces_dir.mkdir(exist_ok=True)
+    
+    # Generate unique filename
+    import uuid
+    file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+    unique_filename = f"face_{uuid.uuid4()}.{file_extension}"
+    file_path = faces_dir / unique_filename
+    
+    # Save the uploaded file
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    # Return the URL that can be accessed by ComfyUI
+    file_url = f"/uploads/faces/{unique_filename}"
+    
+    return {
+        "message": "Face image uploaded successfully", 
+        "file_url": file_url,
+        "file_path": str(file_path)
+    }
+
 # Scene Management
 @api_router.post("/scenes", response_model=Scene)
 async def create_scene(scene_data: SceneCreate):
