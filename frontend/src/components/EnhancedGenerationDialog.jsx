@@ -687,21 +687,7 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                 </TabsList>
               </Tabs>
 
-              {/* InfiniteTalk Mode Toggle */}
-              {activeTab === 'video' && (
-                <div className="flex items-center space-x-2 p-3 bg-panel-dark rounded-lg border border-panel">
-                  <Switch
-                    checked={infiniteTalkParams.enabled}
-                    onCheckedChange={(checked) => {
-                      updateInfiniteTalkParam('enabled', checked);
-                      if (checked) setActiveTab('infinitetalk');
-                    }}
-                  />
-                  <Label className="text-sm text-primary">Use InfiniteTalk for lip-sync video</Label>
-                </div>
-              )}
-
-              {/* Set InfiniteTalk as active when on InfiniteTalk tab */}
+              {/* InfiniteTalk Mode Indicator */}
               {activeTab === 'infinitetalk' && (
                 <div className="flex items-center space-x-2 p-3 bg-green-900/20 rounded-lg border border-green-600/30">
                   <Wand2 className="w-4 h-4 text-green-400" />
