@@ -160,6 +160,89 @@ class GenerationRequest(BaseModel):
     generation_type: str  # "image" or "video"
     params: Optional[Dict[str, Any]] = None
 
+# Model defaults configuration
+MODEL_DEFAULTS = {
+    "sdxl": {
+        "steps": 30,
+        "cfg": 7.0,
+        "width": 1024,
+        "height": 1024,
+        "sampler": "euler_a",
+        "scheduler": "normal"
+    },
+    "flux_dev": {
+        "steps": 20,
+        "cfg": 3.5,
+        "width": 1024,
+        "height": 1024,
+        "sampler": "euler",
+        "scheduler": "simple"
+    },
+    "flux_krea": {
+        "steps": 4,
+        "cfg": 1.0,
+        "width": 1024,
+        "height": 1024,
+        "sampler": "euler",
+        "scheduler": "simple"
+    },
+    "wan_2_1": {
+        "steps": 25,
+        "cfg": 7.5,
+        "width": 512,
+        "height": 512,
+        "sampler": "ddim",
+        "scheduler": "normal"
+    },
+    "wan_2_2": {
+        "steps": 25,
+        "cfg": 7.5,
+        "width": 512,
+        "height": 512,
+        "sampler": "ddim",
+        "scheduler": "normal"
+    },
+    "hidream": {
+        "steps": 20,
+        "cfg": 6.0,
+        "width": 1024,
+        "height": 1024,
+        "sampler": "euler_a",
+        "scheduler": "karras"
+    }
+}
+
+def detect_model_type(model_name: str) -> Optional[str]:
+    """Intelligently detect model type from model name"""
+    model_name_lower = model_name.lower()
+    
+    if "flux" in model_name_lower:
+        if "dev" in model_name_lower:
+            return "flux_dev"
+        elif "krea" in model_name_lower:
+            return "flux_krea"
+        else:
+            return "flux_dev"  # Default flux variant
+    elif "sdxl" in model_name_lower or "xl" in model_name_lower:
+        return "sdxl"
+    elif "wan" in model_name_lower:
+        if "2.2" in model_name_lower or "22" in model_name_lower:
+            return "wan_2_2"
+        else:
+            return "wan_2_1"
+    elif "hidream" in model_name_lower:
+        return "hidream"
+    elif "sd15" in model_name_lower or "1.5" in model_name_lower:
+        return "wan_2_1"  # Use SD 1.5 defaults
+    
+    # Default fallback
+    return "sdxl"
+
+def get_model_defaults(model_name: str) -> Dict[str, Any]:
+    """Get intelligent defaults based on model type"""
+    model_type = detect_model_type(model_name)
+    return MODEL_DEFAULTS.get(model_type, MODEL_DEFAULTS["sdxl"])
+
 # ComfyUI API Helper
 class ComfyUIClient:
     def __init__(self, server: ComfyUIServer):
