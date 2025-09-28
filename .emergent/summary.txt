@@ -1,0 +1,150 @@
+<analysis>
+The AI engineer successfully built a full-stack storyboarding application. Initially, it established the React frontend, FastAPI backend, and MongoDB, integrating basic ComfyUI server management. Key early challenges involved resolving frontend import errors, setting up a root API endpoint, and fixing environment variable inconsistencies and CORS issues, especially for local development.
+
+After a GitHub pull, the engineer then implemented major feature enhancements. This included enriching data models for projects, scenes, and clips with detailed prompts and metadata, developing a robust gallery system for generated media, and enabling RunPod serverless integration. The work then progressed to advanced generation parameters like samplers, schedulers, LoRAs, and refiner/reactor options, requiring significant updates to both frontend UI components and backend API logic. The engineer is currently in the process of implementing the UI for refiner model dropdown, reactor photo upload, and ComfyUI workflow selection.
+</analysis>
+
+<product_requirements>
+The goal is to create a Storyboarding application for music video generation.
+1.  **Core Functionality**: Accept remote ComfyUI server addresses (LAN, RunPod, Modal) for image/video generation requests and display results.
+2.  **Structure**: The application should organize content into Projects, which contain Scenes, and Scenes contain Clips.
+3.  **Clip Details**: Each clip needs fields for:
+    *   Lyrics
+    *   Length
+    *   Versions (for comparison)
+    *   Image prompt
+    *   Video prompt
+4.  **Timeline**: Users should be able to drag and drop clips onto a timeline.
+5.  **ComfyUI Integration**: The system must:
+    *   Confirm models and LoRAs available on connected ComfyUI servers.
+    *   Allow sending individual image/video prompts to selected servers, models, and custom settings (LoRA, CFG, etc.).
+    *   Intelligently set default settings based on model type (SDXL, Flux, Wan, Hidream).
+    *   Support both standard ComfyUI and RunPod serverless endpoints.
+6.  **Generated Content Management**:
+    *   Images/videos generated for a clip must be stored in a specific gallery for that clip.
+    *   Users should be able to select which generated image/video is used for a clip.
+    *   All generated content must retain its prompt and settings metadata.
+7.  **Scene Enhancements**: Add a description box and a lyrics section for each scene, positioned above and below the timeline respectively.
+8.  **Advanced Generation Parameters**: Implement UI and backend support for:
+    *   Full-size image/video popup on click in the gallery.
+    *   Sampler and Scheduler selection.
+    *   LoRA weight and support for multiple LoRAs.
+    *   Refiner options (with a dropdown for available models).
+    *   Reactor/faceswap (with photo upload).
+    *   Upscale options.
+    *   Perturbed-Attention Guidance Scale.
+    *   Clip Skip selector.
+    *   ComfyUI workflow selector (allowing selection from server-side workflows, in addition to JSON).
+9.  **Deployment/Local Setup**: Provide scripts for local development (PowerShell and Batch for Windows) and ensure flexible backend/frontend port configuration. CORS should allow all origins for local LAN testing, and MongoDB configuration should be preserved as per user's local setup.
+</product_requirements>
+
+<key_technical_concepts>
+-   **Full-stack**: React (frontend), FastAPI (backend), MongoDB (database).
+-   **UI/UX**: Shadcn UI, Tailwind CSS, Radix UI for components.
+-   **Backend**: Pydantic for data validation,  for async MongoDB operations.
+-   **API Integration**: ComfyUI (standard) and RunPod Serverless API.
+-   **Data Handling**: UUIDs for MongoDB IDs, ISO string for  objects.
+-   **Environment**:  files, /, supervisor for service management.
+-   **Networking**: CORS policy,  for local tunnel.
+-   **Scripting**: Bash, PowerShell, Batch for local dev.
+</key_technical_concepts>
+
+<code_architecture>
+
+
+
+-   **/app/backend/server.py**:
+    -   **Summary**: This is the core FastAPI backend application. It defines the API endpoints, Pydantic models for data (Projects, Scenes, Clips, ComfyUI Servers, Generated Content), handles MongoDB interactions, ComfyUI/RunPod API calls, and CORS configuration.
+    -   **Changes Made**:
+        -   Initial setup of  prefixed routes for projects, ComfyUI servers, and generation.
+        -   MongoDB connection configuration and error handling.
+        -    model updated to include , , .
+        -    class updated to dynamically handle standard ComfyUI and RunPod serverless API interactions (checking connection, fetching models/LoRAs, generating images/videos).
+        -   Project, Scene, Clip models enhanced with fields like , , , , , .
+        -   New endpoints for clip creation/management, and a  function to integrate with RunPod's specific API.
+        -   Implementation of  for intelligent model setting.
+        -   CORS middleware configuration and adjustments for local development ().
+        -   Added root  endpoint for health check.
+        -   Bug fixes:  installation, Python indentation, correct RunPod status endpoint ().
+        -    model updated to include advanced parameters (sampler, scheduler, loras, refiner, reactor, upscale, clip_skip, cfg_scale, workflow).
+        -   New endpoints:  for fetching available ComfyUI workflows,  for uploading reactor face images.
+-   **/app/backend/.env**:
+    -   **Summary**: Contains environment variables for the backend, specifically , , and .
+    -   **Changes Made**: Corrected  to point to  and  to  to match user's local LAN setup.  set to  to allow all origins for local development.
+-   **/app/frontend/src/App.js**:
+    -   **Summary**: The main React component that handles global state, route rendering, and top-level API calls for projects and ComfyUI servers.
+    -   **Changes Made**:
+        -   Initial UI structure and routing.
+        -   API integration for fetching/creating projects and managing ComfyUI servers.
+        -   Resolved import path issues.
+        -   Ensured  is correctly picked up from environment.
+        -   Integration with  and  components.
+-   **/app/frontend/src/components/ComfyUIManager.jsx**:
+    -   **Summary**: Component for managing ComfyUI server connections, including adding new servers and displaying their status.
+    -   **Changes Made**:
+        -   Updated to dynamically show an API Key field when a RunPod serverless URL is detected.
+        -   Handled API key submission for RunPod servers.
+        -   Resolved  usage.
+-   **/app/frontend/src/components/Timeline.jsx**:
+    -   **Summary**: Component responsible for displaying the project timeline, scene and clip management.
+    -   **Changes Made**:
+        -   Added UI elements for scene  and  input fields.
+        -   Integrated  for clip generation.
+        -   Added  for viewing generated images/videos.
+        -   Resolved import path issues.
+-   **/app/frontend/src/components/GenerationDialog.jsx**:
+    -   **Summary**: The older dialog component for generating content, now largely superseded by .
+    -   **Changes Made**: Fixed an error where  had an empty string  prop by changing it to . Adjusted LoRA handling and state initialization.
+-   **/app/frontend/src/components/EnhancedGenerationDialog.jsx** (New File):
+    -   **Summary**: A new, comprehensive dialog for image/video generation, incorporating advanced controls and server/model selection.
+    -   **Changes Made**:
+        -   Supports separate  and .
+        -   Allows selection of ComfyUI server and model with intelligent defaults.
+        -   Includes UI for advanced parameters: Sampler, Scheduler, multiple LoRAs (with weights), Refiner, Reactor, Upscale, Perturbed-Attention Guidance Scale, Clip Skip, and ComfyUI workflow selection.
+        -   Integrated image/video gallery for a clip.
+        -   Includes a  for full-size viewing.
+        -   UI for Reactor with file upload for face images (in progress).
+        -   Refiner dropdown for models (in progress).
+-   **/app/frontend/src/components/MediaViewerDialog.jsx** (New File):
+    -   **Summary**: A modal dialog for displaying generated images or videos in full size.
+    -   **Changes Made**: Created to provide full-size viewing capability.
+-   **/app/frontend/.env**:
+    -   **Summary**: Contains environment variables for the frontend.
+    -   **Changes Made**: Corrected  to , , and  for local development.
+-   **/app/launch.sh**, **/app/launch.ps1**, **/app/launch.bat** (New Files):
+    -   **Summary**: Cross-platform scripts to simplify local development setup, including starting backend and frontend servers with default or user-specified ports and environment variables.
+    -   **Changes Made**: Created these scripts to streamline the local development workflow for users.
+-   **/app/README.md**:
+    -   **Summary**: Project documentation.
+    -   **Changes Made**: Updated with instructions for using the new launch scripts and setting up the local environment.
+
+</code_architecture>
+
+<pending_tasks>
+-   **Refiner Model Dropdown**: Populate the refiner dropdown in  with models available from the server.
+-   **Reactor Photo Upload UI**: Complete the UI implementation for the Reactor feature in  to allow photo uploads.
+-   **ComfyUI Workflow Selector UI**: Implement the UI selector for server-side ComfyUI workflows in .
+-   **Reactor/Faceswap Logic**: Implement the actual backend logic for the Reactor/faceswap feature (beyond just file upload).
+-   **Upscale, Perturbed-Attention Guidance Scale, Clip Skip Selector Logic**: Implement the backend logic for these advanced generation parameters.
+</pending_tasks>
+
+<current_work>
+Immediately before this summary request, the AI engineer was focused on implementing advanced features related to ComfyUI integration, as requested by the user.
+
+Specifically, the work involved:
+1.  **Backend Enhancements**:
+    *   Adding an endpoint () to fetch available ComfyUI workflows from the server (Chat Message 445).
+    *   Adding a file upload endpoint () for the Reactor (faceswap) feature, to handle user-provided face images (Chat Message 447).
+2.  **Frontend () Updates**:
+    *   Modifying the  component to incorporate these new features. This included:
+        *   Updating state management and rendering to handle the face upload function for Reactor (Chat Message 452).
+        *   Updating the refiner section to use a dropdown for models, which would ideally be populated from the backend (Chat Message 455).
+        *   Currently, the engineer is in the middle of updating the Reactor section to include the file upload UI (Chat Message 456).
+
+The current state of the product is that the core storyboarding application with project, scene, and clip management is functional. Basic ComfyUI and RunPod server integration for generation (image/video prompts, server/model selection, some basic settings) is working. The application supports local development via new launch scripts and adjusted  files. The UI is being actively extended to support advanced generation parameters, with the backend endpoints for fetching workflows and uploading face images now available, and the frontend UI for these features being actively constructed. The generation dialog () is the primary focus for these UI updates.
+</current_work>
+
+<optional_next_step>
+Complete the implementation of the Reactor section in  to include the file upload UI.
+</optional_next_step>
+
