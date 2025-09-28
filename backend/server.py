@@ -801,7 +801,8 @@ async def generate_content(request: GenerationRequest):
             prompt=request.prompt,
             negative_prompt=request.negative_prompt or "",
             model=request.model,
-            params=request.params or {}
+            params=request.params or {},
+            loras=request.loras or []
             )
             
             if result_url:
