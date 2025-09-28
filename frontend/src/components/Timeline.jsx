@@ -149,6 +149,8 @@ const Timeline = ({ project, comfyUIServers }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [musicFile, setMusicFile] = useState(null);
+  const [editingScene, setEditingScene] = useState(false);
+  const [sceneEditData, setSceneEditData] = useState({ description: '', lyrics: '' });
   const audioRef = useRef(null);
 
   useEffect(() => {
