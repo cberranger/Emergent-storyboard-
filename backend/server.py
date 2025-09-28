@@ -854,8 +854,12 @@ async def generate_content(request: GenerationRequest):
         # Video generation would be implemented similarly
         raise HTTPException(status_code=501, detail="Video generation not implemented yet")
     
-    else:
-        raise HTTPException(status_code=400, detail="Invalid generation type")
+        else:
+            raise HTTPException(status_code=400, detail="Invalid generation type")
+            
+    except Exception as e:
+        logging.error(f"Error in generation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Generation error: {str(e)}")
 
 # Include the router in the main app
 app.include_router(api_router)
