@@ -610,99 +610,312 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                   </div>
 
                   {/* Generation Parameters */}
-                  <Card className="glass-panel">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-primary text-sm flex items-center">
-                        <Settings className="w-4 h-4 mr-2" />
-                        Generation Parameters
-                        {modelDefaults.detected_type && (
-                          <span className="ml-2 text-xs text-secondary">
-                            (Optimized for {modelDefaults.detected_type})
-                          </span>
-                        )}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-xs text-secondary">Steps</Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            max="150"
-                            className="form-input text-sm"
-                            value={generationParams.steps}
-                            onChange={(e) => updateParam('steps', e.target.value)}
-                            data-testid="steps-input"
-                          />
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="basic-params" className="border-panel">
+                      <AccordionTrigger className="text-primary hover:text-primary">
+                        <div className="flex items-center">
+                          <Settings className="w-4 h-4 mr-2" />
+                          Basic Parameters
+                          {modelDefaults.detected_type && (
+                            <span className="ml-2 text-xs text-secondary">
+                              (Optimized for {modelDefaults.detected_type})
+                            </span>
+                          )}
                         </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-xs text-secondary">Steps</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              max="150"
+                              className="form-input text-sm"
+                              value={generationParams.steps}
+                              onChange={(e) => updateParam('steps', e.target.value)}
+                              data-testid="steps-input"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-secondary">CFG Scale</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              max="30"
+                              step="0.1"
+                              className="form-input text-sm"
+                              value={generationParams.cfg}
+                              onChange={(e) => updateParam('cfg', e.target.value)}
+                              data-testid="cfg-input"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-xs text-secondary">Sampler</Label>
+                            <Select 
+                              value={generationParams.sampler} 
+                              onValueChange={(value) => updateParam('sampler', value)}
+                            >
+                              <SelectTrigger className="form-input text-sm" data-testid="sampler-select">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-panel border-panel max-h-48 overflow-y-auto">
+                                {samplers.map(sampler => (
+                                  <SelectItem key={sampler} value={sampler} className="text-primary">
+                                    {sampler}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-secondary">Scheduler</Label>
+                            <Select 
+                              value={generationParams.scheduler} 
+                              onValueChange={(value) => updateParam('scheduler', value)}
+                            >
+                              <SelectTrigger className="form-input text-sm" data-testid="scheduler-select">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-panel border-panel">
+                                {schedulers.map(scheduler => (
+                                  <SelectItem key={scheduler} value={scheduler} className="text-primary">
+                                    {scheduler}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-xs text-secondary">Width</Label>
+                            <Select 
+                              value={generationParams.width.toString()} 
+                              onValueChange={(value) => updateParam('width', value)}
+                            >
+                              <SelectTrigger className="form-input text-sm" data-testid="width-select">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-panel border-panel">
+                                {[512, 768, 1024, 1280, 1536].map(size => (
+                                  <SelectItem key={size} value={size.toString()} className="text-primary">
+                                    {size}px
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-secondary">Height</Label>
+                            <Select 
+                              value={generationParams.height.toString()} 
+                              onValueChange={(value) => updateParam('height', value)}
+                            >
+                              <SelectTrigger className="form-input text-sm" data-testid="height-select">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-panel border-panel">
+                                {[512, 768, 1024, 1280, 1536].map(size => (
+                                  <SelectItem key={size} value={size.toString()} className="text-primary">
+                                    {size}px
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-xs text-secondary">Seed (-1 for random)</Label>
+                            <Input
+                              type="number"
+                              min="-1"
+                              className="form-input text-sm"
+                              value={generationParams.seed}
+                              onChange={(e) => updateParam('seed', e.target.value)}
+                              data-testid="seed-input"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-secondary">CLIP Skip</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              max="12"
+                              className="form-input text-sm"
+                              value={advancedParams.clip_skip}
+                              onChange={(e) => updateAdvancedParam('clip_skip', parseInt(e.target.value))}
+                              data-testid="clip-skip-input"
+                            />
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="advanced-params" className="border-panel">
+                      <AccordionTrigger className="text-primary hover:text-primary">
+                        <div className="flex items-center">
+                          <Zap className="w-4 h-4 mr-2" />
+                          Advanced Parameters
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="space-y-4">
+                        {/* PAG Scale */}
                         <div className="space-y-2">
-                          <Label className="text-xs text-secondary">CFG Scale</Label>
+                          <Label className="text-xs text-secondary">
+                            Perturbed-Attention Guidance Scale (0 = disabled)
+                          </Label>
                           <Input
                             type="number"
-                            min="1"
-                            max="30"
+                            min="0"
+                            max="10"
                             step="0.1"
                             className="form-input text-sm"
-                            value={generationParams.cfg}
-                            onChange={(e) => updateParam('cfg', e.target.value)}
-                            data-testid="cfg-input"
+                            value={advancedParams.pag_scale}
+                            onChange={(e) => updateAdvancedParam('pag_scale', parseFloat(e.target.value) || 0)}
+                            data-testid="pag-scale-input"
                           />
                         </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-xs text-secondary">Width</Label>
-                          <Select 
-                            value={generationParams.width.toString()} 
-                            onValueChange={(value) => updateParam('width', value)}
-                          >
-                            <SelectTrigger className="form-input text-sm" data-testid="width-select">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="bg-panel border-panel">
-                              {[512, 768, 1024, 1280, 1536].map(size => (
-                                <SelectItem key={size} value={size.toString()} className="text-primary">
-                                  {size}px
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+
+                        {/* Refiner */}
+                        <div className="space-y-3">
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              checked={advancedParams.use_refiner}
+                              onCheckedChange={(checked) => updateAdvancedParam('use_refiner', checked)}
+                            />
+                            <Label className="text-sm text-primary">Use Refiner</Label>
+                          </div>
+                          {advancedParams.use_refiner && (
+                            <div className="grid grid-cols-2 gap-4 pl-6">
+                              <div className="space-y-2">
+                                <Label className="text-xs text-secondary">Refiner Model</Label>
+                                <Input
+                                  className="form-input text-sm"
+                                  placeholder="Refiner model name"
+                                  value={advancedParams.refiner_model}
+                                  onChange={(e) => updateAdvancedParam('refiner_model', e.target.value)}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs text-secondary">Refiner Switch (0-1)</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max="1"
+                                  step="0.1"
+                                  className="form-input text-sm"
+                                  value={advancedParams.refiner_switch}
+                                  onChange={(e) => updateAdvancedParam('refiner_switch', parseFloat(e.target.value))}
+                                />
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <div className="space-y-2">
-                          <Label className="text-xs text-secondary">Height</Label>
-                          <Select 
-                            value={generationParams.height.toString()} 
-                            onValueChange={(value) => updateParam('height', value)}
-                          >
-                            <SelectTrigger className="form-input text-sm" data-testid="height-select">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="bg-panel border-panel">
-                              {[512, 768, 1024, 1280, 1536].map(size => (
-                                <SelectItem key={size} value={size.toString()} className="text-primary">
-                                  {size}px
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+
+                        {/* Face Processing */}
+                        <div className="space-y-3">
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              checked={advancedParams.use_reactor}
+                              onCheckedChange={(checked) => updateAdvancedParam('use_reactor', checked)}
+                            />
+                            <Label className="text-sm text-primary">Use Reactor (Face Swap)</Label>
+                          </div>
+                          {advancedParams.use_reactor && (
+                            <div className="pl-6 space-y-2">
+                              <Label className="text-xs text-secondary">Reference Face Image URL</Label>
+                              <Input
+                                className="form-input text-sm"
+                                placeholder="https://example.com/face.jpg"
+                                value={advancedParams.reactor_face_image}
+                                onChange={(e) => updateAdvancedParam('reactor_face_image', e.target.value)}
+                              />
+                            </div>
+                          )}
                         </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label className="text-xs text-secondary">Seed (-1 for random)</Label>
-                        <Input
-                          type="number"
-                          min="-1"
-                          className="form-input text-sm"
-                          value={generationParams.seed}
-                          onChange={(e) => updateParam('seed', e.target.value)}
-                          data-testid="seed-input"
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
+
+                        {/* Upscaling */}
+                        <div className="space-y-3">
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              checked={advancedParams.use_upscale}
+                              onCheckedChange={(checked) => updateAdvancedParam('use_upscale', checked)}
+                            />
+                            <Label className="text-sm text-primary">Use Upscaling</Label>
+                          </div>
+                          {advancedParams.use_upscale && (
+                            <div className="grid grid-cols-2 gap-4 pl-6">
+                              <div className="space-y-2">
+                                <Label className="text-xs text-secondary">Upscale Factor</Label>
+                                <Select 
+                                  value={advancedParams.upscale_factor.toString()} 
+                                  onValueChange={(value) => updateAdvancedParam('upscale_factor', parseFloat(value))}
+                                >
+                                  <SelectTrigger className="form-input text-sm">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-panel border-panel">
+                                    {[1.5, 2, 3, 4].map(factor => (
+                                      <SelectItem key={factor} value={factor.toString()} className="text-primary">
+                                        {factor}x
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs text-secondary">Upscale Model</Label>
+                                <Select 
+                                  value={advancedParams.upscale_model} 
+                                  onValueChange={(value) => updateAdvancedParam('upscale_model', value)}
+                                >
+                                  <SelectTrigger className="form-input text-sm">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-panel border-panel">
+                                    {['RealESRGAN_x2plus', 'RealESRGAN_x4plus', 'ESRGAN_4x', 'SwinIR_4x'].map(model => (
+                                      <SelectItem key={model} value={model} className="text-primary">
+                                        {model}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Custom Workflow */}
+                        <div className="space-y-3">
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              checked={advancedParams.use_custom_workflow}
+                              onCheckedChange={(checked) => updateAdvancedParam('use_custom_workflow', checked)}
+                            />
+                            <Label className="text-sm text-primary">Use Custom ComfyUI Workflow</Label>
+                          </div>
+                          {advancedParams.use_custom_workflow && (
+                            <div className="pl-6 space-y-2">
+                              <Label className="text-xs text-secondary">Workflow JSON</Label>
+                              <Textarea
+                                className="form-input text-sm min-h-[100px] font-mono"
+                                placeholder='{"nodes": [...], "connections": [...]}'
+                                value={advancedParams.workflow_json}
+                                onChange={(e) => updateAdvancedParam('workflow_json', e.target.value)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 </>
               )}
             </div>
