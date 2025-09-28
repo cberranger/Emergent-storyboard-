@@ -253,6 +253,34 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
     }));
   };
 
+  const updateAdvancedParam = (key, value) => {
+    setAdvancedParams(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  const addLora = () => {
+    setLoras(prev => [...prev, { name: 'none', weight: 1.0 }]);
+  };
+
+  const removeLora = (index) => {
+    if (loras.length > 1) {
+      setLoras(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateLora = (index, field, value) => {
+    setLoras(prev => prev.map((lora, i) => 
+      i === index ? { ...lora, [field]: field === 'weight' ? parseFloat(value) || 0 : value } : lora
+    ));
+  };
+
+  const handleContentClick = (content) => {
+    setSelectedContent(content);
+    setShowMediaViewer(true);
+  };
+
   const renderGallery = (contentList, contentType) => {
     if (!contentList || contentList.length === 0) {
       return (
