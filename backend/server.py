@@ -833,10 +833,11 @@ async def generate_content(request: GenerationRequest):
 # Include the router in the main app
 app.include_router(api_router)
 
+# Add CORS middleware - configured for LAN access  
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=["*"],  # Allow all origins for LAN setup
     allow_methods=["*"],
     allow_headers=["*"],
 )
