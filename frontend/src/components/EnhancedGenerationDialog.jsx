@@ -842,12 +842,25 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                             <div className="grid grid-cols-2 gap-4 pl-6">
                               <div className="space-y-2">
                                 <Label className="text-xs text-secondary">Refiner Model</Label>
-                                <Input
-                                  className="form-input text-sm"
-                                  placeholder="Refiner model name"
-                                  value={advancedParams.refiner_model}
-                                  onChange={(e) => updateAdvancedParam('refiner_model', e.target.value)}
-                                />
+                                <Select 
+                                  value={advancedParams.refiner_model} 
+                                  onValueChange={(value) => updateAdvancedParam('refiner_model', value)}
+                                >
+                                  <SelectTrigger className="form-input text-sm" data-testid="refiner-model-select">
+                                    <SelectValue placeholder="Select refiner model" />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-panel border-panel max-h-48 overflow-y-auto">
+                                    {serverInfo?.models?.map((model, index) => (
+                                      <SelectItem 
+                                        key={index} 
+                                        value={model.name} 
+                                        className="text-primary hover:bg-panel-dark"
+                                      >
+                                        {model.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
                               <div className="space-y-2">
                                 <Label className="text-xs text-secondary">Refiner Switch (0-1)</Label>
@@ -859,6 +872,7 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                                   className="form-input text-sm"
                                   value={advancedParams.refiner_switch}
                                   onChange={(e) => updateAdvancedParam('refiner_switch', parseFloat(e.target.value))}
+                                  data-testid="refiner-switch-input"
                                 />
                               </div>
                             </div>
