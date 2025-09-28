@@ -953,6 +953,13 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
             </div>
           )}
         </div>
+
+        {/* Media Viewer Dialog */}
+        <MediaViewerDialog
+          open={showMediaViewer}
+          onOpenChange={setShowMediaViewer}
+          content={selectedContent}
+        />
       </DialogContent>
     </Dialog>
   );
