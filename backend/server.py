@@ -40,12 +40,17 @@ class ComfyUIServer(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     url: str
+    server_type: str = "standard"  # "standard" or "runpod"
+    api_key: Optional[str] = None  # For RunPod serverless
+    endpoint_id: Optional[str] = None  # Extracted from RunPod URL
     is_active: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ComfyUIServerCreate(BaseModel):
     name: str
     url: str
+    server_type: str = "standard"
+    api_key: Optional[str] = None
 
 class Model(BaseModel):
     name: str
