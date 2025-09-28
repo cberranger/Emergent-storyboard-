@@ -620,6 +620,28 @@ async def get_project_scenes(project_id: str):
     scenes = await db.scenes.find({"project_id": project_id}).sort("order").to_list(100)
     return [Scene(**scene) for scene in scenes]
 
+@api_router.get("/scenes/{scene_id}", response_model=Scene)
+async def get_scene(scene_id: str):
+    scene_data = await db.scenes.find_one({"id": scene_id})
+    if not scene_data:
+        raise HTTPException(status_code=404, detail="Scene not found")
+    return Scene(**scene_data)
+
+@api_router.put("/scenes/{scene_id}")
+async def update_scene(scene_id: str, scene_update: SceneUpdate):
+    update_data = {k: v for k, v in scene_update.dict().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc)
+    
+    result = await db.scenes.update_one(
+        {"id": scene_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Scene not found")
+    
+    return {"message": "Scene updated successfully"}
+
 # Clip Management
 @api_router.post("/clips", response_model=Clip)
 async def create_clip(clip_data: ClipCreate):
