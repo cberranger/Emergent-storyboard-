@@ -15,7 +15,10 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import SceneManager from './SceneManager';
 import GenerationDialog from './GenerationDialog';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+// Auto-detect environment  
+const isDevelopment = process.env.NODE_ENV === 'development';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 
+  (isDevelopment ? 'http://localhost:8001' : window.location.origin);
 const API = `${BACKEND_URL}/api`;
 
 const ItemTypes = {
