@@ -158,6 +158,16 @@ class LoraConfig(BaseModel):
     name: str
     weight: float = 1.0
 
+class InfiniteTalkRequest(BaseModel):
+    input_type: str = "image"  # "image" or "video" 
+    person_count: str = "single"  # "single" or "multi"
+    source_image_id: Optional[str] = None  # ID of image from clip gallery
+    audio_start_time: Optional[float] = 0.0  # Start time in seconds
+    audio_end_time: Optional[float] = None  # End time in seconds, None = full audio
+    quality_mode: str = "high"  # "fast" or "high"
+    width: int = 512
+    height: int = 512
+
 class GenerationRequest(BaseModel):
     clip_id: str
     server_id: str
@@ -166,8 +176,9 @@ class GenerationRequest(BaseModel):
     model: Optional[str] = None
     lora: Optional[str] = None  # Keep for backward compatibility
     loras: Optional[List[LoraConfig]] = []  # New multiple LoRAs support
-    generation_type: str  # "image" or "video"
+    generation_type: str  # "image", "video", or "infinitetalk"
     params: Optional[Dict[str, Any]] = None
+    infinitetalk_params: Optional[InfiniteTalkRequest] = None
 
 # Model defaults configuration
 MODEL_DEFAULTS = {
