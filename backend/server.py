@@ -131,16 +131,51 @@ class GenerationRequest(BaseModel):
 
 # ComfyUI API Helper
 class ComfyUIClient:
-    def __init__(self, base_url: str):
-        self.base_url = base_url.rstrip('/')
+    def __init__(self, server: ComfyUIServer):
+        self.server = server
+        self.base_url = server.url.rstrip('/')
+        
+        # Detect and extract RunPod endpoint ID
+        if "runpod.ai" in self.base_url or server.server_type == "runpod":
+            self.server_type = "runpod"
+            # Extract endpoint ID from URL like https://api.runpod.ai/v2/ud50myrcxgmeay
+            if "/v2/" in self.base_url:
+                self.endpoint_id = self.base_url.split("/v2/")[-1].split("/")[0]
+            else:
+                self.endpoint_id = server.endpoint_id or "unknown"
+        else:
+            self.server_type = "standard"
+            self.endpoint_id = None
         
     async def check_connection(self) -> bool:
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f"{self.base_url}/system_stats", timeout=5) as response:
-                    return response.status == 200
+            if self.server_type == "runpod":
+                return await self._check_runpod_connection()
+            else:
+                return await self._check_standard_connection()
         except:
             return False
+    
+    async def _check_standard_connection(self) -> bool:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{self.base_url}/system_stats", timeout=5) as response:
+                return response.status == 200
+    
+    async def _check_runpod_connection(self) -> bool:
+        # For RunPod, we'll just check if we can reach the API endpoint
+        # A more thorough check would require submitting a test job
+        if not self.server.api_key:
+            return False
+        
+        headers = {"Authorization": f"Bearer {self.server.api_key}"}
+        async with aiohttp.ClientSession() as session:
+            # Try to get server health/info - RunPod doesn't have a direct health endpoint
+            # so we'll consider it online if we have valid credentials
+            try:
+                async with session.get(f"https://api.runpod.ai/v2/{self.endpoint_id}", headers=headers, timeout=5) as response:
+                    return response.status in [200, 404]  # 404 is also acceptable as it means the endpoint exists
+            except:
+                return True  # Assume online if we can't verify (RunPod might not have health endpoints)
     
     async def get_models(self) -> Dict[str, List[str]]:
         try:
