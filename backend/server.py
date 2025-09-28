@@ -438,7 +438,7 @@ async def get_server_info(server_id: str):
         raise HTTPException(status_code=404, detail="Server not found")
     
     server = ComfyUIServer(**server_data)
-    client = ComfyUIClient(server.url)
+    client = ComfyUIClient(server)
     
     is_online = await client.check_connection()
     models_data = {"checkpoints": [], "loras": [], "vaes": []} if not is_online else await client.get_models()
