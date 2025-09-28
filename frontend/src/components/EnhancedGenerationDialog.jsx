@@ -302,6 +302,37 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
     setShowMediaViewer(true);
   };
 
+  const handleFaceUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    setIsUploadingFace(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await axios.post(`${API}/upload-face-image`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      updateAdvancedParam('reactor_face_image', response.data.file_url);
+      toast.success('Face image uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading face image:', error);
+      toast.error('Failed to upload face image');
+    } finally {
+      setIsUploadingFace(false);
+    }
+  };
+
   const renderGallery = (contentList, contentType) => {
     if (!contentList || contentList.length === 0) {
       return (
