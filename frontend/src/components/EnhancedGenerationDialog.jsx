@@ -1416,7 +1416,14 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
               </Button>
               <Button 
                 onClick={handleGenerate}
-                disabled={isGenerating || !selectedServer || !prompts[activeTab].trim() || !serverInfo?.is_online}
+                disabled={
+                  isGenerating || 
+                  !selectedServer || 
+                  !prompts[activeTab === 'infinitetalk' ? 'video' : activeTab].trim() || 
+                  !serverInfo?.is_online ||
+                  (activeTab !== 'infinitetalk' && !selectedModel) ||
+                  (activeTab === 'infinitetalk' && !infiniteTalkParams.source_image_id)
+                }
                 className="btn-primary"
                 data-testid="start-generation-btn"
               >
@@ -1428,7 +1435,7 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                 ) : (
                   <>
                     <Wand2 className="w-4 h-4 mr-2" />
-                    Generate {activeTab}
+                    Generate {activeTab === 'infinitetalk' ? 'InfiniteTalk Video' : activeTab}
                   </>
                 )}
               </Button>
