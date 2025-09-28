@@ -96,6 +96,20 @@ class SceneUpdate(BaseModel):
     description: Optional[str] = None
     lyrics: Optional[str] = None
 
+class GeneratedContent(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    content_type: str  # "image" or "video"
+    url: Optional[str] = None
+    prompt: str
+    negative_prompt: Optional[str] = ""
+    server_id: str
+    server_name: str
+    model_name: str
+    model_type: Optional[str] = None  # "sdxl", "flux_dev", "flux_krea", "wan_2_1", "wan_2_2", "hidream"
+    generation_params: Dict[str, Any] = {}
+    is_selected: bool = False  # Whether this is the active content for the clip
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 class ClipVersion(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     version_number: int
