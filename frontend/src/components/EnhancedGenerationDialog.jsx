@@ -130,9 +130,22 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
       if (response.data.models.length > 0) {
         setSelectedModel(response.data.models[0].name);
       }
+      
+      // Fetch available workflows
+      fetchServerWorkflows(serverId);
     } catch (error) {
       console.error('Error fetching server info:', error);
       toast.error('Failed to fetch server info');
+    }
+  };
+
+  const fetchServerWorkflows = async (serverId) => {
+    try {
+      const response = await axios.get(`${API}/comfyui/servers/${serverId}/workflows`);
+      setAvailableWorkflows(response.data.workflows || []);
+    } catch (error) {
+      console.error('Error fetching workflows:', error);
+      setAvailableWorkflows([]);
     }
   };
 
