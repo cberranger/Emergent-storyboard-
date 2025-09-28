@@ -382,6 +382,18 @@ class ComfyUIClient:
             logging.error(f"Error generating image: {e}")
         return None
     
+    async def generate_infinitetalk(self, infinitetalk_params: Dict, image_url: str = None, audio_url: str = None) -> Optional[str]:
+        """Generate InfiniteTalk lip-sync video"""
+        try:
+            if self.server_type == "runpod":
+                return await self._generate_infinitetalk_runpod(infinitetalk_params, image_url, audio_url)
+            else:
+                # Standard ComfyUI servers don't support InfiniteTalk directly
+                raise Exception("InfiniteTalk is only supported on RunPod serverless endpoints")
+        except Exception as e:
+            logging.error(f"Error generating InfiniteTalk video: {e}")
+        return None
+    
     async def _generate_image_runpod(self, prompt: str, negative_prompt: str = "", model: str = None, params: Dict = None, loras: List = None) -> Optional[str]:
         if not self.server.api_key:
             logging.error("No API key provided for RunPod server")
