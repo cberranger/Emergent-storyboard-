@@ -885,18 +885,49 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                             <Switch
                               checked={advancedParams.use_reactor}
                               onCheckedChange={(checked) => updateAdvancedParam('use_reactor', checked)}
+                              data-testid="reactor-switch"
                             />
                             <Label className="text-sm text-primary">Use Reactor (Face Swap)</Label>
                           </div>
                           {advancedParams.use_reactor && (
-                            <div className="pl-6 space-y-2">
-                              <Label className="text-xs text-secondary">Reference Face Image URL</Label>
-                              <Input
-                                className="form-input text-sm"
-                                placeholder="https://example.com/face.jpg"
-                                value={advancedParams.reactor_face_image}
-                                onChange={(e) => updateAdvancedParam('reactor_face_image', e.target.value)}
-                              />
+                            <div className="pl-6 space-y-3">
+                              <div className="space-y-2">
+                                <Label className="text-xs text-secondary">Reference Face Image</Label>
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleFaceUpload}
+                                    className="hidden"
+                                    id="face-upload"
+                                    data-testid="face-upload-input"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => document.getElementById('face-upload')?.click()}
+                                    disabled={isUploadingFace}
+                                    className="btn-secondary"
+                                    data-testid="face-upload-btn"
+                                  >
+                                    {isUploadingFace ? 'Uploading...' : 'Upload Face'}
+                                  </Button>
+                                  {advancedParams.reactor_face_image && (
+                                    <span className="text-xs text-green-400">✓ Image uploaded</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs text-secondary">Or enter image URL</Label>
+                                <Input
+                                  className="form-input text-sm"
+                                  placeholder="https://example.com/face.jpg"
+                                  value={advancedParams.reactor_face_image}
+                                  onChange={(e) => updateAdvancedParam('reactor_face_image', e.target.value)}
+                                  data-testid="reactor-face-url-input"
+                                />
+                              </div>
                             </div>
                           )}
                         </div>
