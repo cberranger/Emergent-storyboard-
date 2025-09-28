@@ -781,14 +781,14 @@ async def generate_content(request: GenerationRequest):
             )
             
             if result_url:
-            # Get server info for metadata
-            server = ComfyUIServer(**server_data)
-            
-            # Detect model type and get defaults
-            model_type = detect_model_type(request.model or "unknown")
-            
-            # Create new generated content
-            new_content = GeneratedContent(
+                # Get server info for metadata
+                server = ComfyUIServer(**server_data)
+                
+                # Detect model type and get defaults
+                model_type = detect_model_type(request.model or "unknown")
+                
+                # Create new generated content
+                new_content = GeneratedContent(
                 content_type="image",
                 url=result_url,
                 prompt=request.prompt,
