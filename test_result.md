@@ -175,52 +175,52 @@ backend:
 
 frontend:
   - task: "InfiniteTalk UI Integration"
-    implemented: false
+    implemented: true
     working: "NA"
     file: "EnhancedGenerationDialog.jsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         -working: "NA"
         -agent: "main" 
-        -comment: "Need to add InfiniteTalk mode toggle with image picker, audio controls, and quality settings"
+        -comment: "Added InfiniteTalk tab with image picker, audio timing controls, quality mode selection, and all parameters"
         
   - task: "Archive Browser UI"
-    implemented: false
+    implemented: true
     working: "NA"
     file: "EnhancedGenerationDialog.jsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         -working: "NA"
         -agent: "main"
-        -comment: "Need archive browser for viewing and reassigning archived content"
+        -comment: "Added archive tab in gallery with viewing and restore functionality"
         
   - task: "Discard/Delete Buttons"
-    implemented: false
+    implemented: true
     working: "NA"
     file: "EnhancedGenerationDialog.jsx"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         -working: "NA"
         -agent: "main"
-        -comment: "Need discard and delete buttons in gallery with confirmation dialogs"
+        -comment: "Added discard, delete, and restore buttons in gallery with proper confirmation and visual feedback"
 
   - task: "Complete Reactor Photo Upload UI"
-    implemented: false
-    working: "NA"
+    implemented: true
+    working: true
     file: "EnhancedGenerationDialog.jsx"
     stuck_count: 0
     priority: "low"
     needs_retesting: false
     status_history:
-        -working: "NA"
+        -working: true
         -agent: "main"
-        -comment: "Existing pending task - complete file upload interface"
+        -comment: "Reactor photo upload UI was already complete from previous implementation"
 
 metadata:
   created_by: "main_agent"
