@@ -221,6 +221,43 @@ const Timeline = ({ project, comfyUIServers }) => {
     setShowGenerationDialog(true);
   };
 
+  const handleSceneUpdate = async () => {
+    if (!activeScene?.id) return;
+    
+    try {
+      await axios.put(`${API}/scenes/${activeScene.id}`, sceneEditData);
+      
+      // Update the local scene data
+      setActiveScene(prev => ({
+        ...prev,
+        ...sceneEditData
+      }));
+      
+      // Update scenes list
+      setScenes(prevScenes =>
+        prevScenes.map(scene =>
+          scene.id === activeScene.id
+            ? { ...scene, ...sceneEditData }
+            : scene
+        )
+      );
+      
+      setEditingScene(false);
+      toast.success('Scene updated successfully');
+    } catch (error) {
+      console.error('Error updating scene:', error);
+      toast.error('Failed to update scene');
+    }
+  };
+
+  const startEditingScene = () => {
+    setSceneEditData({
+      description: activeScene?.description || '',
+      lyrics: activeScene?.lyrics || ''
+    });
+    setEditingScene(true);
+  };
+
   const handleMusicUpload = async (file) => {
     try {
       const formData = new FormData();
