@@ -85,6 +85,19 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
     workflow_json: ''
   });
 
+  // InfiniteTalk parameters
+  const [infiniteTalkParams, setInfiniteTalkParams] = useState({
+    enabled: false,
+    input_type: 'image', // 'image' or 'video'
+    person_count: 'single', // 'single' or 'multi'
+    source_image_id: '',
+    audio_start_time: 0,
+    audio_end_time: null,
+    quality_mode: 'high', // 'fast' or 'high'
+    width: 512,
+    height: 512
+  });
+
   // Available samplers and schedulers
   const samplers = [
     'euler', 'euler_a', 'heun', 'heunpp2', 'dpm_2', 'dpm_2_a', 'lms', 'dpm_fast',
