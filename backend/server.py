@@ -79,14 +79,22 @@ class Scene(BaseModel):
     project_id: str
     name: str
     description: Optional[str] = ""
+    lyrics: Optional[str] = ""  # Scene-specific lyrics
     order: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class SceneCreate(BaseModel):
     project_id: str
     name: str
     description: Optional[str] = ""
+    lyrics: Optional[str] = ""
     order: int = 0
+
+class SceneUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    lyrics: Optional[str] = None
 
 class ClipVersion(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
