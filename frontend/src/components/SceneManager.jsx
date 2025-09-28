@@ -171,6 +171,13 @@ const SceneManager = ({
                         onChange={(e) => setNewScene({ ...newScene, description: e.target.value })}
                         data-testid="scene-description-input"
                       />
+                      <Textarea
+                        className="form-input min-h-[100px]"
+                        placeholder="Lyrics for this scene"
+                        value={newScene.lyrics}
+                        onChange={(e) => setNewScene({ ...newScene, lyrics: e.target.value })}
+                        data-testid="scene-lyrics-input"
+                      />
                       <div className="flex justify-end space-x-2">
                         <Button 
                           type="button" 
