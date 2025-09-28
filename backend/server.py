@@ -413,6 +413,15 @@ async def root():
 @api_router.post("/comfyui/servers", response_model=ComfyUIServer)
 async def add_comfyui_server(server_data: ComfyUIServerCreate):
     server_dict = server_data.dict()
+    
+    # Auto-detect RunPod serverless
+    if "runpod.ai" in server_dict["url"]:
+        server_dict["server_type"] = "runpod"
+        # Extract endpoint ID from URL
+        if "/v2/" in server_dict["url"]:
+            endpoint_id = server_dict["url"].split("/v2/")[-1].split("/")[0]
+            server_dict["endpoint_id"] = endpoint_id
+    
     server = ComfyUIServer(**server_dict)
     await db.comfyui_servers.insert_one(server.dict())
     return server
