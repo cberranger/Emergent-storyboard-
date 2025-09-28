@@ -140,7 +140,7 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
         prompt: prompt.trim(),
         negative_prompt: negativePrompt.trim(),
         model: selectedModel,
-        lora: selectedLora || null,
+        lora: selectedLora && selectedLora !== "none" ? selectedLora : null,
         generation_type: activeTab,
         params: {
           ...generationParams,
