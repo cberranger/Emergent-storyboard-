@@ -32,6 +32,8 @@ api_router = APIRouter(prefix="/api")
 # Create uploads directory
 UPLOADS_DIR = Path("uploads")
 UPLOADS_DIR.mkdir(exist_ok=True)
+(UPLOADS_DIR / "videos").mkdir(exist_ok=True)
+(UPLOADS_DIR / "faces").mkdir(exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Backend URL for generating full URLs
