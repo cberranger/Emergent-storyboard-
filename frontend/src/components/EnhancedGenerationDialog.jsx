@@ -137,6 +137,11 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
     }
   }, [selectedModel]);
 
+  useEffect(() => {
+    // Update InfiniteTalk enabled state based on active tab
+    updateInfiniteTalkParam('enabled', activeTab === 'infinitetalk');
+  }, [activeTab]);
+
   const fetchServerInfo = async (serverId) => {
     try {
       const response = await axios.get(`${API}/comfyui/servers/${serverId}/info`);
