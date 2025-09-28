@@ -32,6 +32,11 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
   const [isGenerating, setIsGenerating] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [gallery, setGallery] = useState({ images: [], videos: [] });
+  const [showMediaViewer, setShowMediaViewer] = useState(false);
+  const [selectedContent, setSelectedContent] = useState(null);
+  
+  // Multiple LoRAs support
+  const [loras, setLoras] = useState([{ name: 'none', weight: 1.0 }]);
   
   const [prompts, setPrompts] = useState({
     image: '',
