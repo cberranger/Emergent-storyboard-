@@ -119,8 +119,9 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
         videoNegative: ''
       });
       
-      // Load gallery
+      // Load gallery and archive
       fetchGallery();
+      fetchArchive();
     }
   }, [clip, open]);
 
