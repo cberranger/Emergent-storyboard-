@@ -544,7 +544,7 @@ async def generate_content(request: GenerationRequest):
         raise HTTPException(status_code=404, detail="Server not found")
     
     server = ComfyUIServer(**server_data)
-    client = ComfyUIClient(server.url)
+    client = ComfyUIClient(server)
     
     # Check if server is online
     if not await client.check_connection():
