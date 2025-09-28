@@ -970,22 +970,22 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                         </Select>
                       </div>
                     
-                    {/* Multiple LoRAs */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm font-medium text-primary">LoRAs</Label>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={addLora}
-                          className="btn-secondary"
-                          data-testid="add-lora-btn"
-                        >
-                          <Plus className="w-3 h-3 mr-1" />
-                          Add LoRA
-                        </Button>
-                      </div>
+                      {/* Multiple LoRAs */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium text-primary">LoRAs</Label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={addLora}
+                            className="btn-secondary"
+                            data-testid="add-lora-btn"
+                          >
+                            <Plus className="w-3 h-3 mr-1" />
+                            Add LoRA
+                          </Button>
+                        </div>
                       <div className="space-y-2">
                         {loras.map((lora, index) => (
                           <div key={index} className="flex items-center space-x-2">
