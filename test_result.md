@@ -169,6 +169,9 @@ backend:
         -working: true
         -agent: "main"
         -comment: "Fixed MongoDB URL from 192.168.1.10 to localhost, API now working correctly"
+        -working: true
+        -agent: "testing"
+        -comment: "MongoDB connection confirmed working. All database operations successful during testing."
 
   - task: "Project Audio Management"
     implemented: true
@@ -181,6 +184,21 @@ backend:
         -working: true
         -agent: "main"
         -comment: "Music upload endpoint exists but need audio timing extraction"
+        -working: true
+        -agent: "testing"
+        -comment: "Project and audio management endpoints working correctly. Upload music endpoint functional."
+
+  - task: "Helper Endpoints"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "testing"
+        -comment: "New helper endpoint /clips/{clip_id}/get-image-url/{content_id} working correctly. Proper 404 handling for non-existent content and clips."
 
 frontend:
   - task: "InfiniteTalk UI Integration"
