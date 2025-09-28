@@ -296,6 +296,13 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
     }));
   };
 
+  const updateInfiniteTalkParam = (key, value) => {
+    setInfiniteTalkParams(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
   const addLora = () => {
     setLoras(prev => [...prev, { name: 'none', weight: 1.0 }]);
   };
