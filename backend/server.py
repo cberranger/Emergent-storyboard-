@@ -394,6 +394,111 @@ class ComfyUIClient:
             logging.error(f"Error generating InfiniteTalk video: {e}")
         return None
     
+    async def _generate_infinitetalk_runpod(self, infinitetalk_params: Dict, image_url: str = None, audio_url: str = None) -> Optional[str]:
+        """Generate InfiniteTalk video using RunPod API"""
+        if not self.server.api_key:
+            logging.error("No API key provided for RunPod server")
+            return None
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.server.api_key}"
+        }
+        
+        # Prepare InfiniteTalk request according to API spec
+        runpod_input = {
+            "input_type": infinitetalk_params.get("input_type", "image"),
+            "person_count": infinitetalk_params.get("person_count", "single"),
+            "prompt": infinitetalk_params.get("prompt", "A person talking naturally"),
+            "width": infinitetalk_params.get("width", 512),
+            "height": infinitetalk_params.get("height", 512)
+        }
+        
+        # Add image/video input
+        if infinitetalk_params.get("input_type") == "image" and image_url:
+            runpod_input["image_url"] = image_url
+        elif infinitetalk_params.get("input_type") == "video" and image_url:  # Using image_url for video too
+            runpod_input["video_url"] = image_url
+        
+        # Add audio input  
+        if audio_url:
+            runpod_input["wav_url"] = audio_url
+        
+        request_data = {"input": runpod_input}
+        
+        async with aiohttp.ClientSession() as session:
+            # Submit job to RunPod
+            async with session.post(
+                f"https://api.runpod.ai/v2/{self.endpoint_id}/run",
+                headers=headers,
+                json=request_data
+            ) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    job_id = result.get("id")
+                    
+                    if job_id:
+                        # Poll for completion (InfiniteTalk takes longer than image generation)
+                        for _ in range(300):  # 5 minutes timeout for video generation
+                            await asyncio.sleep(1)
+                            async with session.get(
+                                f"https://api.runpod.ai/v2/{self.endpoint_id}/stream/{job_id}",
+                                headers=headers
+                            ) as status_response:
+                                if status_response.status == 200:
+                                    status_data = await status_response.json()
+                                    status = status_data.get("status")
+                                    
+                                    if status == "COMPLETED":
+                                        output = status_data.get("output", {})
+                                        # InfiniteTalk returns video as base64 or URL
+                                        if isinstance(output, dict):
+                                            video_data = output.get("video")
+                                            if video_data:
+                                                # If base64, save to file and return URL
+                                                if video_data.startswith("data:video"):
+                                                    return await self._save_base64_video(video_data)
+                                                elif video_data.startswith("http"):
+                                                    return video_data
+                                        elif isinstance(output, str) and output.startswith("http"):
+                                            return output
+                                    elif status in ["FAILED", "CANCELLED"]:
+                                        error_msg = status_data.get("error", "InfiniteTalk generation failed")
+                                        logging.error(f"RunPod InfiniteTalk generation failed: {error_msg}")
+                                        break
+        
+        return None
+    
+    async def _save_base64_video(self, base64_video: str) -> str:
+        """Save base64 video data to file and return URL"""
+        try:
+            import base64
+            from pathlib import Path
+            
+            # Extract base64 data
+            if "," in base64_video:
+                base64_data = base64_video.split(",")[1]
+            else:
+                base64_data = base64_video
+            
+            # Decode and save
+            video_data = base64.b64decode(base64_data)
+            
+            # Create unique filename
+            video_filename = f"infinitetalk_{uuid.uuid4().hex[:8]}.mp4"
+            video_path = UPLOADS_DIR / "videos" / video_filename
+            video_path.parent.mkdir(exist_ok=True)
+            
+            with open(video_path, "wb") as f:
+                f.write(video_data)
+            
+            # Return relative URL
+            return f"/uploads/videos/{video_filename}"
+            
+        except Exception as e:
+            logging.error(f"Error saving base64 video: {e}")
+            return None
+    
     async def _generate_image_runpod(self, prompt: str, negative_prompt: str = "", model: str = None, params: Dict = None, loras: List = None) -> Optional[str]:
         if not self.server.api_key:
             logging.error("No API key provided for RunPod server")
