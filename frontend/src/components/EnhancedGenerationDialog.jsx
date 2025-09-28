@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wand2, Image, Video, Server, Settings, Cpu, Zap, Eye, Grid, X, Plus, Minus } from 'lucide-react';
+import { Wand2, Image, Video, Server, Settings, Cpu, Zap, Eye, Grid, X, Plus, Minus, Archive, Download } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
