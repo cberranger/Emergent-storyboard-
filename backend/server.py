@@ -750,13 +750,21 @@ async def get_model_defaults_api(model_name: str):
 # Generation
 @api_router.post("/generate")
 async def generate_content(request: GenerationRequest):
-    # Get server info
-    server_data = await db.comfyui_servers.find_one({"id": request.server_id})
-    if not server_data:
-        raise HTTPException(status_code=404, detail="Server not found")
-    
-    server = ComfyUIServer(**server_data)
-    client = ComfyUIClient(server)
+    try:
+        logging.info(f"Generation request: {request}")
+        
+        # Get server info
+        server_data = await db.comfyui_servers.find_one({"id": request.server_id})
+        if not server_data:
+            raise HTTPException(status_code=404, detail="Server not found")
+        
+        logging.info(f"Found server: {server_data}")
+        server = ComfyUIServer(**server_data)
+        client = ComfyUIClient(server)
+        
+    except Exception as e:
+        logging.error(f"Error in generate_content setup: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Setup error: {str(e)}")
     
     # Check if server is online
     if not await client.check_connection():
