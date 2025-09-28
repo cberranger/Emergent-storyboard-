@@ -409,7 +409,7 @@ class ComfyUIClient:
                         for _ in range(120):  # 2 minutes timeout
                             await asyncio.sleep(1)
                             async with session.get(
-                                f"https://api.runpod.ai/v2/{self.endpoint_id}/status/{job_id}",
+                                f"https://api.runpod.ai/v2/{self.endpoint_id}/stream/{job_id}",
                                 headers=headers
                             ) as status_response:
                                 if status_response.status == 200:
