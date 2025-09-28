@@ -647,7 +647,7 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
             <div className="flex-1 overflow-y-auto space-y-6">
               {/* Generation Type Tabs */}
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-2 bg-panel-dark">
+                <TabsList className="grid w-full grid-cols-3 bg-panel-dark">
                   <TabsTrigger value="image" className="data-[state=active]:bg-indigo-600">
                     <Image className="w-4 h-4 mr-2" />
                     Image Generation
@@ -656,8 +656,34 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                     <Video className="w-4 h-4 mr-2" />
                     Video Generation
                   </TabsTrigger>
+                  <TabsTrigger value="infinitetalk" className="data-[state=active]:bg-indigo-600">
+                    <Wand2 className="w-4 h-4 mr-2" />
+                    InfiniteTalk
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
+
+              {/* InfiniteTalk Mode Toggle */}
+              {activeTab === 'video' && (
+                <div className="flex items-center space-x-2 p-3 bg-panel-dark rounded-lg border border-panel">
+                  <Switch
+                    checked={infiniteTalkParams.enabled}
+                    onCheckedChange={(checked) => {
+                      updateInfiniteTalkParam('enabled', checked);
+                      if (checked) setActiveTab('infinitetalk');
+                    }}
+                  />
+                  <Label className="text-sm text-primary">Use InfiniteTalk for lip-sync video</Label>
+                </div>
+              )}
+
+              {/* Set InfiniteTalk as active when on InfiniteTalk tab */}
+              {activeTab === 'infinitetalk' && (
+                <div className="flex items-center space-x-2 p-3 bg-green-900/20 rounded-lg border border-green-600/30">
+                  <Wand2 className="w-4 h-4 text-green-400" />
+                  <Label className="text-sm text-green-400">InfiniteTalk Mode Active - Generate lip-sync videos from images</Label>
+                </div>
+              )}
 
               {/* Server Selection */}
               <div className="space-y-3">
