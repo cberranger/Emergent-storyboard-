@@ -304,6 +304,20 @@ const SceneManager = ({
                           onChange={(e) => setNewClip({ ...newClip, lyrics: e.target.value })}
                           data-testid="clip-lyrics-input"
                         />
+                        <Textarea
+                          className="form-input"
+                          placeholder="Image generation prompt"
+                          value={newClip.image_prompt}
+                          onChange={(e) => setNewClip({ ...newClip, image_prompt: e.target.value })}
+                          data-testid="clip-image-prompt-input"
+                        />
+                        <Textarea
+                          className="form-input"
+                          placeholder="Video generation prompt"
+                          value={newClip.video_prompt}
+                          onChange={(e) => setNewClip({ ...newClip, video_prompt: e.target.value })}
+                          data-testid="clip-video-prompt-input"
+                        />
                         <div className="flex justify-end space-x-2">
                           <Button 
                             type="button" 
