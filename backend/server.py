@@ -778,9 +778,9 @@ async def generate_content(request: GenerationRequest):
             negative_prompt=request.negative_prompt or "",
             model=request.model,
             params=request.params or {}
-        )
-        
-        if result_url:
+            )
+            
+            if result_url:
             # Get server info for metadata
             server = ComfyUIServer(**server_data)
             
