@@ -920,6 +920,198 @@ async def select_clip_content(clip_id: str, content_id: str, content_type: str):
     
     return {"message": f"Selected {content_type} updated successfully"}
 
+@api_router.put("/clips/{clip_id}/discard-content")
+async def discard_clip_content(clip_id: str, content_id: str, content_type: str):
+    """Move content from clip to archived state"""
+    if content_type not in ["image", "video"]:
+        raise HTTPException(status_code=400, detail="Invalid content type")
+    
+    # Find the clip
+    clip_data = await db.clips.find_one({"id": clip_id})
+    if not clip_data:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    
+    # Update the content to archived state
+    field_name = "generated_images" if content_type == "image" else "generated_videos"
+    content_list = clip_data.get(field_name, [])
+    
+    content_found = False
+    for content in content_list:
+        if content["id"] == content_id:
+            content["is_archived"] = True
+            content["archived_at"] = datetime.now(timezone.utc).isoformat()
+            content["is_selected"] = False  # Unselect if it was selected
+            content_found = True
+            break
+    
+    if not content_found:
+        raise HTTPException(status_code=404, detail="Content not found")
+    
+    # Update clip and clear selection if the discarded content was selected
+    update_data = {field_name: content_list}
+    if content_type == "image" and clip_data.get("selected_image_id") == content_id:
+        update_data["selected_image_id"] = None
+    elif content_type == "video" and clip_data.get("selected_video_id") == content_id:
+        update_data["selected_video_id"] = None
+    
+    await db.clips.update_one(
+        {"id": clip_id},
+        {"$set": update_data}
+    )
+    
+    return {"message": f"{content_type.capitalize()} moved to archive successfully"}
+
+@api_router.delete("/clips/{clip_id}/delete-content")
+async def delete_clip_content(clip_id: str, content_id: str, content_type: str):
+    """Permanently delete content from clip"""
+    if content_type not in ["image", "video"]:
+        raise HTTPException(status_code=400, detail="Invalid content type")
+    
+    # Find the clip
+    clip_data = await db.clips.find_one({"id": clip_id})
+    if not clip_data:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    
+    # Remove the content from the list
+    field_name = "generated_images" if content_type == "image" else "generated_videos"
+    content_list = clip_data.get(field_name, [])
+    
+    content_to_delete = None
+    updated_content_list = []
+    for content in content_list:
+        if content["id"] == content_id:
+            content_to_delete = content
+        else:
+            updated_content_list.append(content)
+    
+    if not content_to_delete:
+        raise HTTPException(status_code=404, detail="Content not found")
+    
+    # Update clip and clear selection if the deleted content was selected
+    update_data = {field_name: updated_content_list}
+    if content_type == "image" and clip_data.get("selected_image_id") == content_id:
+        update_data["selected_image_id"] = None
+    elif content_type == "video" and clip_data.get("selected_video_id") == content_id:
+        update_data["selected_video_id"] = None
+    
+    await db.clips.update_one(
+        {"id": clip_id},
+        {"$set": update_data}
+    )
+    
+    # TODO: Delete actual file from filesystem if needed
+    # For now, we just remove from database
+    
+    return {"message": f"{content_type.capitalize()} deleted permanently"}
+
+@api_router.get("/projects/{project_id}/archive")
+async def get_project_archive(project_id: str):
+    """Get all archived content for a project"""
+    # Find all clips in project scenes
+    scenes = await db.scenes.find({"project_id": project_id}).to_list(100)
+    scene_ids = [scene["id"] for scene in scenes]
+    
+    clips = await db.clips.find({"scene_id": {"$in": scene_ids}}).to_list(1000)
+    
+    archived_content = {"images": [], "videos": []}
+    
+    for clip_data in clips:
+        clip = Clip(**clip_data)
+        
+        # Collect archived images
+        for content in clip.generated_images:
+            if content.is_archived:
+                archived_content["images"].append({
+                    **content.dict(),
+                    "clip_id": clip.id,
+                    "clip_name": clip.name,
+                    "scene_id": clip.scene_id
+                })
+        
+        # Collect archived videos  
+        for content in clip.generated_videos:
+            if content.is_archived:
+                archived_content["videos"].append({
+                    **content.dict(),
+                    "clip_id": clip.id,
+                    "clip_name": clip.name,
+                    "scene_id": clip.scene_id
+                })
+    
+    return archived_content
+
+@api_router.put("/projects/{project_id}/restore-content")
+async def restore_archived_content(project_id: str, content_id: str, content_type: str, target_clip_id: str):
+    """Restore archived content to a clip"""
+    if content_type not in ["image", "video"]:
+        raise HTTPException(status_code=400, detail="Invalid content type")
+    
+    # Find the target clip
+    target_clip_data = await db.clips.find_one({"id": target_clip_id})
+    if not target_clip_data:
+        raise HTTPException(status_code=404, detail="Target clip not found")
+    
+    # Find content in all project clips
+    scenes = await db.scenes.find({"project_id": project_id}).to_list(100)
+    scene_ids = [scene["id"] for scene in scenes]
+    clips = await db.clips.find({"scene_id": {"$in": scene_ids}}).to_list(1000)
+    
+    content_found = False
+    source_clip_id = None
+    
+    for clip_data in clips:
+        field_name = "generated_images" if content_type == "image" else "generated_videos"
+        content_list = clip_data.get(field_name, [])
+        
+        for i, content in enumerate(content_list):
+            if content["id"] == content_id and content.get("is_archived", False):
+                # Remove from source clip
+                content_list.pop(i)
+                await db.clips.update_one(
+                    {"id": clip_data["id"]},
+                    {"$set": {field_name: content_list}}
+                )
+                
+                # Add to target clip (unarchived)
+                content["is_archived"] = False
+                content["archived_at"] = None
+                
+                target_field = "generated_images" if content_type == "image" else "generated_videos"
+                target_list = target_clip_data.get(target_field, [])
+                target_list.append(content)
+                
+                await db.clips.update_one(
+                    {"id": target_clip_id},
+                    {"$set": {target_field: target_list}}
+                )
+                
+                content_found = True
+                source_clip_id = clip_data["id"]
+                break
+        
+        if content_found:
+            break
+    
+    if not content_found:
+        raise HTTPException(status_code=404, detail="Archived content not found")
+    
+    return {"message": f"Content restored to clip successfully"}
+
+@api_router.get("/clips/{clip_id}/get-image-url/{content_id}")
+async def get_clip_image_url(clip_id: str, content_id: str):
+    """Get the URL of a specific image in clip gallery for InfiniteTalk"""
+    clip_data = await db.clips.find_one({"id": clip_id})
+    if not clip_data:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    
+    clip = Clip(**clip_data)
+    
+    for content in clip.generated_images:
+        if content.id == content_id and not content.is_archived:
+            return {"image_url": content.url}
+    
+    raise HTTPException(status_code=404, detail="Image not found or archived")
+
 @api_router.get("/models/defaults/{model_name}")
 async def get_model_defaults_api(model_name: str):
     """Get intelligent defaults for a specific model"""
