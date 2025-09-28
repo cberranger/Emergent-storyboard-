@@ -22,12 +22,25 @@ const ComfyUIManager = ({ servers, onAddServer, onRefresh }) => {
     e.preventDefault();
     if (!newServer.name.trim() || !newServer.url.trim()) return;
     
-    const server = await onAddServer(newServer.name, newServer.url);
-    if (server) {
-      setNewServer({ name: '', url: '' });
+    // Auto-detect RunPod
+    const isRunPod = newServer.url.includes('runpod.ai');
+    const serverData = {
+      name: newServer.name,
+      url: newServer.url,
+      server_type: isRunPod ? 'runpod' : 'standard',
+      api_key: isRunPod ? newServer.api_key : null
+    };
+    
+    try {
+      const response = await axios.post(`${API}/comfyui/servers`, serverData);
+      onAddServer && await onAddServer(); // Refresh the list
+      setNewServer({ name: '', url: '', server_type: 'standard', api_key: '' });
       setIsAddOpen(false);
       // Fetch info for the new server
-      fetchServerInfo(server.id);
+      fetchServerInfo(response.data.id);
+    } catch (error) {
+      console.error('Error adding server:', error);
+      toast.error('Failed to add server');
     }
   };
 
