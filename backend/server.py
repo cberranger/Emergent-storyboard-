@@ -437,7 +437,26 @@ class ComfyUIClient:
         
         return None
     
-    async def _generate_image_standard(self, prompt: str, negative_prompt: str = "", model: str = None, params: Dict = None) -> Optional[str]:
+    async def _generate_image_standard(self, prompt: str, negative_prompt: str = "", model: str = None, params: Dict = None, loras: List = None) -> Optional[str]:
+        # Enhanced ComfyUI workflow for text-to-image with advanced parameters
+        params = params or {}
+        loras = loras or []
+        
+        # Check if using custom workflow
+        if params.get('use_custom_workflow') and params.get('workflow_json'):
+            try:
+                import json
+                workflow = json.loads(params['workflow_json'])
+                # Replace placeholders in workflow with actual values
+                workflow_str = json.dumps(workflow)
+                workflow_str = workflow_str.replace('{{PROMPT}}', prompt)
+                workflow_str = workflow_str.replace('{{NEGATIVE_PROMPT}}', negative_prompt)
+                workflow_str = workflow_str.replace('{{MODEL}}', model or 'v1-5-pruned-emaonly.ckpt')
+                workflow = json.loads(workflow_str)
+            except:
+                # Fall back to default workflow if custom workflow fails
+                pass
+        
         # Basic ComfyUI workflow for text-to-image
         workflow = {
                 "3": {
