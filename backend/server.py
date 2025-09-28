@@ -362,9 +362,9 @@ class ComfyUIClient:
     async def generate_image(self, prompt: str, negative_prompt: str = "", model: str = None, params: Dict = None, loras: List = None) -> Optional[str]:
         try:
             if self.server_type == "runpod":
-                return await self._generate_image_runpod(prompt, negative_prompt, model, params)
+                return await self._generate_image_runpod(prompt, negative_prompt, model, params, loras)
             else:
-                return await self._generate_image_standard(prompt, negative_prompt, model, params)
+                return await self._generate_image_standard(prompt, negative_prompt, model, params, loras)
         except Exception as e:
             logging.error(f"Error generating image: {e}")
         return None
