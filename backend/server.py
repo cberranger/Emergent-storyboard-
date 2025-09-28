@@ -804,56 +804,56 @@ async def generate_content(request: GenerationRequest):
                 # Add to clip gallery
                 clip_data = await db.clips.find_one({"id": request.clip_id})
                 if clip_data:
-                logging.info(f"Found clip: {clip_data}")
-                
-                # Initialize clip with default values for new fields
-                if "generated_images" not in clip_data:
-                    clip_data["generated_images"] = []
-                if "generated_videos" not in clip_data:
-                    clip_data["generated_videos"] = []
-                if "selected_image_id" not in clip_data:
-                    clip_data["selected_image_id"] = None
-                if "selected_video_id" not in clip_data:
-                    clip_data["selected_video_id"] = None
-                if "image_prompt" not in clip_data:
-                    clip_data["image_prompt"] = ""
-                if "video_prompt" not in clip_data:
-                    clip_data["video_prompt"] = ""
-                if "updated_at" not in clip_data:
-                    clip_data["updated_at"] = datetime.now(timezone.utc)
-                
-                clip = Clip(**clip_data)
-                
-                # Add to generated images
-                clip.generated_images.append(new_content)
-                
-                # If this is the first image, select it automatically
-                if len(clip.generated_images) == 1:
-                    clip.selected_image_id = new_content.id
-                    new_content.is_selected = True
-                
-                # Update clip
-                await db.clips.update_one(
-                    {"id": request.clip_id},
-                    {"$set": {
-                        "generated_images": [img.dict() for img in clip.generated_images],
-                        "selected_image_id": clip.selected_image_id,
-                        "updated_at": datetime.now(timezone.utc)
-                    }}
-                )
-                
-                return {
-                    "message": "Image generated successfully", 
-                    "content": new_content.dict(),
-                    "total_images": len(clip.generated_images)
-                }
+                    logging.info(f"Found clip: {clip_data}")
+                    
+                    # Initialize clip with default values for new fields
+                    if "generated_images" not in clip_data:
+                        clip_data["generated_images"] = []
+                    if "generated_videos" not in clip_data:
+                        clip_data["generated_videos"] = []
+                    if "selected_image_id" not in clip_data:
+                        clip_data["selected_image_id"] = None
+                    if "selected_video_id" not in clip_data:
+                        clip_data["selected_video_id"] = None
+                    if "image_prompt" not in clip_data:
+                        clip_data["image_prompt"] = ""
+                    if "video_prompt" not in clip_data:
+                        clip_data["video_prompt"] = ""
+                    if "updated_at" not in clip_data:
+                        clip_data["updated_at"] = datetime.now(timezone.utc)
+                    
+                    clip = Clip(**clip_data)
+                    
+                    # Add to generated images
+                    clip.generated_images.append(new_content)
+                    
+                    # If this is the first image, select it automatically
+                    if len(clip.generated_images) == 1:
+                        clip.selected_image_id = new_content.id
+                        new_content.is_selected = True
+                    
+                    # Update clip
+                    await db.clips.update_one(
+                        {"id": request.clip_id},
+                        {"$set": {
+                            "generated_images": [img.dict() for img in clip.generated_images],
+                            "selected_image_id": clip.selected_image_id,
+                            "updated_at": datetime.now(timezone.utc)
+                        }}
+                    )
+                    
+                    return {
+                        "message": "Image generated successfully", 
+                        "content": new_content.dict(),
+                        "total_images": len(clip.generated_images)
+                    }
+            
+            raise HTTPException(status_code=500, detail="Failed to generate image")
         
-        raise HTTPException(status_code=500, detail="Failed to generate image")
-    
-    elif request.generation_type == "video":
-        # Video generation would be implemented similarly
-        raise HTTPException(status_code=501, detail="Video generation not implemented yet")
-    
+        elif request.generation_type == "video":
+            # Video generation would be implemented similarly
+            raise HTTPException(status_code=501, detail="Video generation not implemented yet")
+        
         else:
             raise HTTPException(status_code=400, detail="Invalid generation type")
             
