@@ -324,6 +324,79 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
     setShowMediaViewer(true);
   };
 
+  const fetchArchive = async () => {
+    if (!clip?.scene_id) return;
+    
+    try {
+      // Get project ID from scene
+      const sceneResponse = await axios.get(`${API}/scenes/${clip.scene_id}`);
+      const projectId = sceneResponse.data.project_id;
+      
+      const response = await axios.get(`${API}/projects/${projectId}/archive`);
+      setArchivedContent(response.data);
+    } catch (error) {
+      console.error('Error fetching archive:', error);
+    }
+  };
+
+  const discardContent = async (contentId, contentType) => {
+    try {
+      await axios.put(`${API}/clips/${clip.id}/discard-content`, null, {
+        params: { content_id: contentId, content_type: contentType }
+      });
+      
+      toast.success(`${contentType} moved to archive`);
+      fetchGallery();
+      fetchArchive();
+    } catch (error) {
+      console.error('Error discarding content:', error);
+      toast.error('Failed to move to archive');
+    }
+  };
+
+  const deleteContent = async (contentId, contentType) => {
+    if (!confirm(`Are you sure you want to permanently delete this ${contentType}?`)) {
+      return;
+    }
+    
+    try {
+      await axios.delete(`${API}/clips/${clip.id}/delete-content`, {
+        params: { content_id: contentId, content_type: contentType }
+      });
+      
+      toast.success(`${contentType} deleted permanently`);
+      fetchGallery();
+    } catch (error) {
+      console.error('Error deleting content:', error);
+      toast.error('Failed to delete content');
+    }
+  };
+
+  const restoreContent = async (contentId, contentType) => {
+    if (!clip?.scene_id) return;
+    
+    try {
+      // Get project ID from scene
+      const sceneResponse = await axios.get(`${API}/scenes/${clip.scene_id}`);
+      const projectId = sceneResponse.data.project_id;
+      
+      await axios.put(`${API}/projects/${projectId}/restore-content`, null, {
+        params: { 
+          content_id: contentId, 
+          content_type: contentType, 
+          target_clip_id: clip.id 
+        }
+      });
+      
+      toast.success(`${contentType} restored to clip`);
+      fetchGallery();
+      fetchArchive();
+    } catch (error) {
+      console.error('Error restoring content:', error);
+      toast.error('Failed to restore content');
+    }
+  };
+
   const handleFaceUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
