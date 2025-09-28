@@ -14,7 +14,7 @@ import axios from 'axios';
 import { useDrag, useDrop, DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import SceneManager from './SceneManager';
-import GenerationDialog from './GenerationDialog';
+import EnhancedGenerationDialog from './EnhancedGenerationDialog';
 
 // Auto-detect environment  
 const isDevelopment = process.env.NODE_ENV === 'development';
