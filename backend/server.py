@@ -770,24 +770,54 @@ async def generate_content(request: GenerationRequest):
         )
         
         if result_url:
-            # Create new version for the clip
+            # Get server info for metadata
+            server = ComfyUIServer(**server_data)
+            
+            # Detect model type and get defaults
+            model_type = detect_model_type(request.model or "unknown")
+            
+            # Create new generated content
+            new_content = GeneratedContent(
+                content_type="image",
+                url=result_url,
+                prompt=request.prompt,
+                negative_prompt=request.negative_prompt or "",
+                server_id=request.server_id,
+                server_name=server.name,
+                model_name=request.model or "unknown",
+                model_type=model_type,
+                generation_params=request.params or {},
+                is_selected=False
+            )
+            
+            # Add to clip gallery
             clip_data = await db.clips.find_one({"id": request.clip_id})
             if clip_data:
                 clip = Clip(**clip_data)
-                new_version = ClipVersion(
-                    version_number=len(clip.versions) + 1,
-                    image_url=result_url,
-                    image_prompt=request.prompt,
-                    generation_params=request.params
-                )
                 
-                # Add version to clip
+                # Add to generated images
+                clip.generated_images.append(new_content)
+                
+                # If this is the first image, select it automatically
+                if len(clip.generated_images) == 1:
+                    clip.selected_image_id = new_content.id
+                    new_content.is_selected = True
+                
+                # Update clip
                 await db.clips.update_one(
                     {"id": request.clip_id},
-                    {"$push": {"versions": new_version.dict()}}
+                    {"$set": {
+                        "generated_images": [img.dict() for img in clip.generated_images],
+                        "selected_image_id": clip.selected_image_id,
+                        "updated_at": datetime.now(timezone.utc)
+                    }}
                 )
                 
-                return {"message": "Image generated successfully", "version": new_version.dict()}
+                return {
+                    "message": "Image generated successfully", 
+                    "content": new_content.dict(),
+                    "total_images": len(clip.generated_images)
+                }
         
         raise HTTPException(status_code=500, detail="Failed to generate image")
     
