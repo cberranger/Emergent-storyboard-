@@ -455,7 +455,7 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                           <SelectValue placeholder="Select LoRA" />
                         </SelectTrigger>
                         <SelectContent className="bg-panel border-panel max-h-48 overflow-y-auto">
-                          <SelectItem value="" className="text-primary hover:bg-panel-dark">
+                          <SelectItem value="none" className="text-primary hover:bg-panel-dark">
                             None
                           </SelectItem>
                           {serverInfo.loras.map((lora, index) => (
