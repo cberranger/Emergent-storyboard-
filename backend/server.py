@@ -179,37 +179,64 @@ class ComfyUIClient:
     
     async def get_models(self) -> Dict[str, List[str]]:
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f"{self.base_url}/object_info") as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        # Extract model information from ComfyUI object_info
-                        models = {"checkpoints": [], "loras": [], "vaes": []}
-                        
-                        # Parse the complex object_info structure
-                        for node_type, node_info in data.items():
-                            if "input" in node_info and "required" in node_info["input"]:
-                                required_inputs = node_info["input"]["required"]
-                                for input_name, input_info in required_inputs.items():
-                                    if isinstance(input_info, list) and len(input_info) > 0:
-                                        if "ckpt_name" in input_name.lower() or "checkpoint" in input_name.lower():
-                                            if isinstance(input_info[0], list):
-                                                models["checkpoints"].extend(input_info[0])
-                                        elif "lora" in input_name.lower():
-                                            if isinstance(input_info[0], list):
-                                                models["loras"].extend(input_info[0])
-                                        elif "vae" in input_name.lower():
-                                            if isinstance(input_info[0], list):
-                                                models["vaes"].extend(input_info[0])
-                        
-                        # Remove duplicates
-                        for key in models:
-                            models[key] = list(set(models[key]))
-                        
-                        return models
+            if self.server_type == "runpod":
+                return await self._get_runpod_models()
+            else:
+                return await self._get_standard_models()
         except Exception as e:
             logging.error(f"Error getting models: {e}")
         return {"checkpoints": [], "loras": [], "vaes": []}
+    
+    async def _get_standard_models(self) -> Dict[str, List[str]]:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{self.base_url}/object_info") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    # Extract model information from ComfyUI object_info
+                    models = {"checkpoints": [], "loras": [], "vaes": []}
+                    
+                    # Parse the complex object_info structure
+                    for node_type, node_info in data.items():
+                        if "input" in node_info and "required" in node_info["input"]:
+                            required_inputs = node_info["input"]["required"]
+                            for input_name, input_info in required_inputs.items():
+                                if isinstance(input_info, list) and len(input_info) > 0:
+                                    if "ckpt_name" in input_name.lower() or "checkpoint" in input_name.lower():
+                                        if isinstance(input_info[0], list):
+                                            models["checkpoints"].extend(input_info[0])
+                                    elif "lora" in input_name.lower():
+                                        if isinstance(input_info[0], list):
+                                            models["loras"].extend(input_info[0])
+                                    elif "vae" in input_name.lower():
+                                        if isinstance(input_info[0], list):
+                                            models["vaes"].extend(input_info[0])
+                    
+                    # Remove duplicates
+                    for key in models:
+                        models[key] = list(set(models[key]))
+                    
+                    return models
+        return {"checkpoints": [], "loras": [], "vaes": []}
+    
+    async def _get_runpod_models(self) -> Dict[str, List[str]]:
+        # RunPod serverless doesn't expose model info via API
+        # Return some common models that are typically available
+        return {
+            "checkpoints": [
+                "sd_xl_base_1.0.safetensors",
+                "sd_xl_refiner_1.0.safetensors", 
+                "v1-5-pruned-emaonly.ckpt",
+                "realisticVisionV60B1_v60B1VAE.safetensors"
+            ],
+            "loras": [
+                "lcm-lora-sdxl.safetensors",
+                "pytorch_lora_weights.safetensors"
+            ],
+            "vaes": [
+                "sdxl_vae.safetensors",
+                "vae-ft-mse-840000-ema-pruned.ckpt"
+            ]
+        }
     
     async def generate_image(self, prompt: str, negative_prompt: str = "", model: str = None, params: Dict = None) -> Optional[str]:
         try:
