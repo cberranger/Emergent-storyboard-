@@ -14,7 +14,7 @@ const API = `${BACKEND_URL}/api`;
 
 const ComfyUIManager = ({ servers, onAddServer, onRefresh }) => {
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [newServer, setNewServer] = useState({ name: '', url: '' });
+  const [newServer, setNewServer] = useState({ name: '', url: '', server_type: 'standard', api_key: '' });
   const [serverInfos, setServerInfos] = useState({});
   const [loading, setLoading] = useState({});
 
