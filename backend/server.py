@@ -34,6 +34,9 @@ UPLOADS_DIR = Path("uploads")
 UPLOADS_DIR.mkdir(exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+# Backend URL for generating full URLs
+BACKEND_URL = os.environ.get('BACKEND_URL', 'http://localhost:8001')
+
 # Pydantic Models
 class ComfyUIServer(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
