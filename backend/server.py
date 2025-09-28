@@ -771,6 +771,30 @@ async def get_model_defaults_api(model_name: str):
         "defaults": defaults
     }
 
+@api_router.get("/comfyui/servers/{server_id}/workflows")
+async def get_server_workflows(server_id: str):
+    """Get available workflows from ComfyUI server"""
+    server_data = await db.comfyui_servers.find_one({"id": server_id})
+    if not server_data:
+        raise HTTPException(status_code=404, detail="Server not found")
+    
+    server = ComfyUIServer(**server_data)
+    client = ComfyUIClient(server)
+    
+    # For standard ComfyUI servers, try to get workflows from the /workflows endpoint
+    if server.server_type == "standard":
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{server.url}/workflows") as response:
+                    if response.status == 200:
+                        workflows = await response.json()
+                        return {"workflows": workflows}
+        except:
+            pass
+    
+    # Return empty list if no workflows found or server is offline
+    return {"workflows": []}
+
 # Generation
 @api_router.post("/generate")
 async def generate_content(request: GenerationRequest):
