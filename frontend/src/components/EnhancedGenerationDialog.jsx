@@ -288,7 +288,7 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
               className="btn-secondary"
               data-testid="toggle-gallery-btn"
             >
-              <Gallery className="w-4 h-4 mr-2" />
+              <Grid className="w-4 h-4 mr-2" />
               {showGallery ? 'Hide' : 'Show'} Gallery
             </Button>
           </div>
