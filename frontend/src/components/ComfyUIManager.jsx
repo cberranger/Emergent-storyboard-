@@ -147,16 +147,36 @@ const ComfyUIManager = ({ servers, onAddServer, onRefresh }) => {
                       </label>
                       <Input
                         className="form-input"
-                        placeholder="http://localhost:8188 or https://your-server.com"
+                        placeholder="http://localhost:8188 or https://api.runpod.ai/v2/your-endpoint"
                         value={newServer.url}
                         onChange={(e) => setNewServer({ ...newServer, url: e.target.value })}
                         required
                         data-testid="server-url-input"
                       />
                       <p className="text-xs text-secondary mt-1">
-                        Include the protocol (http:// or https://) and port if needed
+                        For RunPod: https://api.runpod.ai/v2/your-endpoint-id
                       </p>
                     </div>
+                    
+                    {newServer.url.includes('runpod.ai') && (
+                      <div>
+                        <label className="block text-sm font-medium text-secondary mb-2">
+                          RunPod API Key
+                        </label>
+                        <Input
+                          type="password"
+                          className="form-input"
+                          placeholder="Your RunPod API key"
+                          value={newServer.api_key}
+                          onChange={(e) => setNewServer({ ...newServer, api_key: e.target.value })}
+                          required
+                          data-testid="server-api-key-input"
+                        />
+                        <p className="text-xs text-secondary mt-1">
+                          Required for RunPod serverless endpoints
+                        </p>
+                      </div>
+                    )}
                     <div className="flex justify-end space-x-3 pt-4">
                       <Button 
                         type="button" 
