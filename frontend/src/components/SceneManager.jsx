@@ -78,10 +78,12 @@ const SceneManager = ({
         lyrics: newClip.lyrics,
         length: parseFloat(newClip.length),
         timeline_position: parseFloat(newClip.timeline_position),
+        image_prompt: newClip.image_prompt,
+        video_prompt: newClip.video_prompt,
         order: 0
       });
       
-      setNewClip({ name: '', lyrics: '', length: 5, timeline_position: 0 });
+      setNewClip({ name: '', lyrics: '', length: 5, timeline_position: 0, image_prompt: '', video_prompt: '' });
       setIsCreatingClip(false);
       onClipsChange();
       toast.success('Clip created successfully');
