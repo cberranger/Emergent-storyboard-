@@ -1397,6 +1397,7 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
+                  )}
                 </>
               )}
             </div>
