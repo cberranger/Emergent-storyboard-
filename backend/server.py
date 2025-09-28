@@ -773,7 +773,7 @@ async def generate_content(request: GenerationRequest):
     try:
         # Generate content
         if request.generation_type == "image":
-        result_url = await client.generate_image(
+            result_url = await client.generate_image(
             prompt=request.prompt,
             negative_prompt=request.negative_prompt or "",
             model=request.model,
