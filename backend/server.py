@@ -666,11 +666,84 @@ async def get_clip(clip_id: str):
 async def update_clip_timeline_position(clip_id: str, position: float):
     result = await db.clips.update_one(
         {"id": clip_id},
-        {"$set": {"timeline_position": position}}
+        {"$set": {"timeline_position": position, "updated_at": datetime.now(timezone.utc)}}
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Clip not found")
     return {"message": "Timeline position updated"}
+
+@api_router.put("/clips/{clip_id}/prompts")
+async def update_clip_prompts(clip_id: str, image_prompt: str = "", video_prompt: str = ""):
+    result = await db.clips.update_one(
+        {"id": clip_id},
+        {"$set": {
+            "image_prompt": image_prompt,
+            "video_prompt": video_prompt,
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    return {"message": "Prompts updated successfully"}
+
+@api_router.get("/clips/{clip_id}/gallery")
+async def get_clip_gallery(clip_id: str):
+    clip_data = await db.clips.find_one({"id": clip_id})
+    if not clip_data:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    
+    clip = Clip(**clip_data)
+    return {
+        "images": clip.generated_images,
+        "videos": clip.generated_videos,
+        "selected_image_id": clip.selected_image_id,
+        "selected_video_id": clip.selected_video_id
+    }
+
+@api_router.put("/clips/{clip_id}/select-content")
+async def select_clip_content(clip_id: str, content_id: str, content_type: str):
+    if content_type not in ["image", "video"]:
+        raise HTTPException(status_code=400, detail="Invalid content type")
+    
+    # Update the selected content
+    update_field = "selected_image_id" if content_type == "image" else "selected_video_id"
+    
+    result = await db.clips.update_one(
+        {"id": clip_id},
+        {"$set": {
+            update_field: content_id,
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    
+    # Also update the is_selected flag for all content of this type
+    field_name = "generated_images" if content_type == "image" else "generated_videos"
+    clip_data = await db.clips.find_one({"id": clip_id})
+    if clip_data:
+        content_list = clip_data.get(field_name, [])
+        for content in content_list:
+            content["is_selected"] = (content["id"] == content_id)
+        
+        await db.clips.update_one(
+            {"id": clip_id},
+            {"$set": {field_name: content_list}}
+        )
+    
+    return {"message": f"Selected {content_type} updated successfully"}
+
+@api_router.get("/models/defaults/{model_name}")
+async def get_model_defaults_api(model_name: str):
+    """Get intelligent defaults for a specific model"""
+    model_type = detect_model_type(model_name)
+    defaults = get_model_defaults(model_name)
+    return {
+        "model_name": model_name,
+        "detected_type": model_type,
+        "defaults": defaults
+    }
 
 # Generation
 @api_router.post("/generate")
