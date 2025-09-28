@@ -764,34 +764,180 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                   <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-primary">
-                        {activeTab === 'image' ? 'Image' : 'Video'} Prompt
+                        {activeTab === 'infinitetalk' ? 'Description' : (activeTab === 'image' ? 'Image' : 'Video')} Prompt
                       </Label>
                       <Textarea
                         className="form-input min-h-[80px]"
-                        placeholder={`Describe the ${activeTab} you want to generate...`}
-                        value={prompts[activeTab]}
+                        placeholder={
+                          activeTab === 'infinitetalk' 
+                            ? "Describe the person or scene (e.g., 'A person talking naturally')" 
+                            : `Describe the ${activeTab} you want to generate...`
+                        }
+                        value={prompts[activeTab === 'infinitetalk' ? 'video' : activeTab]}
                         onChange={(e) => setPrompts(prev => ({
                           ...prev,
-                          [activeTab]: e.target.value
+                          [activeTab === 'infinitetalk' ? 'video' : activeTab]: e.target.value
                         }))}
                         data-testid={`${activeTab}-prompt-input`}
                       />
                     </div>
                     
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-primary">Negative Prompt</Label>
-                      <Textarea
-                        className="form-input min-h-[60px]"
-                        placeholder="Describe what you don't want..."
-                        value={prompts[`${activeTab}Negative`]}
-                        onChange={(e) => setPrompts(prev => ({
-                          ...prev,
-                          [`${activeTab}Negative`]: e.target.value
-                        }))}
-                        data-testid={`${activeTab}-negative-prompt-input`}
-                      />
-                    </div>
+                    {activeTab !== 'infinitetalk' && (
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-primary">Negative Prompt</Label>
+                        <Textarea
+                          className="form-input min-h-[60px]"
+                          placeholder="Describe what you don't want..."
+                          value={prompts[`${activeTab}Negative`]}
+                          onChange={(e) => setPrompts(prev => ({
+                            ...prev,
+                            [`${activeTab}Negative`]: e.target.value
+                          }))}
+                          data-testid={`${activeTab}-negative-prompt-input`}
+                        />
+                      </div>
+                    )}
                   </div>
+
+                  {/* InfiniteTalk Parameters */}
+                  {activeTab === 'infinitetalk' && (
+                    <Card className="bg-panel-dark border-panel">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm text-primary">InfiniteTalk Settings</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Source Image Selection */}
+                        <div className="space-y-2">
+                          <Label className="text-sm text-primary">Source Image</Label>
+                          <Select 
+                            value={infiniteTalkParams.source_image_id} 
+                            onValueChange={(value) => updateInfiniteTalkParam('source_image_id', value)}
+                          >
+                            <SelectTrigger className="form-input">
+                              <SelectValue placeholder="Select an image from gallery" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-panel border-panel max-h-48 overflow-y-auto">
+                              {gallery.images?.filter(img => !img.is_archived)?.map((image, index) => (
+                                <SelectItem key={image.id} value={image.id} className="text-primary">
+                                  Image #{index + 1} - {image.prompt.substring(0, 30)}...
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {!gallery.images?.length && (
+                            <p className="text-xs text-secondary">Generate some images first to use with InfiniteTalk</p>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* Input Type */}
+                          <div className="space-y-2">
+                            <Label className="text-xs text-secondary">Input Type</Label>
+                            <Select 
+                              value={infiniteTalkParams.input_type} 
+                              onValueChange={(value) => updateInfiniteTalkParam('input_type', value)}
+                            >
+                              <SelectTrigger className="form-input text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-panel border-panel">
+                                <SelectItem value="image" className="text-primary">Image-to-Video</SelectItem>
+                                <SelectItem value="video" className="text-primary">Video-to-Video</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Person Count */}
+                          <div className="space-y-2">
+                            <Label className="text-xs text-secondary">Person Count</Label>
+                            <Select 
+                              value={infiniteTalkParams.person_count} 
+                              onValueChange={(value) => updateInfiniteTalkParam('person_count', value)}
+                            >
+                              <SelectTrigger className="form-input text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-panel border-panel">
+                                <SelectItem value="single" className="text-primary">Single Person</SelectItem>
+                                <SelectItem value="multi" className="text-primary">Multiple People</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* Quality Mode */}
+                          <div className="space-y-2">
+                            <Label className="text-xs text-secondary">Quality Mode</Label>
+                            <Select 
+                              value={infiniteTalkParams.quality_mode} 
+                              onValueChange={(value) => updateInfiniteTalkParam('quality_mode', value)}
+                            >
+                              <SelectTrigger className="form-input text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-panel border-panel">
+                                <SelectItem value="fast" className="text-primary">
+                                  Fast (Lower quality, faster generation)
+                                </SelectItem>
+                                <SelectItem value="high" className="text-primary">
+                                  High Quality (Better results, slower)
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Resolution */}
+                          <div className="space-y-2">
+                            <Label className="text-xs text-secondary">Resolution</Label>
+                            <Select 
+                              value={`${infiniteTalkParams.width}x${infiniteTalkParams.height}`} 
+                              onValueChange={(value) => {
+                                const [width, height] = value.split('x').map(Number);
+                                updateInfiniteTalkParam('width', width);
+                                updateInfiniteTalkParam('height', height);
+                              }}
+                            >
+                              <SelectTrigger className="form-input text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-panel border-panel">
+                                <SelectItem value="512x512" className="text-primary">512x512</SelectItem>
+                                <SelectItem value="768x768" className="text-primary">768x768</SelectItem>
+                                <SelectItem value="1024x1024" className="text-primary">1024x1024</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        {/* Audio Timing - Placeholder for future implementation */}
+                        <div className="space-y-2">
+                          <Label className="text-xs text-secondary">Audio Timing (Project Audio)</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              placeholder="Start time (s)"
+                              className="form-input text-sm"
+                              value={infiniteTalkParams.audio_start_time}
+                              onChange={(e) => updateInfiniteTalkParam('audio_start_time', parseFloat(e.target.value) || 0)}
+                            />
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              placeholder="End time (s)"
+                              className="form-input text-sm"
+                              value={infiniteTalkParams.audio_end_time || ''}
+                              onChange={(e) => updateInfiniteTalkParam('audio_end_time', e.target.value ? parseFloat(e.target.value) : null)}
+                            />
+                          </div>
+                          <p className="text-xs text-secondary">Leave end time empty to use full audio</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
 
                   {/* Model Selection */}
                   <div className="space-y-4">
