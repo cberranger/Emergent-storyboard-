@@ -149,6 +149,8 @@ class ClipCreate(BaseModel):
     length: float = 5.0
     timeline_position: float = 0.0
     order: int = 0
+    image_prompt: Optional[str] = ""
+    video_prompt: Optional[str] = ""
 
 class GenerationRequest(BaseModel):
     clip_id: str
