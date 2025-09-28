@@ -453,11 +453,11 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
     }
   };
 
-  const renderGallery = (contentList, contentType) => {
+  const renderGallery = (contentList, contentType, isArchive = false) => {
     if (!contentList || contentList.length === 0) {
       return (
         <div className="text-center py-8 text-secondary">
-          No {contentType}s generated yet
+          No {contentType}s {isArchive ? 'in archive' : 'generated yet'}
         </div>
       );
     }
@@ -468,17 +468,25 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
           <Card 
             key={content.id} 
             className={`cursor-pointer transition-all ${
-              content.is_selected 
+              content.is_selected && !isArchive
                 ? 'ring-2 ring-indigo-500 bg-indigo-500/10' 
                 : 'hover:ring-1 hover:ring-gray-500'
             }`}
-            onClick={() => selectContent(content.id, contentType)}
+            onClick={(e) => {
+              if (!isArchive) {
+                selectContent(content.id, contentType);
+              }
+              e.stopPropagation();
+            }}
             data-testid={`gallery-${contentType}-${index}`}
           >
             <CardContent className="p-3">
               <div 
                 className="aspect-square bg-panel-dark rounded mb-2 flex items-center justify-center cursor-pointer relative group"
-                onClick={() => handleContentClick(content)}
+                onClick={(e) => {
+                  handleContentClick(content);
+                  e.stopPropagation();
+                }}
               >
                 {content.url ? (
                   <>
@@ -508,13 +516,76 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                 <div className="text-xs text-secondary">
                   {content.model_name}
                 </div>
-                {content.is_selected && (
-                  <Badge variant="default" className="bg-indigo-600 text-xs">
-                    Selected
-                  </Badge>
-                )}
+                <div className="flex items-center gap-1 flex-wrap">
+                  {content.is_selected && !isArchive && (
+                    <Badge variant="default" className="bg-indigo-600 text-xs">
+                      Selected
+                    </Badge>
+                  )}
+                  {isArchive && (
+                    <Badge variant="outline" className="bg-amber-600/20 text-amber-400 border-amber-500/30 text-xs">
+                      Archived
+                    </Badge>
+                  )}
+                </div>
                 <div className="text-xs text-secondary truncate">
                   {content.prompt.substring(0, 50)}...
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex gap-1 pt-1">
+                  {!isArchive ? (
+                    <>
+                      {infiniteTalkParams.enabled && contentType === 'image' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            updateInfiniteTalkParam('source_image_id', content.id);
+                            toast.success('Image selected for InfiniteTalk');
+                          }}
+                          className="text-xs p-1 h-6"
+                        >
+                          Use for InfiniteTalk
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          discardContent(content.id, contentType);
+                        }}
+                        className="text-xs p-1 h-6 text-amber-400 hover:text-amber-300"
+                      >
+                        Archive
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteContent(content.id, contentType);
+                        }}
+                        className="text-xs p-1 h-6 text-red-400 hover:text-red-300"
+                      >
+                        Delete
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        restoreContent(content.id, contentType);
+                      }}
+                      className="text-xs p-1 h-6 text-green-400 hover:text-green-300"
+                    >
+                      Restore
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardContent>
