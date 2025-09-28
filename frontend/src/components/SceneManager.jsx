@@ -33,12 +33,14 @@ const SceneManager = ({
   const [editingScene, setEditingScene] = useState(null);
   const [editingClip, setEditingClip] = useState(null);
   
-  const [newScene, setNewScene] = useState({ name: '', description: '' });
+  const [newScene, setNewScene] = useState({ name: '', description: '', lyrics: '' });
   const [newClip, setNewClip] = useState({ 
     name: '', 
     lyrics: '', 
     length: 5, 
-    timeline_position: 0 
+    timeline_position: 0,
+    image_prompt: '',
+    video_prompt: ''
   });
 
   // Scene Management
