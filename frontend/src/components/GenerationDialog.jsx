@@ -25,7 +25,7 @@ const GenerationDialog = ({ open, onOpenChange, clip, servers, onGenerated }) =>
   const [prompt, setPrompt] = useState('');
   const [negativePrompt, setNegativePrompt] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
-  const [selectedLora, setSelectedLora] = useState('');
+  const [selectedLora, setSelectedLora] = useState('none');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationParams, setGenerationParams] = useState({
     steps: 20,
