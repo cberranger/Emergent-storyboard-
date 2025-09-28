@@ -622,24 +622,48 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
         <div className="flex flex-col h-full overflow-hidden">
           {showGallery ? (
             <div className="flex-1 overflow-y-auto">
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-2 bg-panel-dark mb-4">
+              <Tabs value={showArchive ? 'archive' : activeTab} onValueChange={(value) => {
+                if (value === 'archive') {
+                  setShowArchive(true);
+                } else {
+                  setShowArchive(false);
+                  setActiveTab(value);
+                }
+              }}>
+                <TabsList className="grid w-full grid-cols-3 bg-panel-dark mb-4">
                   <TabsTrigger value="image" className="data-[state=active]:bg-indigo-600">
                     <Image className="w-4 h-4 mr-2" />
-                    Images ({gallery.images?.length || 0})
+                    Images ({gallery.images?.filter(img => !img.is_archived)?.length || 0})
                   </TabsTrigger>
                   <TabsTrigger value="video" className="data-[state=active]:bg-indigo-600">
                     <Video className="w-4 h-4 mr-2" />
-                    Videos ({gallery.videos?.length || 0})
+                    Videos ({gallery.videos?.filter(vid => !vid.is_archived)?.length || 0})
+                  </TabsTrigger>
+                  <TabsTrigger value="archive" className="data-[state=active]:bg-indigo-600">
+                    <Grid className="w-4 h-4 mr-2" />
+                    Archive ({(archivedContent.images?.length || 0) + (archivedContent.videos?.length || 0)})
                   </TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="image">
-                  {renderGallery(gallery.images, 'image')}
+                  {renderGallery(gallery.images?.filter(img => !img.is_archived), 'image')}
                 </TabsContent>
                 
                 <TabsContent value="video">
-                  {renderGallery(gallery.videos, 'video')}
+                  {renderGallery(gallery.videos?.filter(vid => !vid.is_archived), 'video')}
+                </TabsContent>
+
+                <TabsContent value="archive">
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-sm font-medium text-primary mb-3">Archived Images</h3>
+                      {renderGallery(archivedContent.images, 'image', true)}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-primary mb-3">Archived Videos</h3>
+                      {renderGallery(archivedContent.videos, 'video', true)}
+                    </div>
+                  </div>
                 </TabsContent>
               </Tabs>
             </div>
