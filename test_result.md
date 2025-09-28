@@ -233,10 +233,12 @@ test_plan:
     - "InfiniteTalk API Integration"
     - "InfiniteTalk UI Integration" 
     - "Archive System Backend"
+    - "Archive Browser UI"
+    - "Discard/Delete Buttons"
   stuck_tasks: []
-  test_all: false
+  test_all: true
   test_priority: "high_first"
 
 agent_communication:
     -agent: "main"
-    -message: "Starting implementation of InfiniteTalk integration, archive system, and delete functionality. Will focus on backend API integration first, then frontend UI."
+    -message: "Completed implementation of InfiniteTalk integration, archive system, and delete functionality. Fixed MongoDB connection issue. Ready for comprehensive testing of all new features."
