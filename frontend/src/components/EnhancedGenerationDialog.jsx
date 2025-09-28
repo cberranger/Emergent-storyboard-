@@ -1041,7 +1041,8 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                         ))}
                       </div>
                     </div>
-                  </div>
+                    </div>
+                  )}
 
                   {/* Generation Parameters */}
                   <Accordion type="single" collapsible className="w-full">
