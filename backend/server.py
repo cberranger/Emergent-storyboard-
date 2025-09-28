@@ -803,6 +803,24 @@ async def generate_content(request: GenerationRequest):
             # Add to clip gallery
             clip_data = await db.clips.find_one({"id": request.clip_id})
             if clip_data:
+                logging.info(f"Found clip: {clip_data}")
+                
+                # Initialize clip with default values for new fields
+                if "generated_images" not in clip_data:
+                    clip_data["generated_images"] = []
+                if "generated_videos" not in clip_data:
+                    clip_data["generated_videos"] = []
+                if "selected_image_id" not in clip_data:
+                    clip_data["selected_image_id"] = None
+                if "selected_video_id" not in clip_data:
+                    clip_data["selected_video_id"] = None
+                if "image_prompt" not in clip_data:
+                    clip_data["image_prompt"] = ""
+                if "video_prompt" not in clip_data:
+                    clip_data["video_prompt"] = ""
+                if "updated_at" not in clip_data:
+                    clip_data["updated_at"] = datetime.now(timezone.utc)
+                
                 clip = Clip(**clip_data)
                 
                 # Add to generated images
