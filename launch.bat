@@ -43,21 +43,17 @@ echo.
 echo 📋 Configuration Summary:
 echo    Frontend: http://%FRONTEND_HOST%
 echo    Backend:  %BACKEND_URL%  
-echo    Frontend will connect to: !REACT_APP_BACKEND_URL!
-echo.
-
 :: Create backend .env file
-echo 🔧 Creating backend configuration...
+echo Creating backend configuration...
 (
 echo # Database Configuration
-echo MONGO_URL=mongodb://localhost:27017/storycanvas
-echo DB_NAME=storycanvas
+echo MONGO_URL=mongodb://192.168.1.10:27017
+echo DB_NAME=Storyboard
 echo.
 echo # CORS Configuration
 echo CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://0.0.0.0:3000
 echo.
 echo # Server Configuration  
-echo HOST=%BACKEND_IP%
 echo PORT=%BACKEND_PORT%
 ) > backend\.env
 
@@ -70,14 +66,8 @@ echo HOST=%FRONTEND_IP%
 ) > frontend\.env
 
 :: Check MongoDB
-echo 🗄️ Checking MongoDB...
-tasklist /FI "IMAGENAME eq mongod.exe" 2>NUL | find /I /N "mongod.exe">NUL
-if not "%ERRORLEVEL%"=="0" (
-    echo ⚠️  MongoDB is not running.
-    echo    Please start MongoDB manually or install MongoDB Community Server
-    echo    Download: https://www.mongodb.com/try/download/community
-    echo.
-)
+echo 🗄️ Checking MongoDB connection...
+echo    Remote MongoDB at 192.168.1.10:27017
 
 :: Install backend dependencies
 echo 📦 Installing backend dependencies...
@@ -148,7 +138,7 @@ echo 🎉 StoryCanvas is starting up!
 echo ================================
 echo 📱 Frontend: http://%FRONTEND_HOST%
 echo ⚙️  Backend:  %BACKEND_URL%
-echo 🗄️  Database: MongoDB (local)
+echo 🗄️  Database: MongoDB (192.168.1.10)
 echo.
 echo 🔗 Add your ComfyUI servers:
 echo    - Local: http://192.168.1.10:7820-7824

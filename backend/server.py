@@ -15,14 +15,13 @@ import asyncio
 from fastapi.staticfiles import StaticFiles
 import shutil
 
-
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+mongo_url = os.environ.get('MONGO_URL', 'mongodb://192.168.1.10:27017')
+client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=5000)
+db = client[os.environ.get('DB_NAME', 'Storyboard')]
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -378,6 +377,7 @@ class ComfyUIClient:
                 }
             }
             
+        try:
             async with aiohttp.ClientSession() as session:
                 # Queue the prompt
                 async with session.post(f"{self.base_url}/prompt", json={"prompt": workflow}) as response:
