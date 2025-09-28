@@ -11,14 +11,11 @@ import ProjectView from "@/components/ProjectView";
 import ComfyUIManager from "@/components/ComfyUIManager";
 import Timeline from "@/components/Timeline";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://storycanvas-4.preview.emergentagent.com';
+// Auto-detect environment
+const isDevelopment = process.env.NODE_ENV === 'development';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 
+  (isDevelopment ? 'http://localhost:8001' : window.location.origin);
 const API = `${BACKEND_URL}/api`;
-
-console.log('Environment check:', {
-  REACT_APP_BACKEND_URL: process.env.REACT_APP_BACKEND_URL,
-  BACKEND_URL: BACKEND_URL,
-  API: API
-});
 
 function App() {
   const [projects, setProjects] = useState([]);
