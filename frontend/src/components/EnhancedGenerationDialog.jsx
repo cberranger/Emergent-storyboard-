@@ -507,7 +507,7 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                   </div>
 
                   {/* Model Selection */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-4">
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-primary flex items-center">
                         <Cpu className="w-4 h-4 mr-1" />
@@ -536,27 +536,76 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                       </Select>
                     </div>
                     
+                    {/* Multiple LoRAs */}
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-primary">LoRA (Optional)</Label>
-                      <Select value={selectedLora} onValueChange={setSelectedLora}>
-                        <SelectTrigger className="form-input" data-testid="lora-select">
-                          <SelectValue placeholder="Select LoRA" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-panel border-panel max-h-48 overflow-y-auto">
-                          <SelectItem value="none" className="text-primary hover:bg-panel-dark">
-                            None
-                          </SelectItem>
-                          {serverInfo.loras.map((lora, index) => (
-                            <SelectItem 
-                              key={index} 
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium text-primary">LoRAs</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={addLora}
+                          className="btn-secondary"
+                          data-testid="add-lora-btn"
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          Add LoRA
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        {loras.map((lora, index) => (
+                          <div key={index} className="flex items-center space-x-2">
+                            <Select 
                               value={lora.name} 
-                              className="text-primary hover:bg-panel-dark"
+                              onValueChange={(value) => updateLora(index, 'name', value)}
                             >
-                              {lora.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                              <SelectTrigger className="form-input flex-1">
+                                <SelectValue placeholder="Select LoRA" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-panel border-panel max-h-48 overflow-y-auto">
+                                <SelectItem value="none" className="text-primary hover:bg-panel-dark">
+                                  None
+                                </SelectItem>
+                                {serverInfo.loras.map((availableLora, loraIndex) => (
+                                  <SelectItem 
+                                    key={loraIndex} 
+                                    value={availableLora.name} 
+                                    className="text-primary hover:bg-panel-dark"
+                                  >
+                                    {availableLora.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            
+                            <div className="flex items-center space-x-2 min-w-24">
+                              <Label className="text-xs text-secondary">Weight:</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                max="2"
+                                step="0.1"
+                                className="form-input w-16 text-xs"
+                                value={lora.weight}
+                                onChange={(e) => updateLora(index, 'weight', e.target.value)}
+                                disabled={lora.name === 'none'}
+                              />
+                            </div>
+                            
+                            {loras.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => removeLora(index)}
+                                className="btn-secondary"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
