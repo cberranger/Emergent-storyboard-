@@ -128,9 +128,19 @@ class Clip(BaseModel):
     length: float = 5.0  # seconds
     timeline_position: float = 0.0  # position on timeline
     order: int = 0
+    # Enhanced prompting system
+    image_prompt: Optional[str] = ""
+    video_prompt: Optional[str] = ""
+    # Gallery system
+    generated_images: List[GeneratedContent] = []
+    generated_videos: List[GeneratedContent] = []
+    selected_image_id: Optional[str] = None
+    selected_video_id: Optional[str] = None
+    # Legacy version system (keeping for compatibility)
     versions: List[ClipVersion] = []
     active_version: int = 1
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ClipCreate(BaseModel):
     scene_id: str
