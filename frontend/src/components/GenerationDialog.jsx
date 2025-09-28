@@ -84,7 +84,7 @@ const GenerationDialog = ({ open, onOpenChange, clip, servers, onGenerated }) =>
         prompt: prompt.trim(),
         negative_prompt: negativePrompt.trim(),
         model: selectedModel,
-        lora: selectedLora || null,
+        lora: selectedLora && selectedLora !== "none" ? selectedLora : null,
         generation_type: generationType,
         params: {
           ...generationParams,
