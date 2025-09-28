@@ -190,8 +190,15 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
   };
 
   const handleGenerate = async () => {
-    if (!selectedServer || !selectedModel) {
-      toast.error('Please select a server and model');
+    const isInfiniteTalk = infiniteTalkParams.enabled;
+    
+    if (!selectedServer) {
+      toast.error('Please select a server');
+      return;
+    }
+
+    if (!isInfiniteTalk && !selectedModel) {
+      toast.error('Please select a model');
       return;
     }
 
@@ -208,6 +215,21 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
       return;
     }
 
+    // InfiniteTalk validation
+    if (isInfiniteTalk) {
+      if (!infiniteTalkParams.source_image_id) {
+        toast.error('Please select an image from the gallery for InfiniteTalk');
+        return;
+      }
+      
+      // Check if selected server is RunPod
+      const server = servers.find(s => s.id === selectedServer);
+      if (!server?.url?.includes('runpod.ai') && server?.server_type !== 'runpod') {
+        toast.error('InfiniteTalk is only available on RunPod serverless endpoints');
+        return;
+      }
+    }
+
     setIsGenerating(true);
     
     try {
@@ -221,19 +243,21 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
         server_id: selectedServer,
         prompt: prompt.trim(),
         negative_prompt: negativePrompt.trim(),
-        model: selectedModel,
-        loras: lorasData, // Multiple LoRAs
-        generation_type: activeTab,
-        params: {
+        model: isInfiniteTalk ? 'InfiniteTalk' : selectedModel,
+        loras: isInfiniteTalk ? [] : lorasData, // LoRAs not used for InfiniteTalk
+        generation_type: isInfiniteTalk ? 'infinitetalk' : activeTab,
+        params: isInfiniteTalk ? infiniteTalkParams : {
           ...generationParams,
           ...advancedParams,
           seed: generationParams.seed === -1 ? Math.floor(Math.random() * 1000000) : generationParams.seed
-        }
+        },
+        infinitetalk_params: isInfiniteTalk ? infiniteTalkParams : null
       };
 
       await axios.post(`${API}/generate`, requestData);
       
-      toast.success(`${activeTab === 'image' ? 'Image' : 'Video'} generation started successfully`);
+      const generationType = isInfiniteTalk ? 'InfiniteTalk video' : (activeTab === 'image' ? 'Image' : 'Video');
+      toast.success(`${generationType} generation started successfully`);
       
       // Update clip prompts
       await updateClipPrompts();
@@ -241,7 +265,7 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
       // Refresh gallery
       setTimeout(() => {
         fetchGallery();
-      }, 2000);
+      }, isInfiniteTalk ? 5000 : 2000); // InfiniteTalk takes longer
       
       onGenerated();
     } catch (error) {
