@@ -939,35 +939,36 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                     </Card>
                   )}
 
-                  {/* Model Selection */}
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-primary flex items-center">
-                        <Cpu className="w-4 h-4 mr-1" />
-                        Model
-                        {modelDefaults.detected_type && (
-                          <Badge variant="outline" className="ml-2 text-xs">
-                            {modelDefaults.detected_type}
-                          </Badge>
-                        )}
-                      </Label>
-                      <Select value={selectedModel} onValueChange={setSelectedModel}>
-                        <SelectTrigger className="form-input" data-testid="model-select">
-                          <SelectValue placeholder="Select model" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-panel border-panel max-h-48 overflow-y-auto">
-                          {serverInfo.models.map((model, index) => (
-                            <SelectItem 
-                              key={index} 
-                              value={model.name} 
-                              className="text-primary hover:bg-panel-dark"
-                            >
-                              {model.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  {/* Model Selection - Hidden for InfiniteTalk */}
+                  {activeTab !== 'infinitetalk' && (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-primary flex items-center">
+                          <Cpu className="w-4 h-4 mr-1" />
+                          Model
+                          {modelDefaults.detected_type && (
+                            <Badge variant="outline" className="ml-2 text-xs">
+                              {modelDefaults.detected_type}
+                            </Badge>
+                          )}
+                        </Label>
+                        <Select value={selectedModel} onValueChange={setSelectedModel}>
+                          <SelectTrigger className="form-input" data-testid="model-select">
+                            <SelectValue placeholder="Select model" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-panel border-panel max-h-48 overflow-y-auto">
+                            {serverInfo.models.map((model, index) => (
+                              <SelectItem 
+                                key={index} 
+                                value={model.name} 
+                                className="text-primary hover:bg-panel-dark"
+                              >
+                                {model.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     
                     {/* Multiple LoRAs */}
                     <div className="space-y-2">
