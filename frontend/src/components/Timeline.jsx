@@ -544,7 +544,7 @@ const Timeline = ({ project, comfyUIServers }) => {
           onSetSelectedClip={setSelectedClip}
         />
         
-        <GenerationDialog
+        <EnhancedGenerationDialog
           open={showGenerationDialog}
           onOpenChange={setShowGenerationDialog}
           clip={selectedClip}
