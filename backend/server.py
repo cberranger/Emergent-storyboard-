@@ -369,7 +369,7 @@ class ComfyUIClient:
             logging.error(f"Error generating image: {e}")
         return None
     
-    async def _generate_image_runpod(self, prompt: str, negative_prompt: str = "", model: str = None, params: Dict = None) -> Optional[str]:
+    async def _generate_image_runpod(self, prompt: str, negative_prompt: str = "", model: str = None, params: Dict = None, loras: List = None) -> Optional[str]:
         if not self.server.api_key:
             logging.error("No API key provided for RunPod server")
             return None
