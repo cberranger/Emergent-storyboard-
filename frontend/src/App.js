@@ -64,20 +64,9 @@ function App() {
     }
   };
 
-  const addComfyUIServer = async (name, url) => {
-    try {
-      const response = await axios.post(`${API}/comfyui/servers`, {
-        name,
-        url
-      });
-      setComfyUIServers([...comfyUIServers, response.data]);
-      toast.success('ComfyUI server added successfully');
-      return response.data;
-    } catch (error) {
-      console.error('Error adding ComfyUI server:', error);
-      toast.error('Failed to add ComfyUI server');
-      return null;
-    }
+  const addComfyUIServer = async () => {
+    // This will be handled by the ComfyUIManager component directly
+    fetchComfyUIServers(); // Just refresh the list
   };
 
   const selectProject = (project) => {
