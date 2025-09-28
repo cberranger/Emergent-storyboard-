@@ -152,13 +152,18 @@ class ClipCreate(BaseModel):
     image_prompt: Optional[str] = ""
     video_prompt: Optional[str] = ""
 
+class LoraConfig(BaseModel):
+    name: str
+    weight: float = 1.0
+
 class GenerationRequest(BaseModel):
     clip_id: str
     server_id: str
     prompt: str
     negative_prompt: Optional[str] = ""
     model: Optional[str] = None
-    lora: Optional[str] = None
+    lora: Optional[str] = None  # Keep for backward compatibility
+    loras: Optional[List[LoraConfig]] = []  # New multiple LoRAs support
     generation_type: str  # "image" or "video"
     params: Optional[Dict[str, Any]] = None
 
