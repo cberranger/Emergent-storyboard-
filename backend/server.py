@@ -1255,6 +1255,95 @@ async def generate_content(request: GenerationRequest):
             # Video generation would be implemented similarly
             raise HTTPException(status_code=501, detail="Video generation not implemented yet")
         
+        elif request.generation_type == "infinitetalk":
+            # InfiniteTalk lip-sync video generation
+            if not request.infinitetalk_params:
+                raise HTTPException(status_code=400, detail="InfiniteTalk parameters required")
+                
+            infinitetalk_params = request.infinitetalk_params.dict()
+            infinitetalk_params["prompt"] = request.prompt
+            
+            # Get source image URL if specified
+            image_url = None
+            if infinitetalk_params.get("source_image_id"):
+                image_response = await get_clip_image_url(request.clip_id, infinitetalk_params["source_image_id"])
+                image_url = image_response["image_url"]
+                if not image_url.startswith("http"):
+                    # Convert relative URL to full URL
+                    image_url = f"{BACKEND_URL}{image_url}" if image_url.startswith("/") else image_url
+            
+            # Get project audio URL - for now using a placeholder
+            # TODO: Implement audio extraction from project with timing
+            audio_url = None
+            clip_data = await db.clips.find_one({"id": request.clip_id})
+            if clip_data:
+                scene_data = await db.scenes.find_one({"id": clip_data["scene_id"]})
+                if scene_data:
+                    project_data = await db.projects.find_one({"id": scene_data["project_id"]})
+                    if project_data and project_data.get("music_file_path"):
+                        # Convert to URL format - simplified for now
+                        music_path = project_data["music_file_path"]
+                        if "/uploads/" in music_path:
+                            audio_url = f"{BACKEND_URL}{music_path.split('/uploads/')[-1]}"
+            
+            result_url = await client.generate_infinitetalk(
+                infinitetalk_params=infinitetalk_params,
+                image_url=image_url,
+                audio_url=audio_url
+            )
+            
+            if result_url:
+                # Create new generated content for InfiniteTalk video
+                new_content = GeneratedContent(
+                    content_type="video",
+                    url=result_url,
+                    prompt=request.prompt,
+                    negative_prompt="",  # InfiniteTalk doesn't use negative prompts
+                    server_id=request.server_id,
+                    server_name=server.name,
+                    model_name="InfiniteTalk",
+                    model_type="infinitetalk",
+                    generation_params=infinitetalk_params,
+                    is_selected=False
+                )
+                
+                # Add to clip gallery
+                clip_data = await db.clips.find_one({"id": request.clip_id})
+                if clip_data:
+                    # Initialize clip with default values for new fields
+                    if "generated_videos" not in clip_data:
+                        clip_data["generated_videos"] = []
+                    if "selected_video_id" not in clip_data:
+                        clip_data["selected_video_id"] = None
+                    
+                    clip = Clip(**clip_data)
+                    
+                    # Add to generated videos
+                    clip.generated_videos.append(new_content)
+                    
+                    # If this is the first video, select it automatically
+                    if len(clip.generated_videos) == 1:
+                        clip.selected_video_id = new_content.id
+                        new_content.is_selected = True
+                    
+                    # Update clip
+                    await db.clips.update_one(
+                        {"id": request.clip_id},
+                        {"$set": {
+                            "generated_videos": [video.dict() for video in clip.generated_videos],
+                            "selected_video_id": clip.selected_video_id,
+                            "updated_at": datetime.now(timezone.utc)
+                        }}
+                    )
+                    
+                    return {
+                        "message": "InfiniteTalk video generated successfully",
+                        "content": new_content.dict(),
+                        "total_videos": len(clip.generated_videos)
+                    }
+            
+            raise HTTPException(status_code=500, detail="Failed to generate InfiniteTalk video")
+        
         else:
             raise HTTPException(status_code=400, detail="Invalid generation type")
             
