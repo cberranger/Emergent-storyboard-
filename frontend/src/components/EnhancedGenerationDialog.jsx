@@ -180,16 +180,22 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
     setIsGenerating(true);
     
     try {
+      // Prepare LoRAs data
+      const lorasData = loras
+        .filter(lora => lora.name !== 'none')
+        .map(lora => ({ name: lora.name, weight: lora.weight }));
+
       const requestData = {
         clip_id: clip.id,
         server_id: selectedServer,
         prompt: prompt.trim(),
         negative_prompt: negativePrompt.trim(),
         model: selectedModel,
-        lora: selectedLora && selectedLora !== "none" ? selectedLora : null,
+        loras: lorasData, // Multiple LoRAs
         generation_type: activeTab,
         params: {
           ...generationParams,
+          ...advancedParams,
           seed: generationParams.seed === -1 ? Math.floor(Math.random() * 1000000) : generationParams.seed
         }
       };
