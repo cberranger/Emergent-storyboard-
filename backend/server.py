@@ -240,8 +240,85 @@ class ComfyUIClient:
     
     async def generate_image(self, prompt: str, negative_prompt: str = "", model: str = None, params: Dict = None) -> Optional[str]:
         try:
-            # Basic ComfyUI workflow for text-to-image
-            workflow = {
+            if self.server_type == "runpod":
+                return await self._generate_image_runpod(prompt, negative_prompt, model, params)
+            else:
+                return await self._generate_image_standard(prompt, negative_prompt, model, params)
+        except Exception as e:
+            logging.error(f"Error generating image: {e}")
+        return None
+    
+    async def _generate_image_runpod(self, prompt: str, negative_prompt: str = "", model: str = None, params: Dict = None) -> Optional[str]:
+        if not self.server.api_key:
+            logging.error("No API key provided for RunPod server")
+            return None
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.server.api_key}"
+        }
+        
+        # Prepare RunPod request
+        runpod_input = {
+            "prompt": prompt,
+        }
+        
+        if negative_prompt:
+            runpod_input["negative_prompt"] = negative_prompt
+        
+        if params:
+            runpod_input.update({
+                "width": params.get("width", 512),
+                "height": params.get("height", 512), 
+                "steps": params.get("steps", 20),
+                "cfg_scale": params.get("cfg", 8),
+                "seed": params.get("seed", -1)
+            })
+        
+        request_data = {"input": runpod_input}
+        
+        async with aiohttp.ClientSession() as session:
+            # Submit job to RunPod
+            async with session.post(
+                f"https://api.runpod.ai/v2/{self.endpoint_id}/run",
+                headers=headers,
+                json=request_data
+            ) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    job_id = result.get("id")
+                    
+                    if job_id:
+                        # Poll for completion
+                        for _ in range(120):  # 2 minutes timeout
+                            await asyncio.sleep(1)
+                            async with session.get(
+                                f"https://api.runpod.ai/v2/{self.endpoint_id}/status/{job_id}",
+                                headers=headers
+                            ) as status_response:
+                                if status_response.status == 200:
+                                    status_data = await status_response.json()
+                                    status = status_data.get("status")
+                                    
+                                    if status == "COMPLETED":
+                                        output = status_data.get("output", {})
+                                        # RunPod typically returns image URLs or base64 data
+                                        if isinstance(output, dict):
+                                            image_url = output.get("image_url") or output.get("images", [{}])[0].get("url")
+                                            if image_url:
+                                                return image_url
+                                        elif isinstance(output, str) and output.startswith("http"):
+                                            return output
+                                    elif status in ["FAILED", "CANCELLED"]:
+                                        error_msg = status_data.get("error", "Generation failed")
+                                        logging.error(f"RunPod generation failed: {error_msg}")
+                                        break
+        
+        return None
+    
+    async def _generate_image_standard(self, prompt: str, negative_prompt: str = "", model: str = None, params: Dict = None) -> Optional[str]:
+        # Basic ComfyUI workflow for text-to-image
+        workflow = {
                 "3": {
                     "inputs": {
                         "seed": params.get("seed", 42) if params else 42,
