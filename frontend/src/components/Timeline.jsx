@@ -395,14 +395,105 @@ const Timeline = ({ project, comfyUIServers }) => {
         {/* Timeline */}
         <div className="flex-1 p-6">
           <div className="timeline-container p-4">
-            <div className="mb-4">
-              <h3 className="text-lg font-medium text-primary mb-2">
-                {activeScene?.name || 'Select a scene'}
-              </h3>
-              {activeScene?.description && (
-                <p className="text-sm text-secondary">{activeScene.description}</p>
-              )}
-            </div>
+            {/* Scene Info Section */}
+            {activeScene && (
+              <div className="mb-6 p-4 bg-panel-dark rounded-lg border border-panel">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-primary">
+                    {activeScene.name}
+                  </h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={startEditingScene}
+                    className="btn-secondary"
+                    data-testid="edit-scene-btn"
+                  >
+                    <Edit3 className="w-4 h-4 mr-2" />
+                    Edit Scene
+                  </Button>
+                </div>
+                
+                {editingScene ? (
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium text-secondary mb-2 block">
+                        Scene Description
+                      </Label>
+                      <Textarea
+                        className="form-input min-h-[80px]"
+                        placeholder="Describe this scene..."
+                        value={sceneEditData.description}
+                        onChange={(e) => setSceneEditData({
+                          ...sceneEditData,
+                          description: e.target.value
+                        })}
+                        data-testid="scene-description-input"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium text-secondary mb-2 block">
+                        Lyrics for this Scene
+                      </Label>
+                      <Textarea
+                        className="form-input min-h-[100px]"
+                        placeholder="Enter the lyrics for this scene..."
+                        value={sceneEditData.lyrics}
+                        onChange={(e) => setSceneEditData({
+                          ...sceneEditData,
+                          lyrics: e.target.value
+                        })}
+                        data-testid="scene-lyrics-input"
+                      />
+                    </div>
+                    
+                    <div className="flex justify-end space-x-3">
+                      <Button
+                        variant="outline"
+                        onClick={() => setEditingScene(false)}
+                        className="btn-secondary"
+                        data-testid="cancel-scene-edit-btn"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleSceneUpdate}
+                        className="btn-primary"
+                        data-testid="save-scene-btn"
+                      >
+                        Save Changes
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs text-secondary">Description</Label>
+                      <p className="text-sm text-primary mt-1">
+                        {activeScene.description || 'No description provided'}
+                      </p>
+                    </div>
+                    
+                    {activeScene.lyrics && (
+                      <div>
+                        <Label className="text-xs text-secondary">Scene Lyrics</Label>
+                        <div className="text-sm text-primary mt-1 p-3 bg-panel rounded border border-panel whitespace-pre-wrap">
+                          {activeScene.lyrics}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Timeline Header */}
+            {activeScene && (
+              <div className="mb-4">
+                <h4 className="text-md font-medium text-primary mb-2">Timeline</h4>
+              </div>
+            )}
             
             {activeScene ? (
               <TimelineTrack
