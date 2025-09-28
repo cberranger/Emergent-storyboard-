@@ -770,8 +770,9 @@ async def generate_content(request: GenerationRequest):
     if not await client.check_connection():
         raise HTTPException(status_code=503, detail="ComfyUI server is offline")
     
-    # Generate content
-    if request.generation_type == "image":
+    try:
+        # Generate content
+        if request.generation_type == "image":
         result_url = await client.generate_image(
             prompt=request.prompt,
             negative_prompt=request.negative_prompt or "",
