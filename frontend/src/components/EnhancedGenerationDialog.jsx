@@ -1044,8 +1044,9 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                     </div>
                   )}
 
-                  {/* Generation Parameters */}
-                  <Accordion type="single" collapsible className="w-full">
+                  {/* Generation Parameters - Hidden for InfiniteTalk */}
+                  {activeTab !== 'infinitetalk' && (
+                    <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="basic-params" className="border-panel">
                       <AccordionTrigger className="text-primary hover:text-primary">
                         <div className="flex items-center">
