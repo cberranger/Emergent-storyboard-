@@ -310,21 +310,29 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
             data-testid={`gallery-${contentType}-${index}`}
           >
             <CardContent className="p-3">
-              <div className="aspect-square bg-panel-dark rounded mb-2 flex items-center justify-center">
+              <div 
+                className="aspect-square bg-panel-dark rounded mb-2 flex items-center justify-center cursor-pointer relative group"
+                onClick={() => handleContentClick(content)}
+              >
                 {content.url ? (
-                  contentType === 'image' ? (
-                    <img 
-                      src={content.url} 
-                      alt="Generated" 
-                      className="w-full h-full object-cover rounded"
-                    />
-                  ) : (
-                    <video 
-                      src={content.url} 
-                      className="w-full h-full object-cover rounded"
-                      controls={false}
-                    />
-                  )
+                  <>
+                    {contentType === 'image' ? (
+                      <img 
+                        src={content.url} 
+                        alt="Generated" 
+                        className="w-full h-full object-cover rounded"
+                      />
+                    ) : (
+                      <video 
+                        src={content.url} 
+                        className="w-full h-full object-cover rounded"
+                        controls={false}
+                      />
+                    )}
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center">
+                      <Eye className="w-6 h-6 text-white" />
+                    </div>
+                  </>
                 ) : (
                   <div className="text-secondary text-xs">Processing...</div>
                 )}
