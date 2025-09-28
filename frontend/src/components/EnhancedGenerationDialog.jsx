@@ -36,6 +36,8 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
   const [selectedContent, setSelectedContent] = useState(null);
   const [availableWorkflows, setAvailableWorkflows] = useState([]);
   const [isUploadingFace, setIsUploadingFace] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
+  const [archivedContent, setArchivedContent] = useState({ images: [], videos: [] });
   
   // Multiple LoRAs support
   const [loras, setLoras] = useState([{ name: 'none', weight: 1.0 }]);
