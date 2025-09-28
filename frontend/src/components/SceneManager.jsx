@@ -53,10 +53,11 @@ const SceneManager = ({
         project_id: project.id,
         name: newScene.name,
         description: newScene.description,
+        lyrics: newScene.lyrics,
         order: scenes.length
       });
       
-      setNewScene({ name: '', description: '' });
+      setNewScene({ name: '', description: '', lyrics: '' });
       setIsCreatingScene(false);
       onScenesChange();
       toast.success('Scene created successfully');
