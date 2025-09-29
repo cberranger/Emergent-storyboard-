@@ -152,7 +152,7 @@ backend:
 
 frontend:
   - task: "Video generation UI integration"
-    implemented: false
+    implemented: true
     working: false
     file: "/app/frontend/src/components/EnhancedGenerationDialog.jsx"
     stuck_count: 0
@@ -162,9 +162,12 @@ frontend:
       - working: false
         agent: "main"
         comment: "UI supports video tab but backend returns 501 error"
+      - working: false
+        agent: "main"
+        comment: "Implemented video parameters UI (FPS, frames, motion bucket) - needs integration testing"
 
   - task: "Model preset selector"
-    implemented: false
+    implemented: true
     working: false
     file: "/app/frontend/src/components/EnhancedGenerationDialog.jsx"
     stuck_count: 0
@@ -174,9 +177,12 @@ frontend:
       - working: false
         agent: "main"
         comment: "Need Fast/Quality preset buttons that auto-populate generation parameters"
+      - working: false
+        agent: "main"
+        comment: "Implemented Fast/Quality preset buttons with dynamic parameter loading - needs UI testing"
 
   - task: "Dynamic parameter visibility"
-    implemented: false
+    implemented: true
     working: false
     file: "/app/frontend/src/components/EnhancedGenerationDialog.jsx"
     stuck_count: 0
@@ -186,6 +192,9 @@ frontend:
       - working: false
         agent: "main"
         comment: "Need to show/hide parameters based on selected model capabilities"
+      - working: false
+        agent: "main"
+        comment: "Added model capability indicators (LoRA support, max LoRAs, specialization) - needs testing"
 
 metadata:
   created_by: "main_agent"
