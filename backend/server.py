@@ -777,6 +777,329 @@ class ComfyUIClient:
             logging.error(f"Error generating image: {e}")
         return None
 
+    async def generate_video(self, prompt: str, negative_prompt: str = "", model: str = None, params: Dict = None, loras: List = None) -> Optional[str]:
+        try:
+            if self.server_type == "runpod":
+                return await self._generate_video_runpod(prompt, negative_prompt, model, params, loras)
+            else:
+                return await self._generate_video_standard(prompt, negative_prompt, model, params, loras)
+        except Exception as e:
+            logging.error(f"Error generating video: {e}")
+        return None
+
+    async def _generate_video_runpod(self, prompt: str, negative_prompt: str = "", model: str = None, params: Dict = None, loras: List = None) -> Optional[str]:
+        if not self.server.api_key:
+            logging.error("No API key provided for RunPod server")
+            return None
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.server.api_key}"
+        }
+        
+        # Prepare RunPod request for video generation
+        runpod_input = {
+            "prompt": prompt,
+            "generation_type": "video"
+        }
+        
+        if negative_prompt:
+            runpod_input["negative_prompt"] = negative_prompt
+        
+        if params:
+            # Video-specific parameters
+            runpod_input.update({
+                "width": params.get("width", 768),
+                "height": params.get("height", 768), 
+                "frames": params.get("video_frames", 14),
+                "fps": params.get("video_fps", 24),
+                "steps": params.get("steps", 20),
+                "cfg_scale": params.get("cfg", 7),
+                "seed": params.get("seed", -1),
+                "motion_bucket_id": params.get("motion_bucket_id", 127)
+            })
+        
+        request_data = {"input": runpod_input}
+        
+        async with aiohttp.ClientSession() as session:
+            # Submit job to RunPod
+            async with session.post(
+                f"https://api.runpod.ai/v2/{self.endpoint_id}/run",
+                headers=headers,
+                json=request_data
+            ) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    job_id = result.get("id")
+                    
+                    if job_id:
+                        # Poll for completion - videos take longer
+                        for _ in range(300):  # 5 minutes timeout
+                            await asyncio.sleep(2)
+                            async with session.get(
+                                f"https://api.runpod.ai/v2/{self.endpoint_id}/stream/{job_id}",
+                                headers=headers
+                            ) as status_response:
+                                if status_response.status == 200:
+                                    status_data = await status_response.json()
+                                    status = status_data.get("status")
+                                    
+                                    if status == "COMPLETED":
+                                        output = status_data.get("output", {})
+                                        if isinstance(output, dict):
+                                            video_url = output.get("video_url") or output.get("videos", [{}])[0].get("url")
+                                            if video_url:
+                                                return video_url
+                                        elif isinstance(output, str) and output.startswith("http"):
+                                            return output
+                                    elif status in ["FAILED", "CANCELLED"]:
+                                        error_msg = status_data.get("error", "Video generation failed")
+                                        logging.error(f"RunPod video generation failed: {error_msg}")
+                                        break
+        
+        return None
+    
+    async def _generate_video_standard(self, prompt: str, negative_prompt: str = "", model: str = None, params: Dict = None, loras: List = None) -> Optional[str]:
+        # Enhanced ComfyUI workflow for video generation
+        params = params or {}
+        loras = loras or []
+        
+        # Detect model type to use appropriate workflow
+        model_type = detect_model_type(model or "")
+        
+        if "wan" in model_type:
+            # Use Wan 2.1/2.2 specific workflow
+            workflow = await self._create_wan_video_workflow(prompt, negative_prompt, model, params, loras)
+        elif "svd" in model_type.lower() or "stable_video" in model_type.lower():
+            # Use Stable Video Diffusion workflow
+            workflow = await self._create_svd_workflow(prompt, negative_prompt, model, params, loras)
+        else:
+            # Use AnimateDiff workflow for other models
+            workflow = await self._create_animatediff_workflow(prompt, negative_prompt, model, params, loras)
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Queue the prompt
+                async with session.post(f"{self.base_url}/prompt", json={"prompt": workflow}) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        prompt_id = result.get("prompt_id")
+                        
+                        if prompt_id:
+                            # Poll for completion - videos take longer
+                            for _ in range(300):  # 5 minutes timeout
+                                await asyncio.sleep(2)
+                                async with session.get(f"{self.base_url}/history/{prompt_id}") as hist_response:
+                                    if hist_response.status == 200:
+                                        history = await hist_response.json()
+                                        if prompt_id in history:
+                                            outputs = history[prompt_id].get("outputs", {})
+                                            for node_id, output in outputs.items():
+                                                if "gifs" in output or "videos" in output:
+                                                    # Look for video output
+                                                    video_files = output.get("gifs", output.get("videos", []))
+                                                    if video_files:
+                                                        video_info = video_files[0]
+                                                        filename = video_info.get("filename")
+                                                        if filename:
+                                                            return f"{self.base_url}/view?filename={filename}"
+        except Exception as e:
+            logging.error(f"Error generating video: {e}")
+        return None
+    
+    async def _create_wan_video_workflow(self, prompt: str, negative_prompt: str, model: str, params: Dict, loras: List) -> Dict:
+        """Create ComfyUI workflow for Wan 2.1/2.2 video generation"""
+        model_type = detect_model_type(model)
+        
+        # Basic Wan video workflow structure
+        workflow = {
+            "1": {
+                "inputs": {
+                    "ckpt_name": model or "wan2.2_t2v_high_noise_14B_fp8_scaled.safetensors"
+                },
+                "class_type": "CheckpointLoaderSimple"
+            },
+            "2": {
+                "inputs": {
+                    "text": prompt,
+                    "clip": ["1", 1]
+                },
+                "class_type": "CLIPTextEncode"
+            },
+            "3": {
+                "inputs": {
+                    "text": negative_prompt or "",
+                    "clip": ["1", 1]
+                },
+                "class_type": "CLIPTextEncode"
+            },
+            "4": {
+                "inputs": {
+                    "width": params.get("width", 768),
+                    "height": params.get("height", 768),
+                    "length": params.get("video_frames", 14),
+                    "batch_size": 1
+                },
+                "class_type": "EmptyLatentVideo"
+            },
+            "5": {
+                "inputs": {
+                    "seed": params.get("seed", 42),
+                    "steps": params.get("steps", 20),
+                    "cfg": params.get("cfg", 7.5),
+                    "sampler_name": params.get("sampler", "euler"),
+                    "scheduler": params.get("scheduler", "simple"),
+                    "denoise": 1.0,
+                    "model": ["1", 0],
+                    "positive": ["2", 0],
+                    "negative": ["3", 0],
+                    "latent_image": ["4", 0]
+                },
+                "class_type": "KSampler"
+            },
+            "6": {
+                "inputs": {
+                    "samples": ["5", 0],
+                    "vae": ["1", 2]
+                },
+                "class_type": "VAEDecode"
+            },
+            "7": {
+                "inputs": {
+                    "filename_prefix": "video",
+                    "fps": params.get("video_fps", 24),
+                    "images": ["6", 0]
+                },
+                "class_type": "SaveAnimatedWEBP"
+            }
+        }
+        
+        return workflow
+    
+    async def _create_svd_workflow(self, prompt: str, negative_prompt: str, model: str, params: Dict, loras: List) -> Dict:
+        """Create ComfyUI workflow for Stable Video Diffusion"""
+        workflow = {
+            "1": {
+                "inputs": {
+                    "ckpt_name": model or "svd_xt_1_1.safetensors"
+                },
+                "class_type": "CheckpointLoaderSimple"
+            },
+            "2": {
+                "inputs": {
+                    "width": params.get("width", 1024),
+                    "height": params.get("height", 576),
+                    "batch_size": 1
+                },
+                "class_type": "EmptyLatentImage"
+            },
+            "3": {
+                "inputs": {
+                    "text": prompt,
+                    "clip": ["1", 1]
+                },
+                "class_type": "CLIPTextEncode"
+            },
+            "4": {
+                "inputs": {
+                    "seed": params.get("seed", 42),
+                    "steps": params.get("steps", 25),
+                    "cfg": params.get("cfg", 2.5),
+                    "sampler_name": "euler",
+                    "scheduler": "karras",
+                    "denoise": 1.0,
+                    "model": ["1", 0],
+                    "positive": ["3", 0],
+                    "negative": ["3", 0],
+                    "latent_image": ["2", 0]
+                },
+                "class_type": "KSampler"
+            },
+            "5": {
+                "inputs": {
+                    "samples": ["4", 0],
+                    "vae": ["1", 2]
+                },
+                "class_type": "VAEDecode"
+            },
+            "6": {
+                "inputs": {
+                    "filename_prefix": "svd_video",
+                    "fps": params.get("video_fps", 6),
+                    "images": ["5", 0]
+                },
+                "class_type": "SaveAnimatedWEBP"
+            }
+        }
+        
+        return workflow
+    
+    async def _create_animatediff_workflow(self, prompt: str, negative_prompt: str, model: str, params: Dict, loras: List) -> Dict:
+        """Create ComfyUI workflow for AnimateDiff video generation"""
+        workflow = {
+            "1": {
+                "inputs": {
+                    "ckpt_name": model or "v1-5-pruned-emaonly.ckpt"
+                },
+                "class_type": "CheckpointLoaderSimple"
+            },
+            "2": {
+                "inputs": {
+                    "text": prompt,
+                    "clip": ["1", 1]
+                },
+                "class_type": "CLIPTextEncode"
+            },
+            "3": {
+                "inputs": {
+                    "text": negative_prompt or "low quality, blurry",
+                    "clip": ["1", 1]
+                },
+                "class_type": "CLIPTextEncode"
+            },
+            "4": {
+                "inputs": {
+                    "width": params.get("width", 512),
+                    "height": params.get("height", 512),
+                    "length": params.get("video_frames", 16),
+                    "batch_size": 1
+                },
+                "class_type": "EmptyLatentVideo"
+            },
+            "5": {
+                "inputs": {
+                    "seed": params.get("seed", 42),
+                    "steps": params.get("steps", 20),
+                    "cfg": params.get("cfg", 7.5),
+                    "sampler_name": params.get("sampler", "euler_a"),
+                    "scheduler": params.get("scheduler", "normal"),
+                    "denoise": 1.0,
+                    "model": ["1", 0],
+                    "positive": ["2", 0],
+                    "negative": ["3", 0],
+                    "latent_image": ["4", 0]
+                },
+                "class_type": "KSampler"
+            },
+            "6": {
+                "inputs": {
+                    "samples": ["5", 0],
+                    "vae": ["1", 2]
+                },
+                "class_type": "VAEDecode"
+            },
+            "7": {
+                "inputs": {
+                    "filename_prefix": "animatediff",
+                    "fps": params.get("video_fps", 8),
+                    "images": ["6", 0]
+                },
+                "class_type": "SaveAnimatedWEBP"
+            }
+        }
+        
+        return workflow
+
 # API Routes
 
 @api_router.get("/")
