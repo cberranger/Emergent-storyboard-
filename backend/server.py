@@ -1058,6 +1058,60 @@ async def get_server_workflows(server_id: str):
     # Return empty list if no workflows found or server is offline
     return {"workflows": []}
 
+# Model Presets API
+@api_router.get("/models/presets/{model_name}")
+async def get_model_presets(model_name: str):
+    """Get available presets for a specific model"""
+    model_type = detect_model_type(model_name)
+    model_config = MODEL_DEFAULTS.get(model_type)
+    
+    if not model_config:
+        raise HTTPException(status_code=404, detail="Model type not found")
+    
+    presets = {}
+    for preset_name, preset_config in model_config.items():
+        if isinstance(preset_config, dict):
+            presets[preset_name] = preset_config
+    
+    return {
+        "model_name": model_name,
+        "model_type": model_type,
+        "presets": presets
+    }
+
+@api_router.get("/models/parameters/{model_name}")
+async def get_model_parameters(model_name: str, preset: str = "fast"):
+    """Get specific parameters for a model and preset"""
+    model_type = detect_model_type(model_name)
+    model_config = MODEL_DEFAULTS.get(model_type)
+    
+    if not model_config:
+        raise HTTPException(status_code=404, detail="Model type not found")
+    
+    preset_config = model_config.get(preset)
+    if not preset_config:
+        # Return fast preset as fallback
+        preset_config = model_config.get("fast", model_config.get("quality", {}))
+    
+    return {
+        "model_name": model_name,
+        "model_type": model_type,
+        "preset": preset,
+        "parameters": preset_config
+    }
+
+@api_router.get("/models/types")
+async def get_supported_model_types():
+    """Get all supported model types and their available presets"""
+    result = {}
+    for model_type, config in MODEL_DEFAULTS.items():
+        result[model_type] = {
+            "presets": list(config.keys()),
+            "display_name": model_type.replace("_", " ").title()
+        }
+    
+    return {"supported_models": result}
+
 # Generation
 @api_router.post("/generate")
 async def generate_content(request: GenerationRequest):
