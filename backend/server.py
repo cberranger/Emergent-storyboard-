@@ -455,6 +455,8 @@ def detect_model_type(model_name: str) -> Optional[str]:
             return "flux_dev"  # Default flux variant
     elif "sdxl" in model_name_lower or "xl" in model_name_lower:
         return "sdxl"
+    elif "pony" in model_name_lower:
+        return "pony"
     elif "wan" in model_name_lower:
         if "2.2" in model_name_lower or "22" in model_name_lower:
             return "wan_2_2"
@@ -462,6 +464,11 @@ def detect_model_type(model_name: str) -> Optional[str]:
             return "wan_2_1"
     elif "hidream" in model_name_lower:
         return "hidream"
+    elif "qwen" in model_name_lower:
+        if "edit" in model_name_lower:
+            return "qwen_edit"
+        else:
+            return "qwen_image"
     elif "sd15" in model_name_lower or "1.5" in model_name_lower:
         return "wan_2_1"  # Use SD 1.5 defaults
     
