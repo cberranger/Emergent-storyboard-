@@ -158,17 +158,46 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
     }
   };
 
-  const fetchModelDefaults = async (modelName) => {
+  const fetchModelPresets = async (modelName) => {
     try {
-      const response = await axios.get(`${API}/models/defaults/${encodeURIComponent(modelName)}`);
-      setModelDefaults(response.data);
-      setGenerationParams(prev => ({
-        ...prev,
-        ...response.data.defaults
-      }));
+      const response = await axios.get(`${API}/models/presets/${encodeURIComponent(modelName)}`);
+      setModelPresets(response.data.presets || {});
+      
+      // Auto-apply fast preset by default
+      if (response.data.presets?.fast) {
+        applyPreset('fast', response.data.presets.fast);
+      }
+      
+      // Fetch available parameters for this model
+      fetchAvailableParameters(modelName);
     } catch (error) {
-      console.error('Error fetching model defaults:', error);
+      console.error('Error fetching model presets:', error);
+      toast.error('Failed to fetch model presets');
     }
+  };
+
+  const fetchAvailableParameters = async (modelName) => {
+    try {
+      const response = await axios.get(`${API}/models/parameters/${encodeURIComponent(modelName)}`);
+      setAvailableParameters(response.data.parameters || {});
+    } catch (error) {
+      console.error('Error fetching model parameters:', error);
+    }
+  };
+
+  const applyPreset = (presetName, presetConfig) => {
+    setSelectedPreset(presetName);
+    setGenerationParams(prev => ({
+      ...prev,
+      steps: presetConfig.steps || prev.steps,
+      cfg: presetConfig.cfg || prev.cfg,
+      width: presetConfig.width || prev.width,
+      height: presetConfig.height || prev.height,
+      sampler: presetConfig.sampler || prev.sampler,
+      scheduler: presetConfig.scheduler || prev.scheduler,
+      video_fps: presetConfig.video_fps || prev.video_fps,
+      video_frames: presetConfig.video_frames || prev.video_frames
+    }));
   };
 
   const fetchGallery = async () => {
