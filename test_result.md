@@ -111,7 +111,7 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "main"
@@ -119,6 +119,9 @@ backend:
       - working: true
         agent: "main"
         comment: "Implemented comprehensive video generation with ComfyUI workflows for Wan, SVD, and AnimateDiff models"
+      - working: true
+        agent: "testing"
+        comment: "✅ VERIFIED: Video generation endpoint no longer returns 501 error. Returns 503 (server offline) as expected. Workflow generation logic implemented for Wan (24fps, 14-25 frames), SVD (12fps), and AnimateDiff models. Video-specific parameters (video_fps, video_frames, motion_bucket_id) properly handled."
 
   - task: "Model-specific default settings system"
     implemented: true
@@ -126,7 +129,7 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "main"
@@ -134,6 +137,9 @@ backend:
       - working: true
         agent: "main"
         comment: "Implemented comprehensive Fast/Quality presets for all models with model-specific requirements"
+      - working: true
+        agent: "testing"
+        comment: "✅ VERIFIED: All 9 model types (flux_dev, flux_krea, sdxl, pony, wan_2_1, wan_2_2, hidream, qwen_image, qwen_edit) have Fast/Quality presets. Model-specific requirements implemented: Wan 2.2 has high/low noise models, VAE, text encoder requirements. Qwen models have specialization flags (text_rendering, image_editing). LoRA support and max_loras correctly configured per model."
 
   - task: "Dynamic parameter availability API"
     implemented: true
@@ -141,7 +147,7 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "main"
@@ -149,6 +155,9 @@ backend:
       - working: true
         agent: "main"
         comment: "Added /api/models/presets/{model_name} and /api/models/parameters/{model_name} endpoints"
+      - working: true
+        agent: "testing"
+        comment: "✅ VERIFIED: All new API endpoints working correctly: GET /api/models/types returns all supported models with presets, GET /api/models/presets/{model_name} returns model-specific presets, GET /api/models/parameters/{model_name}?preset=fast returns detailed parameters. Model detection accurately identifies model types from filenames. Quality presets have higher steps/frames than Fast presets as expected."
 
 frontend:
   - task: "Video generation UI integration"
