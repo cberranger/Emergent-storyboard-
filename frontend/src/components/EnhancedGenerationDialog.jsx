@@ -59,7 +59,11 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
     height: 1024,
     seed: -1,
     sampler: 'euler',
-    scheduler: 'normal'
+    scheduler: 'normal',
+    // Video-specific parameters
+    video_fps: 24,
+    video_frames: 14,
+    motion_bucket_id: 127
   });
 
   // Advanced parameters
