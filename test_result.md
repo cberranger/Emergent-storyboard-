@@ -106,8 +106,8 @@ user_problem_statement: "Implement comprehensive video generation functionality 
 
 backend:
   - task: "Video generation implementation"
-    implemented: false
-    working: false
+    implemented: true
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
@@ -116,10 +116,13 @@ backend:
       - working: false
         agent: "main"
         comment: "Currently returns 501 error - needs ComfyUI video workflow implementation"
+      - working: true
+        agent: "main"
+        comment: "Implemented comprehensive video generation with ComfyUI workflows for Wan, SVD, and AnimateDiff models"
 
   - task: "Model-specific default settings system"
-    implemented: false
-    working: false
+    implemented: true
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
@@ -128,10 +131,13 @@ backend:
       - working: false
         agent: "main"
         comment: "Basic MODEL_DEFAULTS exist but need expansion for Fast/Quality presets and model-specific features"
+      - working: true
+        agent: "main"
+        comment: "Implemented comprehensive Fast/Quality presets for all models with model-specific requirements"
 
   - task: "Dynamic parameter availability API"
-    implemented: false
-    working: false
+    implemented: true
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
@@ -140,6 +146,9 @@ backend:
       - working: false
         agent: "main"
         comment: "Need API to return available parameters based on selected model type"
+      - working: true
+        agent: "main"
+        comment: "Added /api/models/presets/{model_name} and /api/models/parameters/{model_name} endpoints"
 
 frontend:
   - task: "Video generation UI integration"
