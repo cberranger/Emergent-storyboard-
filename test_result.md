@@ -204,9 +204,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Video generation implementation"
-    - "Model-specific default settings system"
+    - "Video generation UI integration"
     - "Model preset selector"
+    - "Dynamic parameter visibility"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -214,3 +214,5 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: "Starting implementation of video generation and model-specific presets. Current image generation works fine, need to focus on video workflows and intelligent model defaults."
+  - agent: "main"
+    message: "Completed backend implementation: video generation with 3 workflow types, comprehensive model presets with Fast/Quality options, new API endpoints for model parameters. Frontend updated with preset selector and video parameters UI. Ready for testing."
