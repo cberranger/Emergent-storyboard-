@@ -475,10 +475,13 @@ def detect_model_type(model_name: str) -> Optional[str]:
     # Default fallback
     return "sdxl"
 
-def get_model_defaults(model_name: str) -> Dict[str, Any]:
-    """Get intelligent defaults based on model type"""
+def get_model_defaults(model_name: str, preset: str = "fast") -> Dict[str, Any]:
+    """Get intelligent defaults based on model type and preset"""
     model_type = detect_model_type(model_name)
-    return MODEL_DEFAULTS.get(model_type, MODEL_DEFAULTS["sdxl"])
+    model_config = MODEL_DEFAULTS.get(model_type, MODEL_DEFAULTS["sdxl"])
+    
+    # Return the requested preset, defaulting to fast if not found
+    return model_config.get(preset, model_config.get("fast", model_config.get("quality", {})))
 
 # ComfyUI API Helper
 class ComfyUIClient:
