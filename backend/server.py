@@ -1217,8 +1217,84 @@ async def generate_content(request: GenerationRequest):
             raise HTTPException(status_code=500, detail="Failed to generate image")
         
         elif request.generation_type == "video":
-            # Video generation would be implemented similarly
-            raise HTTPException(status_code=501, detail="Video generation not implemented yet")
+            # Video generation implementation
+            result_url = await client.generate_video(
+                prompt=request.prompt,
+                negative_prompt=request.negative_prompt or "",
+                model=request.model,
+                params=request.params or {},
+                loras=request.loras or []
+            )
+            
+            if result_url:
+                # Get server info for metadata
+                server = ComfyUIServer(**server_data)
+                
+                # Detect model type and get defaults
+                model_type = detect_model_type(request.model or "unknown")
+                
+                # Create new generated content
+                new_content = GeneratedContent(
+                    content_type="video",
+                    url=result_url,
+                    prompt=request.prompt,
+                    negative_prompt=request.negative_prompt or "",
+                    server_id=request.server_id,
+                    server_name=server.name,
+                    model_name=request.model or "unknown",
+                    model_type=model_type,
+                    generation_params=request.params or {},
+                    is_selected=False
+                )
+                
+                # Add to clip gallery
+                clip_data = await db.clips.find_one({"id": request.clip_id})
+                if clip_data:
+                    logging.info(f"Found clip: {clip_data}")
+                    
+                    # Initialize clip with default values for new fields
+                    if "generated_images" not in clip_data:
+                        clip_data["generated_images"] = []
+                    if "generated_videos" not in clip_data:
+                        clip_data["generated_videos"] = []
+                    if "selected_image_id" not in clip_data:
+                        clip_data["selected_image_id"] = None
+                    if "selected_video_id" not in clip_data:
+                        clip_data["selected_video_id"] = None
+                    if "image_prompt" not in clip_data:
+                        clip_data["image_prompt"] = ""
+                    if "video_prompt" not in clip_data:
+                        clip_data["video_prompt"] = ""
+                    if "updated_at" not in clip_data:
+                        clip_data["updated_at"] = datetime.now(timezone.utc)
+                    
+                    clip = Clip(**clip_data)
+                    
+                    # Add to generated videos
+                    clip.generated_videos.append(new_content)
+                    
+                    # If this is the first video, select it automatically
+                    if len(clip.generated_videos) == 1:
+                        clip.selected_video_id = new_content.id
+                        new_content.is_selected = True
+                    
+                    # Update clip
+                    await db.clips.update_one(
+                        {"id": request.clip_id},
+                        {"$set": {
+                            "generated_videos": [vid.dict() for vid in clip.generated_videos],
+                            "selected_video_id": clip.selected_video_id,
+                            "updated_at": datetime.now(timezone.utc)
+                        }}
+                    )
+                    
+                    return {
+                        "message": "Video generated successfully", 
+                        "content": new_content.dict(),
+                        "total_videos": len(clip.generated_videos)
+                    }
+            
+            raise HTTPException(status_code=500, detail="Failed to generate video")
         
         else:
             raise HTTPException(status_code=400, detail="Invalid generation type")
