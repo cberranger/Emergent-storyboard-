@@ -619,6 +619,42 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {/* Model Presets */}
+                    {Object.keys(modelPresets).length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-primary">Quality Preset</Label>
+                        <div className="flex space-x-2">
+                          {Object.entries(modelPresets).map(([presetName, presetConfig]) => (
+                            <Button
+                              key={presetName}
+                              type="button"
+                              variant={selectedPreset === presetName ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => applyPreset(presetName, presetConfig)}
+                              className={selectedPreset === presetName ? "btn-primary" : "btn-secondary"}
+                              data-testid={`preset-${presetName}`}
+                            >
+                              <Zap className="w-3 h-3 mr-1" />
+                              {presetName === 'fast' ? 'Fast' : 'Quality'}
+                            </Button>
+                          ))}
+                        </div>
+                        {availableParameters && (
+                          <div className="text-xs text-muted-foreground">
+                            {availableParameters.specializes_in && (
+                              <span>Specializes in: {availableParameters.specializes_in.replace('_', ' ')}</span>
+                            )}
+                            {availableParameters.supports_lora !== undefined && (
+                              <span className="ml-2">LoRA: {availableParameters.supports_lora ? '✓' : '✗'}</span>
+                            )}
+                            {availableParameters.max_loras && availableParameters.max_loras > 0 && (
+                              <span className="ml-2">Max LoRAs: {availableParameters.max_loras}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     
                     {/* Multiple LoRAs */}
                     <div className="space-y-2">
