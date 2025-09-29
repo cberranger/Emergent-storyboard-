@@ -37,6 +37,11 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
   const [availableWorkflows, setAvailableWorkflows] = useState([]);
   const [isUploadingFace, setIsUploadingFace] = useState(false);
   
+  // Model presets support
+  const [modelPresets, setModelPresets] = useState({});
+  const [selectedPreset, setSelectedPreset] = useState('fast');
+  const [availableParameters, setAvailableParameters] = useState({});
+  
   // Multiple LoRAs support
   const [loras, setLoras] = useState([{ name: 'none', weight: 1.0 }]);
   
