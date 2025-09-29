@@ -126,7 +126,7 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
 
   useEffect(() => {
     if (selectedModel) {
-      fetchModelDefaults(selectedModel);
+      fetchModelPresets(selectedModel);
     }
   }, [selectedModel]);
 
