@@ -19,9 +19,13 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
-mongo_url = os.environ.get('MONGO_URL', 'mongodb://192.168.1.10:27017')
+mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
+if not mongo_url or not mongo_url.startswith(('mongodb://', 'mongodb+srv://')):
+    mongo_url = 'mongodb://localhost:27017'
+    
 client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=5000)
-db = client[os.environ.get('DB_NAME', 'Storyboard')]
+db_name = os.environ.get('DB_NAME', 'Storyboard')
+db = client[db_name]
 
 # Create the main app without a prefix
 app = FastAPI()
