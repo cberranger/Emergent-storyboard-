@@ -101,3 +101,98 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Implement comprehensive video generation functionality and intelligent model-specific defaults for a storyboarding app. Need to replace the current 501 error for video generation with actual ComfyUI video workflows. Additionally, create Fast and Quality presets for models: Flux, SDXL, Pony, Wan 2.2/2.1, Hidream, Qwen Image/Edit. The UI should dynamically show only applicable settings based on selected model."
+
+backend:
+  - task: "Video generation implementation"
+    implemented: false
+    working: false
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "main"
+        comment: "Currently returns 501 error - needs ComfyUI video workflow implementation"
+
+  - task: "Model-specific default settings system"
+    implemented: false
+    working: false
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "main"
+        comment: "Basic MODEL_DEFAULTS exist but need expansion for Fast/Quality presets and model-specific features"
+
+  - task: "Dynamic parameter availability API"
+    implemented: false
+    working: false
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "main"
+        comment: "Need API to return available parameters based on selected model type"
+
+frontend:
+  - task: "Video generation UI integration"
+    implemented: false
+    working: false
+    file: "/app/frontend/src/components/EnhancedGenerationDialog.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "main"
+        comment: "UI supports video tab but backend returns 501 error"
+
+  - task: "Model preset selector"
+    implemented: false
+    working: false
+    file: "/app/frontend/src/components/EnhancedGenerationDialog.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "main"
+        comment: "Need Fast/Quality preset buttons that auto-populate generation parameters"
+
+  - task: "Dynamic parameter visibility"
+    implemented: false
+    working: false
+    file: "/app/frontend/src/components/EnhancedGenerationDialog.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "main"
+        comment: "Need to show/hide parameters based on selected model capabilities"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Video generation implementation"
+    - "Model-specific default settings system"
+    - "Model preset selector"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "Starting implementation of video generation and model-specific presets. Current image generation works fine, need to focus on video workflows and intelligent model defaults."
