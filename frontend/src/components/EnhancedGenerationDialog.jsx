@@ -875,6 +875,63 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                             />
                           </div>
                         </div>
+
+                        {/* Video Parameters - only show for video tab */}
+                        {activeTab === 'video' && (
+                          <div className="space-y-4 border-t border-panel pt-4">
+                            <Label className="text-sm font-medium text-primary">Video Settings</Label>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label className="text-xs text-secondary">FPS</Label>
+                                <Select 
+                                  value={generationParams.video_fps?.toString()} 
+                                  onValueChange={(value) => updateParam('video_fps', parseInt(value))}
+                                >
+                                  <SelectTrigger className="form-input text-sm" data-testid="fps-select">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-panel border-panel">
+                                    {[6, 8, 12, 16, 24, 30].map(fps => (
+                                      <SelectItem key={fps} value={fps.toString()} className="text-primary">
+                                        {fps} FPS
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs text-secondary">Frames</Label>
+                                <Select 
+                                  value={generationParams.video_frames?.toString()} 
+                                  onValueChange={(value) => updateParam('video_frames', parseInt(value))}
+                                >
+                                  <SelectTrigger className="form-input text-sm" data-testid="frames-select">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-panel border-panel">
+                                    {[8, 14, 16, 20, 24, 25, 30].map(frames => (
+                                      <SelectItem key={frames} value={frames.toString()} className="text-primary">
+                                        {frames} frames
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-xs text-secondary">Motion Bucket ID (SVD only)</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                max="255"
+                                className="form-input text-sm"
+                                value={generationParams.motion_bucket_id}
+                                onChange={(e) => updateParam('motion_bucket_id', parseInt(e.target.value))}
+                                data-testid="motion-bucket-input"
+                              />
+                            </div>
+                          </div>
+                        )}
                       </AccordionContent>
                     </AccordionItem>
 
