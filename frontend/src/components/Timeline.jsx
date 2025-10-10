@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Play, Pause, SkipBack, SkipForward, Upload, Image, Video, Wand2, Settings, Volume2, Clock, Edit3 } from 'lucide-react';
+import { Plus, Play, Pause, SkipBack, SkipForward, Upload, Download, Image, Video, Wand2, Settings, Volume2, Clock, Edit3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,12 +15,9 @@ import { useDrag, useDrop, DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import SceneManager from './SceneManager';
 import EnhancedGenerationDialog from './EnhancedGenerationDialog';
-
-// Auto-detect environment  
-const isDevelopment = process.env.NODE_ENV === 'development';
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 
-  (isDevelopment ? 'http://localhost:8001' : window.location.origin);
-const API = `${BACKEND_URL}/api`;
+import BatchGenerationDialog from './BatchGenerationDialog';
+import ExportDialog from './ExportDialog';
+import { API } from '@/config';
 
 const ItemTypes = {
   CLIP: 'clip'
@@ -146,12 +143,15 @@ const Timeline = ({ project, comfyUIServers }) => {
   const [clips, setClips] = useState([]);
   const [showSceneManager, setShowSceneManager] = useState(false);
   const [showGenerationDialog, setShowGenerationDialog] = useState(false);
+  const [showBatchGenerationDialog, setShowBatchGenerationDialog] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const [selectedClip, setSelectedClip] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [musicFile, setMusicFile] = useState(null);
   const [editingScene, setEditingScene] = useState(false);
   const [sceneEditData, setSceneEditData] = useState({ description: '', lyrics: '' });
+  const [timelineAnalysis, setTimelineAnalysis] = useState(null);
   const audioRef = useRef(null);
 
   useEffect(() => {
@@ -181,34 +181,89 @@ const Timeline = ({ project, comfyUIServers }) => {
 
   const fetchClips = async () => {
     if (!activeScene?.id) return;
-    
+
     try {
       const response = await axios.get(`${API}/scenes/${activeScene.id}/clips`);
       setClips(response.data);
+      // Fetch timeline analysis after clips load
+      fetchTimelineAnalysis();
     } catch (error) {
       console.error('Error fetching clips:', error);
       toast.error('Failed to fetch clips');
     }
   };
 
-  const handleClipMove = async (clipId, newPosition) => {
+  const fetchTimelineAnalysis = async () => {
+    if (!activeScene?.id) return;
+
     try {
-      await axios.put(`${API}/clips/${clipId}/timeline-position`, newPosition, {
+      const response = await axios.get(`${API}/scenes/${activeScene.id}/timeline-analysis`);
+      setTimelineAnalysis(response.data);
+
+      // Show warning if overlaps detected
+      if (response.data.has_issues) {
+        const overlapCount = response.data.overlaps.length;
+        toast.warning(`Timeline has ${overlapCount} overlap${overlapCount > 1 ? 's' : ''}`);
+      }
+    } catch (error) {
+      console.error('Error fetching timeline analysis:', error);
+      // Don't show error toast - analysis is optional
+    }
+  };
+
+  const handleClipMove = async (clipId, newPosition, retryWithSuggested = false) => {
+    try {
+      // Send proper JSON payload with position field
+      await axios.put(`${API}/clips/${clipId}/timeline-position`, {
+        position: newPosition
+      }, {
         headers: { 'Content-Type': 'application/json' }
       });
-      
-      setClips(prevClips => 
-        prevClips.map(clip => 
-          clip.id === clipId 
+
+      setClips(prevClips =>
+        prevClips.map(clip =>
+          clip.id === clipId
             ? { ...clip, timeline_position: newPosition }
             : clip
         )
       );
-      
+
       toast.success('Clip position updated');
+
+      // Refresh overlap warnings after successful move
+      if (activeScene?.id) {
+        fetchTimelineAnalysis();
+      }
     } catch (error) {
       console.error('Error updating clip position:', error);
-      toast.error('Failed to update clip position');
+
+      // Handle 409 Conflict (overlap detected)
+      if (error.response?.status === 409) {
+        const errorDetail = error.response.data.detail;
+        const suggestedPosition = errorDetail.suggested_position;
+        const errorMessage = errorDetail.error;
+
+        if (!retryWithSuggested && suggestedPosition !== null) {
+          // Show user the conflict and suggested position
+          const userConfirmed = window.confirm(
+            `${errorMessage}\n\nWould you like to move the clip to the suggested position (${suggestedPosition.toFixed(2)}s) instead?`
+          );
+
+          if (userConfirmed) {
+            // Retry with suggested position
+            await handleClipMove(clipId, suggestedPosition, true);
+          } else {
+            // Revert to original position
+            toast.error('Clip move cancelled - overlap detected');
+            fetchClips(); // Refresh to revert UI
+          }
+        } else {
+          toast.error(errorMessage || 'Timeline overlap detected');
+        }
+      } else {
+        const errorMsg = error.response?.data?.detail?.error || error.response?.data?.detail || 'Failed to update clip position';
+        toast.error(errorMsg);
+      }
     }
   };
 
@@ -317,6 +372,27 @@ const Timeline = ({ project, comfyUIServers }) => {
               Upload Music
             </Button>
             
+            <Button
+              variant="outline"
+              onClick={() => setShowExportDialog(true)}
+              className="btn-secondary"
+              data-testid="export-project-btn"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export Project
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => setShowBatchGenerationDialog(true)}
+              className="btn-secondary"
+              disabled={clips.length === 0}
+              data-testid="batch-generate-btn"
+            >
+              <Wand2 className="w-4 h-4 mr-2" />
+              Batch Generate
+            </Button>
+
             <Button
               onClick={() => setShowSceneManager(true)}
               className="btn-primary"
@@ -550,6 +626,23 @@ const Timeline = ({ project, comfyUIServers }) => {
           clip={selectedClip}
           servers={comfyUIServers}
           onGenerated={fetchClips}
+        />
+
+        <BatchGenerationDialog
+          open={showBatchGenerationDialog}
+          onOpenChange={setShowBatchGenerationDialog}
+          clips={clips}
+          servers={comfyUIServers}
+          onBatchStart={(batchInfo) => {
+            toast.success(`Batch generation started with ${batchInfo.total_jobs} jobs`);
+            // Optionally navigate to queue dashboard or show progress
+          }}
+        />
+
+        <ExportDialog
+          open={showExportDialog}
+          onOpenChange={setShowExportDialog}
+          project={project}
         />
       </div>
     </DndProvider>

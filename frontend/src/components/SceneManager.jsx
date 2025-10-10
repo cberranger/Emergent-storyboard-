@@ -10,12 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import axios from 'axios';
-
-// Auto-detect environment  
-const isDevelopment = process.env.NODE_ENV === 'development';
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 
-  (isDevelopment ? 'http://localhost:8001' : window.location.origin);
-const API = `${BACKEND_URL}/api`;
+import { API } from '@/config';
 
 const SceneManager = ({ 
   open, 

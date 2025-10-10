@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//e/Code/Emergent-storyboard-/**)",
+      "Bash(python:*)",
+      "Bash(launch.bat)",
+      "Bash(cmd //c:*)",
+      "Bash(dir:*)",
+      "Bash(cmd /c:*)",
+      "Bash(E:/Code/Emergent-storyboard-/backend/venv/Scripts/python.exe -m uvicorn server:app --host localhost --port 8001 --reload --app-dir E:/Code/Emergent-storyboard-/backend)",
+      "Bash(curl:*)",
+      "Bash(find:*)",
+      "Bash(awk:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(npm start)",
+      "Bash(sed:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

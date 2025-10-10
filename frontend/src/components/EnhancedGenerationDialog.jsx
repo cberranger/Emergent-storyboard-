@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wand2, Image, Video, Server, Settings, Cpu, Zap, Eye, Grid, X, Plus, Minus } from 'lucide-react';
+import { Wand2, Image, Video, Server, Settings, Cpu, Zap, Eye, Grid, X, Plus, Minus, Database } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,11 +16,13 @@ import { toast } from 'sonner';
 import axios from 'axios';
 import MediaViewerDialog from './MediaViewerDialog';
 
-// Auto-detect environment  
-const isDevelopment = process.env.NODE_ENV === 'development';
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 
-  (isDevelopment ? 'http://localhost:8001' : window.location.origin);
-const API = `${BACKEND_URL}/api`;
+import { API } from '@/config';
+import {
+  isValidUUID,
+  validatePromptLength,
+  validateGenerationParams,
+  sanitizeInput
+} from '@/utils/validators';
 
 const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerated }) => {
   const [activeTab, setActiveTab] = useState('image');
@@ -36,12 +38,16 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
   const [selectedContent, setSelectedContent] = useState(null);
   const [availableWorkflows, setAvailableWorkflows] = useState([]);
   const [isUploadingFace, setIsUploadingFace] = useState(false);
-  
+
+  // Model filtering and search
+  const [modelSearchQuery, setModelSearchQuery] = useState('');
+  const [filteredModels, setFilteredModels] = useState([]);
+
   // Model presets support
   const [modelPresets, setModelPresets] = useState({});
   const [selectedPreset, setSelectedPreset] = useState('fast');
   const [availableParameters, setAvailableParameters] = useState({});
-  
+
   // Multiple LoRAs support
   const [loras, setLoras] = useState([{ name: 'none', weight: 1.0 }]);
   
@@ -130,6 +136,36 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
     }
   }, [selectedModel]);
 
+  // Filter and sort models when serverInfo or search query changes
+  useEffect(() => {
+    if (serverInfo?.models) {
+      let filtered = [...serverInfo.models];
+
+      // Sort alphabetically by name
+      filtered.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+
+      // Apply search filter
+      if (modelSearchQuery.trim()) {
+        const query = modelSearchQuery.toLowerCase();
+        filtered = filtered.filter(model =>
+          model.name.toLowerCase().includes(query)
+        );
+      }
+
+      setFilteredModels(filtered);
+    } else {
+      setFilteredModels([]);
+    }
+  }, [serverInfo, modelSearchQuery]);
+
+  // Helper function to get online servers only
+  const getOnlineServers = () => {
+    return servers.filter(server => {
+      // Check if we have server info cached, or assume online if not checked yet
+      return server.is_active !== false; // Will be refined once we fetch server info
+    });
+  };
+
   const fetchServerInfo = async (serverId) => {
     try {
       const response = await axios.get(`${API}/comfyui/servers/${serverId}/info`);
@@ -212,6 +248,17 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
   };
 
   const handleGenerate = async () => {
+    // Validate UUIDs
+    if (!isValidUUID(clip.id)) {
+      toast.error('Invalid clip ID');
+      return;
+    }
+
+    if (!isValidUUID(selectedServer)) {
+      toast.error('Invalid server selection');
+      return;
+    }
+
     if (!selectedServer || !selectedModel) {
       toast.error('Please select a server and model');
       return;
@@ -222,21 +269,47 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
       return;
     }
 
-    const prompt = prompts[activeTab];
-    const negativePrompt = prompts[`${activeTab}Negative`];
+    const prompt = sanitizeInput(prompts[activeTab]);
+    const negativePrompt = sanitizeInput(prompts[`${activeTab}Negative`]);
 
     if (!prompt.trim()) {
       toast.error(`Please enter a ${activeTab} prompt`);
       return;
     }
 
+    // Validate prompt length
+    try {
+      validatePromptLength(prompt);
+      if (negativePrompt) {
+        validatePromptLength(negativePrompt);
+      }
+    } catch (error) {
+      toast.error(error.message);
+      return;
+    }
+
     setIsGenerating(true);
-    
+
     try {
       // Prepare LoRAs data
       const lorasData = loras
         .filter(lora => lora.name !== 'none')
         .map(lora => ({ name: lora.name, weight: lora.weight }));
+
+      const params = {
+        ...generationParams,
+        ...advancedParams,
+        seed: generationParams.seed === -1 ? Math.floor(Math.random() * 1000000) : generationParams.seed
+      };
+
+      // Validate generation parameters
+      try {
+        validateGenerationParams(params);
+      } catch (error) {
+        toast.error(error.message);
+        setIsGenerating(false);
+        return;
+      }
 
       const requestData = {
         clip_id: clip.id,
@@ -246,11 +319,7 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
         model: selectedModel,
         loras: lorasData, // Multiple LoRAs
         generation_type: activeTab,
-        params: {
-          ...generationParams,
-          ...advancedParams,
-          seed: generationParams.seed === -1 ? Math.floor(Math.random() * 1000000) : generationParams.seed
-        }
+        params
       };
 
       await axios.post(`${API}/generate`, requestData);
@@ -350,17 +419,17 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
     }
 
     setIsUploadingFace(true);
-    
+
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const response = await axios.post(`${API}/upload-face-image`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       });
-      
+
       updateAdvancedParam('reactor_face_image', response.data.file_url);
       toast.success('Face image uploaded successfully');
     } catch (error) {
@@ -368,6 +437,44 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
       toast.error('Failed to upload face image');
     } finally {
       setIsUploadingFace(false);
+    }
+  };
+
+  const sendToPool = async (content, contentType) => {
+    try {
+      // Get the clip's scene for project_id
+      const clipData = await axios.get(`${API}/clips/${clip.id}`);
+      const sceneData = await axios.get(`${API}/scenes/${clipData.data.scene_id}`);
+      const project_id = sceneData.data.project_id;
+
+      const poolData = {
+        project_id: project_id,
+        name: `${clip.name} - ${contentType}`,
+        description: content.prompt || '',
+        content_type: contentType,
+        source_type: 'clip_generation',
+        source_clip_id: clip.id,
+        media_url: content.url,
+        thumbnail_url: content.thumbnail_url || content.url,
+        generation_params: {
+          prompt: content.prompt,
+          seed: content.seed,
+          model: content.model_name || content.model,
+          ...generationParams
+        },
+        tags: [contentType, selectedModel, clip.name],
+        metadata: {
+          clip_id: clip.id,
+          clip_name: clip.name,
+          generated_at: new Date().toISOString()
+        }
+      };
+
+      await axios.post(`${API}/pool`, poolData);
+      toast.success('Sent to generation pool!');
+    } catch (error) {
+      console.error('Error sending to pool:', error);
+      toast.error('Failed to send to pool');
     }
   };
 
@@ -434,6 +541,18 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                 <div className="text-xs text-secondary truncate">
                   {content.prompt.substring(0, 50)}...
                 </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    sendToPool(content, contentType);
+                  }}
+                  className="w-full mt-2 h-7 text-xs hover:bg-indigo-600/20"
+                >
+                  <Database className="w-3 h-3 mr-1" />
+                  Send to Pool
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -518,19 +637,28 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                   <>
                     <Select value={selectedServer} onValueChange={setSelectedServer}>
                       <SelectTrigger className="form-input" data-testid="server-select">
-                        <SelectValue placeholder="Select a ComfyUI server" />
+                        <SelectValue placeholder="Select an online ComfyUI server" />
                       </SelectTrigger>
                       <SelectContent className="bg-panel border-panel">
-                        {servers.map((server) => (
-                          <SelectItem key={server.id} value={server.id}>
-                            <div className="flex items-center space-x-2">
-                              <span>{server.name}</span>
-                              <Badge variant="outline" className="text-xs">
-                                {server.url}
-                              </Badge>
-                            </div>
-                          </SelectItem>
-                        ))}
+                        {getOnlineServers().length === 0 ? (
+                          <div className="px-2 py-4 text-center text-secondary text-sm">
+                            No online servers available
+                          </div>
+                        ) : (
+                          getOnlineServers().map((server) => (
+                            <SelectItem key={server.id} value={server.id}>
+                              <div className="flex items-center space-x-2">
+                                <span>{server.name}</span>
+                                <Badge variant="outline" className="text-xs">
+                                  {server.url}
+                                </Badge>
+                                {serverInfo?.id === server.id && serverInfo?.is_online && (
+                                  <Badge className="bg-green-500 text-white text-xs">Online</Badge>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     
@@ -595,27 +723,52 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-primary flex items-center">
                         <Cpu className="w-4 h-4 mr-1" />
-                        Model
+                        Model ({filteredModels.length} available)
                         {modelDefaults.detected_type && (
                           <Badge variant="outline" className="ml-2 text-xs">
                             {modelDefaults.detected_type}
                           </Badge>
                         )}
                       </Label>
+
+                      {/* Model Search Input */}
+                      <div className="relative">
+                        <Input
+                          placeholder="Search models..."
+                          value={modelSearchQuery}
+                          onChange={(e) => setModelSearchQuery(e.target.value)}
+                          className="form-input pr-8"
+                        />
+                        {modelSearchQuery && (
+                          <button
+                            onClick={() => setModelSearchQuery('')}
+                            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-secondary hover:text-primary"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+
                       <Select value={selectedModel} onValueChange={setSelectedModel}>
                         <SelectTrigger className="form-input" data-testid="model-select">
                           <SelectValue placeholder="Select model" />
                         </SelectTrigger>
-                        <SelectContent className="bg-panel border-panel max-h-48 overflow-y-auto">
-                          {serverInfo.models.map((model, index) => (
-                            <SelectItem 
-                              key={index} 
-                              value={model.name} 
-                              className="text-primary hover:bg-panel-dark"
-                            >
-                              {model.name}
-                            </SelectItem>
-                          ))}
+                        <SelectContent className="bg-panel border-panel max-h-64 overflow-y-auto">
+                          {filteredModels.length === 0 ? (
+                            <div className="px-2 py-4 text-center text-secondary text-sm">
+                              {modelSearchQuery ? 'No models match your search' : 'No models available'}
+                            </div>
+                          ) : (
+                            filteredModels.map((model, index) => (
+                              <SelectItem
+                                key={index}
+                                value={model.name}
+                                className="text-primary hover:bg-panel-dark"
+                              >
+                                {model.name}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -981,10 +1134,10 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                                     <SelectValue placeholder="Select refiner model" />
                                   </SelectTrigger>
                                   <SelectContent className="bg-panel border-panel max-h-48 overflow-y-auto">
-                                    {serverInfo?.models?.map((model, index) => (
-                                      <SelectItem 
-                                        key={index} 
-                                        value={model.name} 
+                                    {filteredModels.map((model, index) => (
+                                      <SelectItem
+                                        key={index}
+                                        value={model.name}
                                         className="text-primary hover:bg-panel-dark"
                                       >
                                         {model.name}

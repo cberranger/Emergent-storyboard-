@@ -4,25 +4,29 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import axios from "axios";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
+import { API } from "@/config";
 
 // Import components
 import Sidebar from "@/components/Sidebar";
 import ProjectView from "@/components/ProjectView";
 import ComfyUIManager from "@/components/ComfyUIManager";
 import Timeline from "@/components/Timeline";
-
-// Auto-detect environment
-const isDevelopment = process.env.NODE_ENV === 'development';
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 
-  (isDevelopment ? 'http://localhost:8001' : window.location.origin);
-const API = `${BACKEND_URL}/api`;
+import ProjectTimeline from "@/components/ProjectTimeline";
+import UnifiedTimeline from "@/components/UnifiedTimeline";
+import CharacterManager from "@/components/CharacterManager";
+import StyleTemplateLibrary from "@/components/StyleTemplateLibrary";
+import QueueDashboard from "@/components/QueueDashboard";
+import GenerationPool from "@/components/GenerationPool";
+import ProjectDashboard from "@/components/ProjectDashboard";
 
 function App() {
   const [projects, setProjects] = useState([]);
   const [activeProject, setActiveProject] = useState(null);
   const [comfyUIServers, setComfyUIServers] = useState([]);
-  const [currentView, setCurrentView] = useState('projects'); // 'projects', 'timeline', 'comfyui'
+  const [currentView, setCurrentView] = useState('projects'); // 'projects', 'timeline', 'project-timeline', 'comfyui'
   const [loading, setLoading] = useState(true);
+  const [activeScene, setActiveScene] = useState(null);
+  const [activeClip, setActiveClip] = useState(null);
 
   // Fetch projects on load
   useEffect(() => {
@@ -74,7 +78,17 @@ function App() {
 
   const selectProject = (project) => {
     setActiveProject(project);
-    setCurrentView('timeline');
+    setCurrentView('project-timeline'); // Start with project-level timeline
+  };
+
+  const handleSceneClick = (scene) => {
+    setActiveScene(scene);
+    setCurrentView('timeline'); // Scene detail view
+  };
+
+  const handleClipClick = (clip) => {
+    setActiveClip(clip);
+    // Could add clip detail view here in future
   };
 
   const renderMainContent = () => {
@@ -88,15 +102,43 @@ function App() {
             loading={loading}
           />
         );
+      case 'project-dashboard':
+        return activeProject ? (
+          <ProjectDashboard
+            project={activeProject}
+            onProjectUpdate={fetchProjects}
+            onSceneSelect={handleSceneClick}
+          />
+        ) : (
+          <Navigate to="/projects" />
+        );
+      case 'project-timeline':
+        return activeProject ? (
+          <ProjectTimeline
+            project={activeProject}
+            onSceneClick={handleSceneClick}
+            onClipClick={handleClipClick}
+          />
+        ) : (
+          <Navigate to="/projects" />
+        );
       case 'timeline':
         return activeProject ? (
-          <Timeline
+          <UnifiedTimeline
             project={activeProject}
             comfyUIServers={comfyUIServers}
           />
         ) : (
           <Navigate to="/projects" />
         );
+      case 'characters':
+        return <CharacterManager activeProject={activeProject} />;
+      case 'templates':
+        return <StyleTemplateLibrary activeProject={activeProject} />;
+      case 'pool':
+        return <GenerationPool project={activeProject} />;
+      case 'queue':
+        return <QueueDashboard />;
       case 'comfyui':
         return (
           <ComfyUIManager

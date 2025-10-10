@@ -8,12 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import axios from 'axios';
-
-// Auto-detect environment  
-const isDevelopment = process.env.NODE_ENV === 'development';
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 
-  (isDevelopment ? 'http://localhost:8001' : window.location.origin);
-const API = `${BACKEND_URL}/api`;
+import { API } from '@/config';
+import { validateURL, sanitizeInput } from '@/utils/validators';
 
 const ComfyUIManager = ({ servers, onAddServer, onRefresh }) => {
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -23,15 +19,31 @@ const ComfyUIManager = ({ servers, onAddServer, onRefresh }) => {
 
   const handleAddServer = async (e) => {
     e.preventDefault();
-    if (!newServer.name.trim() || !newServer.url.trim()) return;
-    
+
+    // Validate and sanitize inputs
+    const name = sanitizeInput(newServer.name.trim());
+    const url = newServer.url.trim();
+
+    if (!name || !url) {
+      toast.error('Server name and URL are required');
+      return;
+    }
+
+    // Validate URL format
+    try {
+      validateURL(url);
+    } catch (error) {
+      toast.error(error.message);
+      return;
+    }
+
     // Auto-detect RunPod
-    const isRunPod = newServer.url.includes('runpod.ai');
+    const isRunPod = url.includes('runpod.ai');
     const serverData = {
-      name: newServer.name,
-      url: newServer.url,
+      name,
+      url,
       server_type: isRunPod ? 'runpod' : 'standard',
-      api_key: isRunPod ? newServer.api_key : null
+      api_key: isRunPod ? sanitizeInput(newServer.api_key) : null
     };
     
     try {

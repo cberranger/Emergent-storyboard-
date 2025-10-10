@@ -1,5 +1,5 @@
 import React from 'react';
-import { Film, Server, FolderOpen, Clock, Settings } from 'lucide-react';
+import { Film, Server, FolderOpen, Clock, Settings, Users, Palette, Activity, Database, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const Sidebar = ({ currentView, onViewChange, activeProject, onProjectSelect }) => {
@@ -11,11 +11,45 @@ const Sidebar = ({ currentView, onViewChange, activeProject, onProjectSelect }) 
       description: 'Manage your storyboard projects'
     },
     {
+      id: 'project-dashboard',
+      label: 'Project Dashboard',
+      icon: BarChart3,
+      description: 'Project overview and statistics',
+      disabled: !activeProject
+    },
+    {
       id: 'timeline',
       label: 'Timeline',
       icon: Clock,
       description: 'Edit clips and sequences',
       disabled: !activeProject
+    },
+    {
+      id: 'characters',
+      label: 'Characters',
+      icon: Users,
+      description: 'Manage character library',
+      disabled: !activeProject
+    },
+    {
+      id: 'templates',
+      label: 'Style Templates',
+      icon: Palette,
+      description: 'Save and reuse generation styles',
+      disabled: !activeProject
+    },
+    {
+      id: 'pool',
+      label: 'Generation Pool',
+      icon: Database,
+      description: 'Shared library of generated content',
+      disabled: !activeProject
+    },
+    {
+      id: 'queue',
+      label: 'Queue Dashboard',
+      icon: Activity,
+      description: 'Monitor generation pipeline'
     },
     {
       id: 'comfyui',
