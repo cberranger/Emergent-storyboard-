@@ -136,35 +136,35 @@ See [Implementation Roadmap](#implementation-roadmap) section for details.
 
 ```
 backend/
-├── api/v1/                        # Versioned API (Phase 2)
+├── api/v1/                        # Versioned API (11 routers, 61 endpoints)
 │   ├── __init__.py                # Router aggregation
 │   ├── dependencies.py            # Shared dependencies
-│   ├── projects_router.py         # Project endpoints
-│   ├── scenes_router.py           # Scene endpoints
-│   ├── clips_router.py            # Clip endpoints
-│   ├── generation_router.py       # Generation endpoints
-│   ├── characters_router.py       # Character management
-│   ├── templates_router.py        # Style templates
-│   ├── queue_router.py            # Queue management
-│   ├── comfyui_router.py          # ComfyUI servers
-│   ├── media_router.py            # File uploads
-│   ├── health_router.py           # Health checks
-│   └── openai_router.py           # OpenAI integration
+│   ├── projects_router.py         # Project endpoints (7)
+│   ├── scenes_router.py           # Scene endpoints (6)
+│   ├── clips_router.py            # Clip endpoints (8)
+│   ├── generation_router.py       # Generation endpoints (4)
+│   ├── characters_router.py       # Character management (6)
+│   ├── templates_router.py        # Style templates (6)
+│   ├── queue_router.py            # Queue management (12)
+│   ├── comfyui_router.py          # ComfyUI servers (5)
+│   ├── media_router.py            # File uploads (2)
+│   ├── health_router.py           # Health checks (2)
+│   └── openai_router.py           # OpenAI integration (3)
 │
-├── services/                      # Business Logic (Phase 2)
+├── services/                      # Business Logic (10+ services)
 │   ├── __init__.py
 │   ├── project_service.py         # Project operations
 │   ├── generation_service.py      # Generation logic
 │   ├── comfyui_service.py         # ComfyUI client
 │   ├── queue_manager.py           # Queue management
-│   ├── export_service.py          # Export formats
+│   ├── export_service.py          # Export formats (4 methods)
 │   ├── batch_generator.py         # Batch generation
 │   ├── gallery_manager.py         # Content gallery
 │   ├── media_service.py           # File handling
-│   ├── model_config.py            # Model presets
+│   ├── model_config.py            # Model presets (13+ models)
 │   └── openai_video_service.py    # OpenAI integration
 │
-├── repositories/                  # Data Access (Phase 2)
+├── repositories/                  # Data Access (4 repositories)
 │   ├── __init__.py
 │   ├── base_repository.py         # Base CRUD operations
 │   ├── project_repository.py      # Project data access
@@ -172,7 +172,7 @@ backend/
 │   ├── clip_repository.py         # Clip data access
 │   └── comfyui_repository.py      # Server data access
 │
-├── dtos/                          # Data Transfer Objects (Phase 2)
+├── dtos/                          # Data Transfer Objects (42+ classes)
 │   ├── __init__.py
 │   ├── project_dto.py             # Project DTOs
 │   ├── scene_dto.py               # Scene DTOs
@@ -207,23 +207,54 @@ backend/
 
 ```
 frontend/src/
-├── components/
-│   ├── ProjectView.jsx            # Project management
-│   ├── ProjectDashboard.jsx       # Project details (Phase 2.5)
-│   ├── ProjectTimeline.jsx        # Timeline visualization (Phase 2.6)
-│   ├── SceneManager.jsx           # Scene/clip editor
-│   ├── Timeline.jsx               # Drag-drop timeline
-│   ├── CharacterManager.jsx       # Character library (Phase 2.5)
-│   ├── StyleTemplateLibrary.jsx   # Template library (Phase 2.5)
-│   ├── QueueDashboard.jsx         # Queue monitoring (Phase 2.5)
-│   ├── GenerationPool.jsx         # Content reuse (Phase 2.7)
-│   ├── EnhancedGenerationDialog.jsx
-│   ├── ComfyUIManager.jsx
-│   ├── PresentationMode.jsx
-│   └── ui/                        # 56 Shadcn components
+├── components/                    # 76 total React components
+│   ├── Main Components (30)
+│   │   ├── ProjectView.jsx            # Project management
+│   │   ├── ProjectDashboard.jsx       # Project stats (Phase 2.5)
+│   │   ├── ProjectTimeline.jsx        # Timeline viz (Phase 2.6)
+│   │   ├── SceneManager.jsx           # Scene/clip editor
+│   │   ├── Timeline.jsx               # Drag-drop timeline
+│   │   ├── UnifiedTimeline.jsx        # Unified timeline view
+│   │   ├── TimelineClipCard.jsx       # Timeline clip component
+│   │   ├── TimelineClipSimple.jsx     # Simple clip view
+│   │   ├── CharacterManager.jsx       # Character library (Phase 2.5)
+│   │   ├── AdvancedCharacterCreator.jsx # Advanced character creation
+│   │   ├── StyleTemplateLibrary.jsx   # Template library (Phase 2.5)
+│   │   ├── QueueDashboard.jsx         # Queue monitor (Phase 2.5)
+│   │   ├── QueueJobCard.jsx           # Job card component
+│   │   ├── GenerationPool.jsx         # Content reuse (Phase 2.7)
+│   │   ├── EnhancedGenerationDialog.jsx
+│   │   ├── GenerationDialog.jsx
+│   │   ├── GenerationStudio.jsx
+│   │   ├── BatchGenerationDialog.jsx
+│   │   ├── ComfyUIManager.jsx
+│   │   ├── ModelBrowser.jsx
+│   │   ├── ModelCard.jsx
+│   │   ├── ModelCardComponents.jsx
+│   │   ├── PresentationMode.jsx
+│   │   ├── ExportDialog.jsx
+│   │   ├── HotkeyHelpDialog.jsx
+│   │   ├── MediaViewerDialog.jsx
+│   │   ├── FaceFusionProcessor.jsx
+│   │   ├── SceneActionButtons.jsx
+│   │   ├── Sidebar.jsx
+│   │   └── MetadataItem.jsx
+│   └── ui/                        # 46 Shadcn components
+│       ├── button, card, dialog, dropdown-menu
+│       ├── select, toast, table, tabs, input
+│       ├── alert, badge, checkbox, radio-group
+│       └── ... (32 more UI primitives)
 │
-├── services/                      # API Client Layer
-│   └── api.js                     # Axios client
+├── services/                      # API Client Layer (8 services)
+│   ├── apiClient.js               # Axios base client
+│   ├── ProjectService.js
+│   ├── SceneService.js
+│   ├── ClipService.js
+│   ├── GenerationService.js
+│   ├── CharacterService.js
+│   ├── TemplateService.js
+│   ├── QueueService.js
+│   └── ComfyUIService.js
 │
 ├── hooks/                         # Custom React Hooks
 │   └── ...
@@ -236,16 +267,18 @@ frontend/src/
 ## 🔌 API Endpoint Inventory
 
 ### API Versioning Structure
-- **Current API**: `/api/v1/*` (recommended)
-- **Legacy API**: `/api/*` (backward compatibility, will be deprecated)
+- **Current API**: `/api/v1/*` (recommended) - 61 endpoints across 11 routers
+- **Legacy API**: `/api/*` (backward compatibility) - 4 export endpoints only
+
+**Total Endpoints**: 65 (61 versioned + 4 legacy export)
 
 ### Complete Endpoint List
 
-#### Health (`/api/v1/health`)
+#### Health (`/api/v1/health`) - 2 endpoints
 - `GET /` - API root status
 - `GET /health` - Comprehensive health check with database status
 
-#### Projects (`/api/v1/projects`)
+#### Projects (`/api/v1/projects`) - 7 endpoints
 - `POST /` - Create project
 - `GET /` - List all projects
 - `GET /{id}` - Get project details
@@ -254,13 +287,14 @@ frontend/src/
 - `DELETE /{id}` - Delete project
 - `GET /{id}/clips` - List all clips in project
 
-#### Export (`/api/v1/projects/{id}/export/`)
+#### Export (Legacy `/api/projects/{id}/export/`) - 4 endpoints
+**Note**: Export endpoints remain on legacy API, not migrated to v1 yet
 - `GET /fcpxml` - Export to Final Cut Pro XML
 - `GET /edl` - Export to Adobe Premiere EDL
 - `GET /resolve` - Export to DaVinci Resolve
 - `GET /json` - Export as JSON
 
-#### Scenes (`/api/v1/scenes`)
+#### Scenes (`/api/v1/scenes`) - 6 endpoints
 - `POST /` - Create scene
 - `GET /project/{project_id}` - List scenes in project
 - `GET /{id}` - Get scene details
@@ -268,7 +302,7 @@ frontend/src/
 - `DELETE /{id}` - Delete scene
 - `GET /{id}/timeline-analysis` - Analyze scene timeline
 
-#### Clips (`/api/v1/clips`)
+#### Clips (`/api/v1/clips`) - 8 endpoints
 - `POST /` - Create clip
 - `GET /scene/{scene_id}` - List clips in scene
 - `GET /{id}` - Get clip details
@@ -278,13 +312,13 @@ frontend/src/
 - `PUT /{id}/prompts` - Update prompts
 - `DELETE /{id}` - Delete clip
 
-#### Generation (`/api/v1/generation`)
+#### Generation (`/api/v1/generation`) - 4 endpoints
 - `POST /` - Generate image/video for clip
 - `POST /batch` - Start batch generation
 - `GET /batch/{id}` - Get batch status
 - `GET /batches` - List all batches
 
-#### Characters (`/api/v1/characters`)
+#### Characters (`/api/v1/characters`) - 6 endpoints
 - `POST /` - Create character
 - `GET /` - List characters (with optional project filter)
 - `GET /{id}` - Get character details
@@ -292,7 +326,7 @@ frontend/src/
 - `DELETE /{id}` - Delete character
 - `POST /{id}/apply/{clip_id}` - Apply character to clip
 
-#### Style Templates (`/api/v1/templates`)
+#### Style Templates (`/api/v1/templates`) - 6 endpoints
 - `POST /` - Create style template
 - `GET /` - List all templates
 - `GET /{id}` - Get template details
@@ -300,7 +334,7 @@ frontend/src/
 - `DELETE /{id}` - Delete template
 - `POST /{id}/use` - Increment use count
 
-#### Queue (`/api/v1/queue`)
+#### Queue (`/api/v1/queue`) - 12 endpoints
 - `POST /jobs` - Add generation job to queue
 - `GET /jobs` - List all jobs
 - `GET /jobs/{id}` - Get job status
@@ -309,25 +343,29 @@ frontend/src/
 - `POST /servers/{id}/register` - Register ComfyUI server for job processing
 - `GET /servers/{id}/next` - Get next job for server
 - `POST /jobs/{id}/complete` - Mark job as complete
+- `POST /jobs/{id}/cancel` - Cancel job
+- `POST /jobs/{id}/retry` - Retry failed job
+- `DELETE /jobs/{id}` - Delete job
+- `DELETE /clear` - Clear completed/failed jobs
 
-#### ComfyUI Servers (`/api/v1/comfyui`)
+#### ComfyUI Servers (`/api/v1/comfyui`) - 5 endpoints
 - `POST /servers` - Add ComfyUI server
 - `GET /servers` - List all servers
 - `GET /servers/{id}/info` - Get server status and capabilities
 - `PUT /servers/{id}` - Update server configuration
 - `DELETE /servers/{id}` - Delete server
 
-#### Media (`/api/v1/media`)
+#### Media (`/api/v1/media`) - 2 endpoints
 - `POST /projects/{id}/upload-music` - Upload music file to project
 - `POST /upload-face-image` - Upload face image for reactor/face swap
 
-#### OpenAI (`/api/v1/openai`)
+#### OpenAI (`/api/v1/openai`) - 3 endpoints
 - `GET /videos/{id}` - Get OpenAI video details
 - `GET /videos` - List OpenAI videos
 - `DELETE /videos/{id}` - Delete OpenAI video
 
 #### Legacy Endpoints (`/api/*`)
-All v1 endpoints also available at `/api/*` for backward compatibility.
+Only export endpoints remain on legacy API for backward compatibility.
 
 ---
 

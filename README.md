@@ -58,42 +58,6 @@ ngrok http 8188
 # Use the provided https URL in StoryCanvas
 ```
 
-## 🛠️ Manual Setup
-
-If you prefer manual setup:
-
-### Backend
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate  # Windows
-pip install -r requirements.txt
-
-# Create backend/.env
-MONGO_URL=mongodb://localhost:27017/storycanvas
-DB_NAME=storycanvas
-CORS_ORIGINS=http://localhost:3000
-HOST=localhost
-PORT=8001
-
-# Start server
-uvicorn server:app --host localhost --port 8001 --reload
-```
-
-### Frontend
-```bash
-cd frontend
-npm install  # or yarn install
-
-# Create frontend/.env  
-REACT_APP_BACKEND_URL=http://localhost:8001
-PORT=3000
-HOST=localhost
-
-# Start development server
-npm start  # or yarn start
-```
-
 ## 🎯 Features
 
 ### Core Functionality
@@ -133,27 +97,43 @@ npm start  # or yarn start
 ### Backend (FastAPI)
 ```
 backend/
-├── api/v1/               # Versioned API endpoints
-│   ├── projects_router.py
-│   ├── scenes_router.py
-│   ├── clips_router.py
-│   ├── generation_router.py
-│   ├── characters_router.py
-│   ├── templates_router.py
-│   ├── queue_router.py
-│   ├── comfyui_router.py
-│   └── media_router.py
-├── services/             # Business logic layer
+├── api/v1/               # Versioned API endpoints (11 routers, 61 endpoints)
+│   ├── projects_router.py      # 7 endpoints
+│   ├── scenes_router.py        # 6 endpoints
+│   ├── clips_router.py         # 8 endpoints
+│   ├── generation_router.py    # 4 endpoints
+│   ├── characters_router.py    # 6 endpoints
+│   ├── templates_router.py     # 6 endpoints
+│   ├── queue_router.py         # 12 endpoints
+│   ├── comfyui_router.py       # 5 endpoints
+│   ├── media_router.py         # 2 endpoints
+│   ├── health_router.py        # 2 endpoints
+│   └── openai_router.py        # 3 endpoints
+├── services/             # Business logic layer (10+ services)
 │   ├── project_service.py
 │   ├── generation_service.py
 │   ├── comfyui_service.py
 │   ├── queue_manager.py
-│   └── export_service.py
+│   ├── export_service.py
+│   ├── batch_generator.py
+│   ├── gallery_manager.py
+│   ├── media_service.py
+│   ├── model_config.py
+│   └── openai_video_service.py
 ├── repositories/         # Data access layer
+│   ├── base_repository.py
 │   ├── project_repository.py
 │   ├── scene_repository.py
-│   └── clip_repository.py
-├── dtos/                 # Data transfer objects
+│   ├── clip_repository.py
+│   └── comfyui_repository.py
+├── dtos/                 # Data transfer objects (42+ classes)
+│   ├── project_dto.py
+│   ├── scene_dto.py
+│   ├── clip_dto.py
+│   ├── generation_dto.py
+│   ├── character_dto.py
+│   ├── template_dto.py
+│   └── queue_dto.py
 ├── models/               # Pydantic models
 └── server.py             # Main application
 ```
@@ -168,25 +148,52 @@ backend/
 ### Frontend (React)
 ```
 frontend/src/
-├── components/
-│   ├── ProjectView.jsx         # Project management
-│   ├── ProjectTimeline.jsx     # Timeline visualization
-│   ├── SceneManager.jsx        # Scene/clip editor
-│   ├── CharacterManager.jsx    # Character library
-│   ├── StyleTemplateLibrary.jsx
-│   ├── QueueDashboard.jsx      # Real-time queue
-│   ├── GenerationPool.jsx      # Content reuse
-│   └── ui/                     # 56 Shadcn components
-├── services/             # API client layer
+├── components/           # 76 total components
+│   ├── Main Components/ (30 components)
+│   │   ├── ProjectView.jsx             # Project management
+│   │   ├── ProjectDashboard.jsx        # Project stats & overview
+│   │   ├── ProjectTimeline.jsx         # Timeline visualization
+│   │   ├── SceneManager.jsx            # Scene/clip editor
+│   │   ├── CharacterManager.jsx        # Character library
+│   │   ├── StyleTemplateLibrary.jsx    # Template management
+│   │   ├── QueueDashboard.jsx          # Queue monitoring
+│   │   ├── GenerationPool.jsx          # Content reuse library
+│   │   ├── EnhancedGenerationDialog.jsx
+│   │   ├── BatchGenerationDialog.jsx
+│   │   ├── ComfyUIManager.jsx
+│   │   ├── ModelBrowser.jsx
+│   │   ├── PresentationMode.jsx
+│   │   ├── Timeline.jsx                # Drag-drop timeline
+│   │   ├── UnifiedTimeline.jsx
+│   │   ├── ExportDialog.jsx
+│   │   ├── HotkeyHelpDialog.jsx
+│   │   ├── MediaViewerDialog.jsx
+│   │   ├── FaceFusionProcessor.jsx
+│   │   ├── AdvancedCharacterCreator.jsx
+│   │   └── ... (10 more)
+│   └── ui/              (46 Shadcn components)
+│       ├── button.jsx, card.jsx, dialog.jsx
+│       ├── dropdown-menu.jsx, select.jsx
+│       ├── toast.jsx, table.jsx, tabs.jsx
+│       └── ... (38 more UI primitives)
+├── services/             # API client layer (8 services)
+│   ├── ProjectService.js
+│   ├── SceneService.js
+│   ├── ClipService.js
+│   ├── GenerationService.js
+│   ├── CharacterService.js
+│   ├── TemplateService.js
+│   ├── QueueService.js
+│   └── ComfyUIService.js
 ├── hooks/                # Custom React hooks
 └── App.js                # Root component
 ```
 
 **Key Features:**
-- Modular component architecture
-- Professional dark theme
+- 76 professional React components (30 feature components + 46 UI components)
+- Modular service layer for API communication
+- Professional dark theme with accessibility
 - Real-time updates with 5-second refresh
-- Accessibility with ARIA labels
 - Keyboard navigation support
 
 ## 📊 Current Status
@@ -194,12 +201,12 @@ frontend/src/
 ### ✅ Completed Features
 - **Phase 1**: Critical bug fixes and stability (MongoDB, CORS, validation)
 - **Phase 2**: Architecture refactoring (service layer, repositories, DTOs, API versioning)
-- **Phase 2.5**: Frontend-backend integration (Characters, Templates, Queue Dashboard)
+- **Phase 2.5**: Frontend-backend integration (Characters, Templates, Queue Dashboard, Project Dashboard)
 - **Phase 2.6**: Timeline system with alternates
 - **Phase 2.7**: Generation pool for content reuse
-- All major backend APIs implemented with `/api/v1` versioning
+- All major backend APIs implemented with `/api/v1` versioning (61 endpoints)
 - ComfyUI integration with multi-server support
-- Export functionality for professional editors (FCPXML, EDL, DaVinci Resolve)
+- Export functionality for professional editors (FCPXML, EDL, DaVinci Resolve) via legacy endpoints
 - Civitai model database integration
 - Smart queue management with load balancing
 
@@ -210,7 +217,7 @@ frontend/src/
 
 ### 📋 Planned
 - **Phase 3**: Security & Authentication (JWT, user management, API key encryption)
-- **Phase 4**: Additional content features (advanced batch operations)
+- **Phase 4**: Additional content features (advanced batch operations UI completion)
 - **Phase 5**: Frontend improvements (Zustand/Redux, React Query, TypeScript)
 - **Phase 6**: Data management (migrations, soft deletes, Redis caching)
 - **Phase 7**: Monitoring & analytics (structured logging, metrics, health checks)
@@ -223,9 +230,15 @@ All endpoints are available in two versions:
 - **Legacy**: `/api/<endpoint>` (deprecated, for backward compatibility)
 - **Current**: `/api/v1/<endpoint>` (recommended)
 
+**Total Endpoints**: 61 versioned endpoints + 4 legacy export endpoints = 65 total
+
 ### Available Endpoints
 
-#### Projects (`/api/v1/projects`)
+#### Health (`/api/v1/health`) - 2 endpoints
+- `GET /` - API root status
+- `GET /health` - Comprehensive health check
+
+#### Projects (`/api/v1/projects`) - 7 endpoints
 - `POST /` - Create project
 - `GET /` - List all projects
 - `GET /{id}` - Get project details
@@ -233,12 +246,14 @@ All endpoints are available in two versions:
 - `PUT /{id}` - Update project
 - `DELETE /{id}` - Delete project
 - `GET /{id}/clips` - List all clips in project
-- `GET /{id}/export/fcpxml` - Export to Final Cut Pro
-- `GET /{id}/export/edl` - Export to Adobe Premiere
-- `GET /{id}/export/resolve` - Export to DaVinci Resolve
-- `GET /{id}/export/json` - Export as JSON
 
-#### Scenes (`/api/v1/scenes`)
+#### Project Export (Legacy `/api/projects/{id}/export/`) - 4 endpoints
+- `GET /fcpxml` - Export to Final Cut Pro
+- `GET /edl` - Export to Adobe Premiere
+- `GET /resolve` - Export to DaVinci Resolve
+- `GET /json` - Export as JSON
+
+#### Scenes (`/api/v1/scenes`) - 6 endpoints
 - `POST /` - Create scene
 - `GET /project/{project_id}` - List scenes in project
 - `GET /{id}` - Get scene details
@@ -246,7 +261,7 @@ All endpoints are available in two versions:
 - `DELETE /{id}` - Delete scene
 - `GET /{id}/timeline-analysis` - Analyze scene timeline
 
-#### Clips (`/api/v1/clips`)
+#### Clips (`/api/v1/clips`) - 8 endpoints
 - `POST /` - Create clip
 - `GET /scene/{scene_id}` - List clips in scene
 - `GET /{id}` - Get clip details
@@ -256,13 +271,13 @@ All endpoints are available in two versions:
 - `PUT /{id}/prompts` - Update prompts
 - `DELETE /{id}` - Delete clip
 
-#### Generation (`/api/v1/generation`)
+#### Generation (`/api/v1/generation`) - 4 endpoints
 - `POST /` - Generate image/video for clip
 - `POST /batch` - Start batch generation
 - `GET /batch/{id}` - Get batch status
 - `GET /batches` - List all batches
 
-#### Characters (`/api/v1/characters`)
+#### Characters (`/api/v1/characters`) - 6 endpoints
 - `POST /` - Create character
 - `GET /` - List characters (with project filter)
 - `GET /{id}` - Get character details
@@ -270,7 +285,7 @@ All endpoints are available in two versions:
 - `DELETE /{id}` - Delete character
 - `POST /{id}/apply/{clip_id}` - Apply character to clip
 
-#### Style Templates (`/api/v1/templates`)
+#### Style Templates (`/api/v1/templates`) - 6 endpoints
 - `POST /` - Create template
 - `GET /` - List all templates
 - `GET /{id}` - Get template details
@@ -278,7 +293,7 @@ All endpoints are available in two versions:
 - `DELETE /{id}` - Delete template
 - `POST /{id}/use` - Increment use count
 
-#### Queue (`/api/v1/queue`)
+#### Queue (`/api/v1/queue`) - 12 endpoints
 - `POST /jobs` - Add generation job
 - `GET /jobs` - List all jobs
 - `GET /jobs/{id}` - Get job status
@@ -287,21 +302,26 @@ All endpoints are available in two versions:
 - `POST /servers/{id}/register` - Register ComfyUI server
 - `GET /servers/{id}/next` - Get next job for server
 - `POST /jobs/{id}/complete` - Mark job complete
+- `POST /jobs/{id}/cancel` - Cancel job
+- `POST /jobs/{id}/retry` - Retry failed job
+- `DELETE /jobs/{id}` - Delete job
+- `DELETE /clear` - Clear completed/failed jobs
 
-#### ComfyUI Servers (`/api/v1/comfyui`)
+#### ComfyUI Servers (`/api/v1/comfyui`) - 5 endpoints
 - `POST /servers` - Add server
 - `GET /servers` - List servers
 - `GET /servers/{id}/info` - Get server status
 - `PUT /servers/{id}` - Update server
 - `DELETE /servers/{id}` - Delete server
 
-#### Media (`/api/v1/media`)
+#### Media (`/api/v1/media`) - 2 endpoints
 - `POST /projects/{id}/upload-music` - Upload music file
 - `POST /upload-face-image` - Upload face image for reactor
 
-#### Health (`/api/v1/health`)
-- `GET /` - API root status
-- `GET /health` - Comprehensive health check
+#### OpenAI (`/api/v1/openai`) - 3 endpoints
+- `GET /videos/{id}` - Get OpenAI video details
+- `GET /videos` - List OpenAI videos
+- `DELETE /videos/{id}` - Delete OpenAI video
 
 ## 🐛 Troubleshooting
 
@@ -329,10 +349,10 @@ All endpoints are available in two versions:
 ```
 storycanvas/
 ├── backend/                  # FastAPI backend
-│   ├── api/v1/               # Versioned API routers
-│   ├── services/             # Business logic
-│   ├── repositories/         # Data access
-│   ├── dtos/                 # Data transfer objects
+│   ├── api/v1/               # Versioned API routers (11 routers, 61 endpoints)
+│   ├── services/             # Business logic (10+ services)
+│   ├── repositories/         # Data access (4 repositories)
+│   ├── dtos/                 # Data transfer objects (42+ classes)
 │   ├── models/               # Pydantic models
 │   ├── utils/                # Utilities
 │   ├── database.py           # Database manager
@@ -341,8 +361,8 @@ storycanvas/
 │   └── .env                  # Created by launch script
 ├── frontend/                 # React frontend  
 │   ├── src/
-│   │   ├── components/       # React components
-│   │   ├── services/         # API client layer
+│   │   ├── components/       # 76 React components (30 feature + 46 UI)
+│   │   ├── services/         # API client layer (8 services)
 │   │   ├── hooks/            # Custom hooks
 │   │   └── App.js
 │   ├── package.json
@@ -356,26 +376,29 @@ storycanvas/
 ├── launch.bat                # Batch launcher
 ├── README.md
 ├── IMPLEMENTATION_GUIDE.md
-└── AUDIT_REPORT.md
+├── AUDIT_REPORT.md
+└── TASKS_MASTER_LIST.md
 ```
 
 ## 🔧 Development
 
 - **Backend**: FastAPI + MongoDB (Motor) + aiohttp
-- **Frontend**: React + Shadcn UI + React DnD
+- **Frontend**: React + Shadcn UI (46 components) + React DnD
 - **ComfyUI**: Direct API integration + RunPod serverless support
 - **Architecture**: Service layer + Repository pattern + DTOs + API versioning
 
 ## 📸 Screenshots
 
 The app features a professional dark theme with:
-- Modern sidebar navigation
+- Modern sidebar navigation (7 main sections)
 - Project cards with metadata
 - Timeline editor with drag-and-drop clips
 - ComfyUI server management
 - Generation dialogs with parameter controls
 - Character and template libraries
 - Queue management dashboard
+- Generation pool for content reuse
+- Project dashboard with statistics
 - Export functionality
 
 ## 🤝 Contributing
@@ -393,3 +416,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ---
 
 *Built for professional storyboarding and music video production workflows.*
+*76 React components | 61 API endpoints | 10+ backend services | 42+ DTOs*

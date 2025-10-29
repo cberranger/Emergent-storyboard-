@@ -34,19 +34,20 @@ cd frontend && npm start
 ```
 storycanvas/
 ├── backend/
-│   ├── api/v1/                    # Versioned API routers (Phase 2)
-│   │   ├── projects_router.py     # Project endpoints
-│   │   ├── scenes_router.py       # Scene endpoints
-│   │   ├── clips_router.py        # Clip endpoints
-│   │   ├── generation_router.py   # Generation endpoints
-│   │   ├── characters_router.py   # Character management
-│   │   ├── templates_router.py    # Style templates
-│   │   ├── queue_router.py        # Queue management
-│   │   ├── comfyui_router.py      # ComfyUI servers
-│   │   ├── media_router.py        # File uploads
-│   │   ├── health_router.py       # Health checks
+│   ├── api/v1/                    # Versioned API routers (11 routers, 61 endpoints)
+│   │   ├── projects_router.py     # Project endpoints (7)
+│   │   ├── scenes_router.py       # Scene endpoints (6)
+│   │   ├── clips_router.py        # Clip endpoints (8)
+│   │   ├── generation_router.py   # Generation endpoints (4)
+│   │   ├── characters_router.py   # Character management (6)
+│   │   ├── templates_router.py    # Style templates (6)
+│   │   ├── queue_router.py        # Queue management (12)
+│   │   ├── comfyui_router.py      # ComfyUI servers (5)
+│   │   ├── media_router.py        # File uploads (2)
+│   │   ├── health_router.py       # Health checks (2)
+│   │   ├── openai_router.py       # OpenAI integration (3)
 │   │   └── dependencies.py        # Shared dependencies
-│   ├── services/                  # Business logic layer (Phase 2)
+│   ├── services/                  # Business logic layer (10+ services)
 │   │   ├── project_service.py     # Project operations
 │   │   ├── generation_service.py  # Generation logic
 │   │   ├── comfyui_service.py     # ComfyUI client
@@ -55,18 +56,23 @@ storycanvas/
 │   │   ├── batch_generator.py     # Batch generation
 │   │   ├── gallery_manager.py     # Content gallery
 │   │   ├── media_service.py       # File handling
-│   │   └── model_config.py        # Model presets
-│   ├── repositories/              # Data access layer (Phase 2)
+│   │   ├── model_config.py        # Model presets
+│   │   └── openai_video_service.py # OpenAI integration
+│   ├── repositories/              # Data access layer (4 repositories)
 │   │   ├── base_repository.py     # Base CRUD operations
 │   │   ├── project_repository.py  # Project data access
 │   │   ├── scene_repository.py    # Scene data access
 │   │   ├── clip_repository.py     # Clip data access
 │   │   └── comfyui_repository.py  # Server data access
-│   ├── dtos/                      # Data transfer objects (Phase 2)
+│   ├── dtos/                      # Data transfer objects (42+ classes)
 │   │   ├── project_dto.py         # Project DTOs
 │   │   ├── scene_dto.py           # Scene DTOs
 │   │   ├── clip_dto.py            # Clip DTOs
-│   │   └── ...                    # 42+ DTO classes
+│   │   ├── generation_dto.py      # Generation DTOs
+│   │   ├── character_dto.py       # Character DTOs
+│   │   ├── template_dto.py        # Template DTOs
+│   │   ├── queue_dto.py           # Queue DTOs
+│   │   └── ...
 │   ├── models/                    # Pydantic models
 │   │   ├── project.py
 │   │   ├── scene.py
@@ -84,20 +90,52 @@ storycanvas/
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── components/
-│   │   │   ├── ProjectView.jsx            # Project management
-│   │   │   ├── ProjectTimeline.jsx        # Timeline visualization
-│   │   │   ├── SceneManager.jsx           # Scene/clip editor
-│   │   │   ├── CharacterManager.jsx       # Character library (Phase 2.5)
-│   │   │   ├── StyleTemplateLibrary.jsx   # Template library (Phase 2.5)
-│   │   │   ├── QueueDashboard.jsx         # Queue monitoring (Phase 2.5)
-│   │   │   ├── ProjectDashboard.jsx       # Project details (Phase 2.5)
-│   │   │   ├── GenerationPool.jsx         # Content reuse (Phase 2.7)
-│   │   │   ├── EnhancedGenerationDialog.jsx
-│   │   │   ├── ComfyUIManager.jsx
-│   │   │   ├── PresentationMode.jsx
-│   │   │   └── ui/                        # 56 Shadcn components
-│   │   ├── services/                      # API service layer
+│   │   ├── components/            # 76 total React components
+│   │   │   ├── Main Components (30)
+│   │   │   │   ├── ProjectView.jsx            # Project management
+│   │   │   │   ├── ProjectDashboard.jsx       # Project stats (Phase 2.5)
+│   │   │   │   ├── ProjectTimeline.jsx        # Timeline viz (Phase 2.6)
+│   │   │   │   ├── SceneManager.jsx           # Scene/clip editor
+│   │   │   │   ├── CharacterManager.jsx       # Character library (Phase 2.5)
+│   │   │   │   ├── StyleTemplateLibrary.jsx   # Templates (Phase 2.5)
+│   │   │   │   ├── QueueDashboard.jsx         # Queue monitor (Phase 2.5)
+│   │   │   │   ├── GenerationPool.jsx         # Content reuse (Phase 2.7)
+│   │   │   │   ├── EnhancedGenerationDialog.jsx
+│   │   │   │   ├── BatchGenerationDialog.jsx
+│   │   │   │   ├── ComfyUIManager.jsx
+│   │   │   │   ├── ModelBrowser.jsx
+│   │   │   │   ├── PresentationMode.jsx
+│   │   │   │   ├── Timeline.jsx               # Drag-drop timeline
+│   │   │   │   ├── UnifiedTimeline.jsx
+│   │   │   │   ├── ExportDialog.jsx
+│   │   │   │   ├── HotkeyHelpDialog.jsx
+│   │   │   │   ├── MediaViewerDialog.jsx
+│   │   │   │   ├── FaceFusionProcessor.jsx
+│   │   │   │   ├── AdvancedCharacterCreator.jsx
+│   │   │   │   ├── QueueJobCard.jsx
+│   │   │   │   ├── SceneActionButtons.jsx
+│   │   │   │   ├── Sidebar.jsx
+│   │   │   │   ├── TimelineClipCard.jsx
+│   │   │   │   ├── TimelineClipSimple.jsx
+│   │   │   │   ├── GenerationStudio.jsx
+│   │   │   │   ├── GenerationDialog.jsx
+│   │   │   │   ├── ModelCard.jsx
+│   │   │   │   ├── ModelCardComponents.jsx
+│   │   │   │   └── MetadataItem.jsx
+│   │   │   └── ui/                        # 46 Shadcn components
+│   │   │       ├── button, card, dialog, dropdown-menu
+│   │   │       ├── select, toast, table, tabs, input
+│   │   │       ├── alert, badge, checkbox, radio-group
+│   │   │       └── ... (32 more UI primitives)
+│   │   ├── services/                      # API service layer (8 services)
+│   │   │   ├── ProjectService.js
+│   │   │   ├── SceneService.js
+│   │   │   ├── ClipService.js
+│   │   │   ├── GenerationService.js
+│   │   │   ├── CharacterService.js
+│   │   │   ├── TemplateService.js
+│   │   │   ├── QueueService.js
+│   │   │   └── ComfyUIService.js
 │   │   ├── hooks/                         # Custom React hooks
 │   │   └── App.js                         # Main application router
 │   ├── package.json
@@ -115,7 +153,8 @@ storycanvas/
 ├── launch.bat
 ├── README.md
 ├── IMPLEMENTATION_GUIDE.md
-└── AUDIT_REPORT.md
+├── AUDIT_REPORT.md
+└── TASKS_MASTER_LIST.md
 ```
 
 ---
@@ -143,6 +182,13 @@ MongoDB Database
 - **DTOs**: Request/Response data transfer objects for API contracts
 - **Error Handling**: Standardized error responses with custom exceptions
 
+**Statistics:**
+- 11 API routers
+- 61 versioned endpoints
+- 10+ service modules
+- 4 repository classes
+- 42+ DTO classes
+
 ### Frontend Architecture
 
 ```
@@ -154,11 +200,19 @@ Backend API (/api/v1/*)
 ```
 
 **Key Features:**
-- Component-based architecture
-- Service layer for API communication
+- 76 React components (30 feature components + 46 UI components)
+- 8 service modules for API communication
 - Custom hooks for reusable logic
-- Shadcn UI components
+- Shadcn UI components for consistent design
 - Real-time updates with polling
+
+**Component Categories:**
+- **Project Management**: ProjectView, ProjectDashboard, ProjectTimeline
+- **Scene/Clip Editing**: SceneManager, Timeline, TimelineClipCard
+- **Generation**: EnhancedGenerationDialog, BatchGenerationDialog, GenerationPool
+- **Libraries**: CharacterManager, StyleTemplateLibrary, ModelBrowser
+- **Monitoring**: QueueDashboard, QueueJobCard
+- **Utilities**: PresentationMode, ExportDialog, HotkeyHelpDialog, MediaViewerDialog
 
 ---
 
@@ -192,10 +246,16 @@ QueueJob (generation queue)
 ## 🔌 API Endpoints Reference
 
 ### API Versioning
-- **Current**: `/api/v1/*` (recommended)
-- **Legacy**: `/api/*` (deprecated, backward compatibility only)
+- **Current**: `/api/v1/*` (recommended) - 61 endpoints
+- **Legacy**: `/api/*` (deprecated, backward compatibility only) - 4 export endpoints
 
-### Projects (`/api/v1/projects`)
+### Health (`/api/v1/health`) - 2 endpoints
+```
+GET    /                           # API root status
+GET    /health                     # Comprehensive health check
+```
+
+### Projects (`/api/v1/projects`) - 7 endpoints
 ```
 POST   /                           # Create project
 GET    /                           # List all projects
@@ -204,13 +264,17 @@ GET    /{id}/with-scenes           # Get project with full hierarchy
 PUT    /{id}                       # Update project
 DELETE /{id}                       # Delete project
 GET    /{id}/clips                 # List all clips in project
-GET    /{id}/export/fcpxml         # Export to Final Cut Pro XML
-GET    /{id}/export/edl            # Export to Adobe Premiere EDL
-GET    /{id}/export/resolve        # Export to DaVinci Resolve
-GET    /{id}/export/json           # Export as JSON
 ```
 
-### Scenes (`/api/v1/scenes`)
+### Project Export (Legacy `/api/projects/{id}/export/`) - 4 endpoints
+```
+GET    /fcpxml                     # Export to Final Cut Pro XML
+GET    /edl                        # Export to Adobe Premiere EDL
+GET    /resolve                    # Export to DaVinci Resolve
+GET    /json                       # Export as JSON
+```
+
+### Scenes (`/api/v1/scenes`) - 6 endpoints
 ```
 POST   /                           # Create scene
 GET    /project/{project_id}       # List scenes in project
@@ -220,7 +284,7 @@ DELETE /{id}                       # Delete scene
 GET    /{id}/timeline-analysis     # Analyze scene timeline
 ```
 
-### Clips (`/api/v1/clips`)
+### Clips (`/api/v1/clips`) - 8 endpoints
 ```
 POST   /                           # Create clip
 GET    /scene/{scene_id}           # List clips in scene
@@ -232,7 +296,7 @@ PUT    /{id}/prompts               # Update prompts
 DELETE /{id}                       # Delete clip
 ```
 
-### Generation (`/api/v1/generation`)
+### Generation (`/api/v1/generation`) - 4 endpoints
 ```
 POST   /                           # Generate image/video for clip
 POST   /batch                      # Start batch generation
@@ -240,7 +304,7 @@ GET    /batch/{id}                 # Get batch status
 GET    /batches                    # List all batches
 ```
 
-### Characters (`/api/v1/characters`)
+### Characters (`/api/v1/characters`) - 6 endpoints
 ```
 POST   /                           # Create character
 GET    /                           # List characters (with project filter)
@@ -250,7 +314,7 @@ DELETE /{id}                       # Delete character
 POST   /{id}/apply/{clip_id}       # Apply character to clip
 ```
 
-### Style Templates (`/api/v1/templates`)
+### Style Templates (`/api/v1/templates`) - 6 endpoints
 ```
 POST   /                           # Create template
 GET    /                           # List all templates
@@ -260,7 +324,7 @@ DELETE /{id}                       # Delete template
 POST   /{id}/use                   # Increment use count
 ```
 
-### Queue (`/api/v1/queue`)
+### Queue (`/api/v1/queue`) - 12 endpoints
 ```
 POST   /jobs                       # Add generation job
 GET    /jobs                       # List all jobs
@@ -270,27 +334,32 @@ GET    /projects/{id}/jobs         # Get project jobs
 POST   /servers/{id}/register      # Register ComfyUI server
 GET    /servers/{id}/next          # Get next job for server
 POST   /jobs/{id}/complete         # Mark job complete
+POST   /jobs/{id}/cancel           # Cancel job
+POST   /jobs/{id}/retry            # Retry failed job
+DELETE /jobs/{id}                  # Delete job
+DELETE /clear                      # Clear completed/failed jobs
 ```
 
-### ComfyUI Servers (`/api/v1/comfyui`)
+### ComfyUI Servers (`/api/v1/comfyui`) - 5 endpoints
 ```
 POST   /servers                    # Add server
 GET    /servers                    # List servers
 GET    /servers/{id}/info          # Get server status
 PUT    /servers/{id}               # Update server
-DELETE /{id}                       # Delete server
+DELETE /servers/{id}               # Delete server
 ```
 
-### Media (`/api/v1/media`)
+### Media (`/api/v1/media`) - 2 endpoints
 ```
 POST   /projects/{id}/upload-music # Upload music file
 POST   /upload-face-image          # Upload face image for reactor
 ```
 
-### Health (`/api/v1/health`)
+### OpenAI (`/api/v1/openai`) - 3 endpoints
 ```
-GET    /                           # API root status
-GET    /health                     # Comprehensive health check
+GET    /videos/{id}                # Get OpenAI video details
+GET    /videos                     # List OpenAI videos
+DELETE /videos/{id}                # Delete OpenAI video
 ```
 
 ---
@@ -415,7 +484,7 @@ def detect_model_type(model_name: str) -> str:
 
 ## ✅ Phase Completion Status
 
-### Phase 1: Critical Bug Fixes ✅
+### Phase 1: Critical Bug Fixes ✅ COMPLETE
 - [x] MongoDB URL configuration fixes
 - [x] Database connection error handling with retry logic
 - [x] File upload size limits and validation
@@ -425,7 +494,7 @@ def detect_model_type(model_name: str) -> str:
 - [x] Standardized error messages
 - [x] Frontend parameter validation
 
-### Phase 2: Architecture Improvements ✅
+### Phase 2: Architecture Improvements ✅ COMPLETE
 - [x] Service Layer Pattern implemented
 - [x] Repository Pattern for data access
 - [x] Request/Response DTOs (42+ classes)
@@ -433,25 +502,26 @@ def detect_model_type(model_name: str) -> str:
 - [x] Dependency injection throughout
 - [x] Proper separation of concerns
 
-### Phase 2.5: Frontend-Backend Integration ✅
-- [x] Character Management UI
-- [x] Style Templates Library
-- [x] Queue Management Dashboard
-- [x] Project Details Dashboard
+### Phase 2.5: Frontend-Backend Integration ✅ COMPLETE
+- [x] Character Management UI (CharacterManager.jsx - 400+ lines)
+- [x] Style Templates Library (StyleTemplateLibrary.jsx - 550+ lines)
+- [x] Queue Management Dashboard (QueueDashboard.jsx, QueueJobCard.jsx)
+- [x] Project Details Dashboard (ProjectDashboard.jsx - 600+ lines)
 - [x] Real-time updates (5-second refresh)
+- [x] Full CRUD operations for all resources
 
-### Phase 2.6: Timeline System ✅
+### Phase 2.6: Timeline System ✅ COMPLETE
 - [x] Project Timeline API
 - [x] Alternates System (A/B versions)
 - [x] ProjectTimeline Component
 - [x] ObjectId serialization fixes
 
-### Phase 2.7: Generation Pool ✅
+### Phase 2.7: Generation Pool ✅ COMPLETE
 - [x] Pool Management API
 - [x] GenerationPool Component
 - [x] Gallery Integration ("Send to Pool")
 
-### Phase 3: Security & Authentication 📋
+### Phase 3: Security & Authentication 📋 NOT STARTED
 - [ ] JWT authentication system
 - [ ] User management
 - [ ] Password hashing
@@ -459,18 +529,24 @@ def detect_model_type(model_name: str) -> str:
 - [ ] Rate limiting
 - [ ] Protected routes
 
-### Phase 4: Content Features 🔄
-- [x] Batch Generation
-- [x] Style Transfer Templates
-- [x] Export Formats (FCPXML, EDL, Resolve)
-- [x] Character Manager
-- [x] Presentation Mode
-- [x] Hotkey System
+### Phase 4: Content Features 🔄 PARTIALLY COMPLETE (7/20 tasks)
+- [x] Batch Generation (backend)
+- [x] Style Transfer Templates (backend)
+- [x] Export Formats (FCPXML, EDL, Resolve - legacy endpoints)
+- [x] Character Manager (backend + UI)
+- [x] Presentation Mode (frontend)
+- [x] Hotkey System (frontend)
+- [x] Smart Queue Management (backend + UI)
+- [ ] Batch Generation UI enhancements (multi-select in timeline)
+- [ ] Scene Details View enhancement
+- [ ] Clip Details Dialog
+- [ ] Model Browser enhancements
+- [ ] Admin Dashboard (health monitoring)
 - [ ] AI-powered prompt enhancement
 - [ ] Auto lip-sync with audio
 - [ ] Visual style consistency analyzer
 
-### Phase 5: Frontend Improvements 📋
+### Phase 5: Frontend Improvements 📋 NOT STARTED
 - [ ] State management (Zustand/Redux)
 - [ ] React Query for data fetching
 - [ ] Error boundaries
@@ -478,21 +554,21 @@ def detect_model_type(model_name: str) -> str:
 - [ ] TypeScript migration
 - [ ] Performance optimizations
 
-### Phase 6: Data Management 📋
+### Phase 6: Data Management 📋 NOT STARTED
 - [ ] Database migrations (Alembic)
 - [ ] Soft deletes
 - [ ] Backup strategy
 - [ ] Redis caching layer
 - [ ] Data archiving
 
-### Phase 7: Monitoring & Observability 📋
+### Phase 7: Monitoring & Observability 📋 NOT STARTED
 - [ ] Structured logging
 - [ ] Comprehensive health checks
 - [ ] Performance metrics (Prometheus)
 - [ ] Error tracking (Sentry)
 - [ ] Request tracing
 
-### Phase 8: Testing & CI/CD 📋
+### Phase 8: Testing & CI/CD 📋 NOT STARTED
 - [ ] Unit tests (backend)
 - [ ] Unit tests (frontend)
 - [ ] Integration tests
@@ -551,29 +627,29 @@ lsof -ti:8001 | xargs kill -9
 ### Complete Workflow Example
 ```javascript
 // 1. Create Project
-const project = await axios.post(`${API}/api/v1/projects`, {
+const project = await ProjectService.create({
     name: "Music Video",
     description: "My awesome video"
 })
 
 // 2. Create Scene
-const scene = await axios.post(`${API}/api/v1/scenes`, {
-    project_id: project.data.id,
+const scene = await SceneService.create({
+    project_id: project.id,
     name: "Intro",
     lyrics: "First verse..."
 })
 
 // 3. Create Clip
-const clip = await axios.post(`${API}/api/v1/clips`, {
-    scene_id: scene.data.id,
+const clip = await ClipService.create({
+    scene_id: scene.id,
     name: "Opening shot",
     length: 5.0,
     image_prompt: "cinematic sunrise"
 })
 
 // 4. Generate Content
-await axios.post(`${API}/api/v1/generation`, {
-    clip_id: clip.data.id,
+await GenerationService.generate({
+    clip_id: clip.id,
     server_id: "server-uuid",
     prompt: "cinematic sunrise, golden hour",
     model: "flux_dev.safetensors",
@@ -585,7 +661,7 @@ await axios.post(`${API}/api/v1/generation`, {
 ### Using Character System
 ```javascript
 // Create character
-const character = await axios.post(`${API}/api/v1/characters`, {
+const character = await CharacterService.create({
     name: "Hero",
     description: "Main character",
     reference_images: ["url1", "url2"],
@@ -593,15 +669,13 @@ const character = await axios.post(`${API}/api/v1/characters`, {
 })
 
 // Apply to clip
-await axios.post(
-    `${API}/api/v1/characters/${character.id}/apply/${clip.id}`
-)
+await CharacterService.applyToClip(character.id, clip.id)
 ```
 
 ### Using Style Templates
 ```javascript
 // Create template
-const template = await axios.post(`${API}/api/v1/templates`, {
+const template = await TemplateService.create({
     name: "Cinematic Look",
     model: "flux_dev.safetensors",
     params: {
@@ -612,7 +686,7 @@ const template = await axios.post(`${API}/api/v1/templates`, {
 })
 
 // Use template (increments use count)
-await axios.post(`${API}/api/v1/templates/${template.id}/use`)
+await TemplateService.use(template.id)
 ```
 
 ---
@@ -659,9 +733,11 @@ await axios.post(`${API}/api/v1/templates/${template.id}/use`)
 - **Main Documentation**: [`README.md`](README.md)
 - **API Audit**: [`AUDIT_REPORT.md`](AUDIT_REPORT.md)
 - **Current Status**: [`docs/CURRENT_STATUS.md`](docs/CURRENT_STATUS.md)
+- **Task Master List**: [`TASKS_MASTER_LIST.md`](TASKS_MASTER_LIST.md)
 - **Phase Completion**: [`docs/archive/`](docs/archive/)
 
 ---
 
 **End of Implementation Guide**  
 **Last Updated:** December 2024
+**Stats:** 76 Components | 61 API Endpoints | 10+ Services | 42+ DTOs | 11 Routers

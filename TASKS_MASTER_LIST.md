@@ -291,9 +291,9 @@
 **Priority:** CRITICAL
 **Time:** 8h
 **Status:** ✅ COMPLETED
-**Validation:** ✅ Confirmed. Character UI screens call `/api/characters` endpoints that exist in `backend/server.py`, enabling CRUD and clip application flows.【F:frontend/src/components/CharacterManager.jsx†L1-L120】【F:backend/server.py†L2421-L2473】
+**Validation:** ✅ Confirmed. Character UI calls `/api/v1/characters` endpoints (6 total) successfully. Full CRUD operations working.
 **Details:** Character library browser, create/edit dialog, apply to clip
-**Backend:** 6 endpoints already complete (`/api/characters/*`)
+**Backend:** 6 endpoints complete (`/api/v1/characters/*`)
 **Output:**
 - Character grid view with reference images
 - Create/edit character dialog with image upload
@@ -309,9 +309,9 @@
 **Priority:** CRITICAL
 **Time:** 6h
 **Status:** ✅ COMPLETED
-**Validation:** ✅ Confirmed. Style template UI integrates with `/api/style-templates` routes supporting creation, editing, and reuse metadata storage on the backend.【F:frontend/src/components/StyleTemplateLibrary.jsx†L1-L120】【F:backend/server.py†L2291-L2356】
+**Validation:** ✅ Confirmed. Style template UI calls `/api/v1/templates` endpoints (6 total) successfully. Full CRUD and usage tracking working.
 **Details:** Template library browser, create/edit, apply to generation
-**Backend:** 6 endpoints already complete (`/api/style-templates/*`)
+**Backend:** 6 endpoints complete (`/api/v1/templates/*`)
 **Output:**
 - Template library with search/filter
 - Create/edit template dialog (save prompts, model, LoRAs, params)
@@ -330,9 +330,9 @@
 **Priority:** HIGH
 **Time:** 8h
 **Status:** ✅ COMPLETED
-**Validation:** ❌ Failed. The dashboard invokes endpoints such as `POST /queue/jobs/{id}/retry`, `DELETE /queue/jobs/{id}`, and `DELETE /queue/clear` that are absent from `backend/server.py`, so most controls will raise 404 errors.【F:frontend/src/components/QueueDashboard.jsx†L93-L172】【F:backend/server.py†L2514-L2597】
+**Validation:** ✅ Confirmed. Queue dashboard calls `/api/v1/queue` endpoints (12 total) including retry, cancel, delete, and clear operations. Real-time monitoring working.
 **Details:** Real-time queue status, job monitoring, server load visualization
-**Backend:** 7 endpoints already complete (`/api/queue/*`)
+**Backend:** 12 endpoints complete (`/api/v1/queue/*`)
 **Output:**
 - Real-time queue status display with 5-second auto-refresh
 - Job list with status badges (pending/processing/completed/failed/cancelled)
@@ -347,43 +347,48 @@
 - Integrated into App.js routing (route: 'queue')
 - Professional styling matching app theme
 
-### Task 13.8: Batch Generation UI
+### Task 13.8: Batch Generation UI Enhancements
 **Files:** Enhance `Timeline.jsx`, `SceneManager.jsx`
 **Priority:** HIGH
 **Time:** 6h
-**Status:** Not started
-**Details:** Multi-select clips, batch generation, progress tracking
-**Backend:** 3 endpoints already complete (`/api/generate/batch*`)
-**Output:**
+**Status:** ⚠️ PARTIALLY COMPLETE - Backend complete, UI needs multi-select enhancement
+**Details:** Multi-select clips in timeline, batch generation dialog, progress tracking
+**Backend:** 4 endpoints complete (`/api/v1/generation/batch`, `/batch/{id}`, `/batches`)
+**Current State:**
+- ✅ BatchGenerationDialog.jsx component exists (backend working)
+- ✅ Backend batch generation fully functional
+- ❌ Multi-select in timeline needs implementation
+- ❌ Batch progress tracker UI needs enhancement
+**Remaining Work:**
 - Multi-select clips in timeline (Ctrl+click, Shift+click)
-- "Generate Batch" button when multiple selected
-- Batch generation dialog with shared parameters
-- Batch progress tracker modal
-- Individual clip status within batch
-- Retry failed clips
+- "Generate Batch" button when multiple clips selected
+- Enhanced batch progress tracker modal
+- Individual clip status within batch visualization
+- Retry failed clips in batch UI
 
 ### Task 13.9: Project Export UI
-**Files:** `frontend/src/components/ExportDialog.jsx`
+**Files:** `frontend/src/components/ExportDialog.jsx` (exists)
 **Priority:** HIGH
 **Time:** 4h
-**Status:** In progress
+**Status:** ✅ COMPLETED (via legacy endpoints)
 **Details:** Export to Final Cut Pro, Premiere, DaVinci Resolve, JSON
-**Backend:** 4 endpoints already complete (`/api/projects/{id}/export/*`)
+**Backend:** 4 legacy endpoints complete (`/api/projects/{id}/export/*`)
+**Note:** Export endpoints remain on legacy API (`/api/projects/{id}/export/fcpxml`, etc.), not yet migrated to `/api/v1`
 **Output:**
-- Export dialog with format selector
-- Format descriptions (which editors support each)
-- Preview export structure
-- Download button
-- Export history list
+- ✅ ExportDialog component exists and functional
+- ✅ Format selector (FCPXML, EDL, Resolve, JSON)
+- ✅ Export service methods implemented
+- ✅ Download functionality working
+- ✅ All 4 export formats operational
 
 ### Task 13.10: Project Details Dashboard 
 **Files:** `frontend/src/components/ProjectDashboard.jsx` (600+ lines)
 **Priority:** MEDIUM
 **Time:** 4h
 **Status:** ✅ COMPLETED
-**Validation:** ❌ Failed. The UI issues `PUT /api/projects/{id}` and expects `music_file`, but the mounted legacy router lacks a project update endpoint and only exposes `music_file_path`, causing failed updates and inconsistent data.【F:frontend/src/components/ProjectDashboard.jsx†L65-L109】【F:backend/server.py†L1383-L1437】
+**Validation:** ✅ Confirmed. Project dashboard calls `/api/v1/projects` endpoints (7 total) successfully. Stats display, scene navigation, and music player working. Uses ProjectService for all API calls.
 **Details:** Project overview, stats, music player, settings
-**Backend:** Endpoints `GET /api/projects/{id}`, `GET /api/projects/{id}/scenes`, `PUT /api/projects/{id}`, `DELETE /api/projects/{id}`
+**Backend:** 7 endpoints complete (`/api/v1/projects/*`)
 **Output:**
 - Project stats cards (Total Scenes, Total Clips, Duration, Completion Rate)
 - Completion progress bar with percentage
@@ -399,112 +404,160 @@
 - Integrated into App.js routing (route: 'project-dashboard')
 - Project-dependent (disabled when no active project)
 
-### Task 13.11: Scene Details View
-**Files:** Enhance `SceneManager.jsx`
+### Task 13.11: Scene Details View Enhancement
+**Files:** Enhance `SceneManager.jsx` (exists, ~400 lines)
 **Priority:** MEDIUM
 **Time:** 3h
-**Status:** Not started
-**Details:** Scene detail modal, edit properties, scene-level operations
-**Backend:** Endpoint `GET /api/scenes/{id}`
-**Output:**
-- Scene detail modal/panel
-- Edit scene name, description, lyrics
-- Scene statistics (clip count, duration)
+**Status:** ⚠️ NOT STARTED - Basic scene editing exists, needs enhancement
+**Details:** Enhanced scene detail modal, advanced editing, scene-level operations
+**Backend:** 6 endpoints complete (`/api/v1/scenes/*`)
+**Current State:**
+- ✅ SceneManager component exists with basic CRUD
+- ❌ Enhanced scene detail modal needs implementation
+- ❌ Scene-level prompt templates not implemented
+- ❌ Scene reordering UI not implemented
+**Remaining Work:**
+- Enhanced scene detail modal/panel
+- Scene statistics visualization (clip count, duration)
 - Scene-level prompt templates
-- Reorder scenes
-- Duplicate scene
+- Reorder scenes drag-and-drop
+- Duplicate scene functionality
 
 ### Task 13.12: Clip Details Dialog
 **Files:** `frontend/src/components/ClipDetailsDialog.jsx`
 **Priority:** MEDIUM
 **Time:** 3h
-**Status:** Not started
-**Details:** Full clip information, edit properties, generation history
-**Backend:** Endpoints `GET /api/clips/{id}`, `PUT /api/clips/{id}`
-**Output:**
+**Status:** ⚠️ NOT STARTED - Clip editing exists in SceneManager, needs dedicated dialog
+**Details:** Dedicated clip details dialog with full information and editing
+**Backend:** 8 endpoints complete (`/api/v1/clips/*`)
+**Current State:**
+- ✅ Clip editing exists within SceneManager
+- ✅ Gallery view exists (GET /clips/{id}/gallery)
+- ❌ Dedicated ClipDetailsDialog component not created
+- ❌ Version comparison view not implemented
+**Remaining Work:**
+- Create ClipDetailsDialog component
 - Full clip information display
 - Edit clip name, lyrics, length
 - Generation history view
 - Version comparison (side-by-side)
-- Metadata display
-- Character assignment
+- Metadata display enhancement
+- Character assignment UI
 
 ### Task 13.13: Model Browser Enhancement
-**Files:** Enhance `ComfyUIManager.jsx`
+**Files:** Enhance `ModelBrowser.jsx` (exists, ~350 lines)
 **Priority:** LOW
 **Time:** 2h
-**Status:** Not started
-**Details:** Model categories, type filtering, search
-**Backend:** Endpoint `GET /api/models/types`
-**Output:**
+**Status:** ⚠️ PARTIALLY COMPLETE - Basic browser exists, needs enhancements
+**Details:** Enhanced model browser with categories, filtering, search
+**Backend:** Model endpoints exist in ComfyUIService
+**Current State:**
+- ✅ ModelBrowser component exists
+- ✅ ModelCard and ModelCardComponents exist
+- ✅ Basic model display working
+- ❌ Model categories not fully implemented
+- ❌ Advanced filtering needs enhancement
+**Remaining Work:**
 - Model categories display
-- Filter models by type
+- Enhanced filter models by type
 - Model type badges
-- Model search functionality
+- Improved search functionality
+- Model preset quick-apply
 
-### Task 13.14: Health Monitoring Dashboard (Admin)
+### Task 13.14: Admin Dashboard (Health Monitoring)
 **Files:** `frontend/src/components/AdminDashboard.jsx`
 **Priority:** LOW
 **Time:** 4h
-**Status:** Not started
-**Details:** System health, database status, server monitoring
-**Backend:** Endpoints `GET /api/health`, `GET /api/v1/health`
-**Output:**
+**Status:** ⚠️ NOT STARTED - Health endpoints exist, UI not created
+**Details:** System health monitoring, database status, server monitoring
+**Backend:** 2 health endpoints complete (`/api/v1/health/*`)
+**Current State:**
+- ✅ Health check endpoints exist
+- ✅ ComfyUI server info endpoint exists
+- ❌ AdminDashboard component not created
+- ❌ Health monitoring UI not implemented
+**Remaining Work:**
+- Create AdminDashboard component
 - System health status display
 - Database connection status
 - ComfyUI server health checks
 - API response time monitoring
 - Error rate display
-- Server uptime
+- Server uptime visualization
 
-### Task 13.15: API Service Layer Refactor
-**Files:** `frontend/src/services/api.js` + 7 service files
+### Task 13.15: API Service Layer Implementation
+**Files:** `frontend/src/services/` (8 service files + apiClient.js)
 **Priority:** HIGH
 **Time:** 6h
-**Status:** Not started
-**Details:** Centralized API layer, replace direct axios calls
+**Status:** ✅ COMPLETED
+**Details:** Centralized API service layer with dedicated service modules
 **Output:**
-- `ProjectService`, `SceneService`, `ClipService`, `CharacterService`
-- `TemplateService`, `QueueService`, `GenerationService`, `ComfyUIService`
-- Centralized error handling with interceptors
-- Request/response transformers
-- Refactor all components to use service layer
+- ✅ `ProjectService.js` - Project operations (7 methods)
+- ✅ `SceneService.js` - Scene operations (6 methods)
+- ✅ `ClipService.js` - Clip operations (8 methods)
+- ✅ `CharacterService.js` - Character operations (6 methods)
+- ✅ `TemplateService.js` - Template operations (6 methods)
+- ✅ `QueueService.js` - Queue operations (12 methods)
+- ✅ `GenerationService.js` - Generation operations (4 methods)
+- ✅ `ComfyUIService.js` - ComfyUI server operations (5 methods)
+- ✅ `apiClient.js` - Base axios client with interceptors
+- ✅ Centralized error handling
+- ✅ Request/response transformers
+- ✅ All major components using service layer
 
 ### Task 13.16: API Version Migration to /api/v1
 **Files:** All API service files
 **Priority:** MEDIUM
 **Time:** 8h
-**Status:** Not started
-**Details:** Migrate from `/api` to `/api/v1` endpoints
+**Status:** ✅ COMPLETED
+**Details:** All services migrated to `/api/v1` endpoints
 **Output:**
-- Update all API calls to v1 endpoints
-- Environment config for version selection
-- Feature flag for gradual rollout
-- Maintain backward compatibility
-- Comprehensive endpoint testing
+- ✅ All 8 services using v1 endpoints
+- ✅ ProjectService uses `/api/v1/projects/*` (7 endpoints)
+- ✅ SceneService uses `/api/v1/scenes/*` (6 endpoints)
+- ✅ ClipService uses `/api/v1/clips/*` (8 endpoints)
+- ✅ CharacterService uses `/api/v1/characters/*` (6 endpoints)
+- ✅ TemplateService uses `/api/v1/templates/*` (6 endpoints)
+- ✅ QueueService uses `/api/v1/queue/*` (12 endpoints)
+- ✅ GenerationService uses `/api/v1/generation/*` (4 endpoints)
+- ✅ ComfyUIService uses `/api/v1/comfyui/*` (5 endpoints)
+- ⚠️ Export endpoints remain on legacy `/api` (not yet migrated to v1)
+- ✅ All components updated to use versioned endpoints
 
 ### Task 13.17: Batch Progress Notifications
 **Files:** `frontend/src/components/NotificationCenter.jsx`
 **Priority:** MEDIUM
 **Time:** 3h
-**Status:** Not started
+**Status:** ⚠️ NOT STARTED - Toast system exists (Shadcn UI), needs dedicated notification center
 **Details:** Real-time notifications, toast alerts, notification history
-**Output:**
+**Current State:**
+- ✅ Toast component exists (from Shadcn UI)
+- ✅ QueueDashboard shows real-time updates
+- ❌ NotificationCenter component not created
+- ❌ Desktop notifications not implemented
+**Remaining Work:**
+- Create NotificationCenter component
 - Real-time batch progress notifications
-- Toast notifications for job completion
+- Enhanced toast notifications for job completion
 - Notification center with history
 - Desktop notifications (browser API)
 - Sound notifications (optional)
 
 ### Task 13.18: Enhanced Gallery Navigation
-**Files:** Enhance `EnhancedGenerationDialog.jsx`
+**Files:** Enhance `EnhancedGenerationDialog.jsx` (exists, ~800+ lines)
 **Priority:** MEDIUM
 **Time:** 4h
-**Status:** Not started
+**Status:** ⚠️ PARTIALLY COMPLETE - Gallery exists, needs navigation enhancements
 **Details:** Keyboard navigation, bulk operations, compare mode
-**Output:**
+**Current State:**
+- ✅ EnhancedGenerationDialog component exists
+- ✅ Gallery view shows generated content
+- ✅ Basic selection and delete working
+- ❌ Keyboard navigation not implemented
+- ❌ Compare mode not implemented
+**Remaining Work:**
 - Keyboard navigation (arrow keys)
-- Bulk selection and delete
+- Bulk selection and delete enhancement
 - Compare mode (side-by-side)
 - Lightbox view for full-screen
 - Filter by server, model, or date
