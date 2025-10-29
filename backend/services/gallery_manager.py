@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 class GalleryManager:
     """Manages gallery operations for clips"""
 
+    def __init__(self, gallery_repository=None):
+        self._repository = gallery_repository
+
     @staticmethod
     def initialize_clip_fields(clip_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -33,8 +36,8 @@ class GalleryManager:
         clip_data.setdefault("updated_at", datetime.now(timezone.utc))
         return clip_data
 
-    @staticmethod
     async def add_generated_content(
+        self,
         db,
         clip_id: str,
         new_content: GeneratedContentDTO,
@@ -77,6 +80,11 @@ class GalleryManager:
                 }}
             )
 
+            if self._repository:
+                content_dict = new_content.model_dump()
+                content_dict["clip_id"] = clip_id
+                await self._repository.create(content_dict)
+
             return {
                 "message": "Image generated successfully",
                 "content": new_content.model_dump(),
@@ -99,6 +107,11 @@ class GalleryManager:
                 }}
             )
 
+            if self._repository:
+                content_dict = new_content.model_dump()
+                content_dict["clip_id"] = clip_id
+                await self._repository.create(content_dict)
+
             return {
                 "message": "Video generated successfully",
                 "content": new_content.model_dump(),
@@ -107,8 +120,8 @@ class GalleryManager:
 
         raise ValueError(f"Invalid content type: {content_type}")
 
-    @staticmethod
     async def select_content(
+        self,
         db,
         clip_id: str,
         content_id: str,
@@ -145,6 +158,10 @@ class GalleryManager:
                 "updated_at": datetime.now(timezone.utc)
             }}
         )
+
+        if self._repository:
+            await self._repository.unmark_selected(clip_id, content_type)
+            await self._repository.mark_as_selected(content_id)
 
         return {"message": f"Selected {content_type} updated successfully"}
 

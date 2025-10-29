@@ -192,8 +192,8 @@ class GenerationService:
             updated_at=batch_info["updated_at"],
         )
 
-    def get_batch_status(self, batch_id: str) -> BatchGenerationStatusDTO:
-        status = batch_generator.get_batch_status(batch_id)
+    async def get_batch_status(self, batch_id: str) -> BatchGenerationStatusDTO:
+        status = await batch_generator.get_batch_status(batch_id)
         if "error" in status and status["error"] == "Batch not found":
             raise ValidationError(f"Batch {batch_id} not found")
 
@@ -428,40 +428,9 @@ class GenerationService:
     # -------------------------------------------------------------------------
     # Batch Generation Tracking
     # -------------------------------------------------------------------------
-    async def get_batch_status(self, batch_id: str) -> Dict:
-        """Get status of a batch generation job"""
-        db = await self._get_db()
-
-        batch = await db.generation_batches.find_one({"id": batch_id})
-        if not batch:
-            raise ResourceNotFoundError("Batch", batch_id)
-
-        # Count job statuses
-        jobs = batch.get("jobs", [])
-        total = len(jobs)
-        completed = sum(1 for j in jobs if j.get("status") == "completed")
-        failed = sum(1 for j in jobs if j.get("status") == "failed")
-        pending = sum(1 for j in jobs if j.get("status") == "pending")
-        running = sum(1 for j in jobs if j.get("status") == "running")
-
-        return {
-            "batch_id": batch_id,
-            "status": batch.get("status", "pending"),
-            "total_jobs": total,
-            "completed_jobs": completed,
-            "failed_jobs": failed,
-            "pending_jobs": pending,
-            "running_jobs": running,
-            "created_at": batch.get("created_at"),
-            "updated_at": batch.get("updated_at"),
-            "jobs": jobs,
-        }
-
     async def list_batches(self) -> Dict:
         """List all batch jobs"""
-        db = await self._get_db()
-
-        batches = await db.generation_batches.find().sort("created_at", -1).to_list(100)
+        batches = await batch_generator.list_batches()
 
         return {
             "total": len(batches),
@@ -469,8 +438,8 @@ class GenerationService:
                 {
                     "batch_id": b["id"],
                     "status": b.get("status", "pending"),
-                    "total_jobs": len(b.get("jobs", [])),
-                    "created_at": b.get("created_at"),
+                    "total_jobs": b.get("total", 0),
+                    "created_at": b.get("started_at"),
                 }
                 for b in batches
             ],

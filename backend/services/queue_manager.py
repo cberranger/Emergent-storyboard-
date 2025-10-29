@@ -2,7 +2,7 @@
 import asyncio
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 import logging
 
 logger = logging.getLogger(__name__)
@@ -51,11 +51,93 @@ class ServerLoad:
 class QueueManager:
     """Manages smart queue distribution across ComfyUI servers"""
 
-    def __init__(self):
+    def __init__(self, queue_repository=None):
         self.queue: List[QueuedJob] = []
         self.server_loads: Dict[str, ServerLoad] = {}
         self.processing_jobs: Dict[str, QueuedJob] = {}
         self._processing_lock = asyncio.Lock()
+        self._repository = queue_repository
+        self._initialized = False
+
+    async def _load_from_db(self):
+        """Load existing jobs from database"""
+        if self._initialized or not self._repository:
+            return
+        
+        try:
+            pending_jobs = await self._repository.find_pending_jobs()
+            for job_data in pending_jobs:
+                job = self._dict_to_job(job_data)
+                if job.status == "processing":
+                    self.processing_jobs[job.id] = job
+                else:
+                    self.queue.append(job)
+            
+            self.queue.sort(key=lambda j: (-j.priority, j.created_at))
+            self._initialized = True
+            logger.info(f"Loaded {len(self.queue)} queued and {len(self.processing_jobs)} processing jobs from database")
+        except Exception as e:
+            logger.error(f"Failed to load jobs from database: {e}")
+
+    async def _persist_job(self, job: QueuedJob):
+        """Persist job to database"""
+        if not self._repository:
+            return
+        
+        try:
+            job_dict = self._job_to_dict(job)
+            job_dict["project_id"] = job.project_id
+            job_dict["clip_id"] = job.clip_id
+            job_dict["generation_type"] = job.generation_type
+            job_dict["prompt"] = job.prompt
+            job_dict["negative_prompt"] = job.negative_prompt
+            job_dict["model"] = job.model
+            job_dict["params"] = job.params
+            job_dict["loras"] = job.loras
+            job_dict["estimated_duration"] = job.estimated_duration
+            
+            existing = await self._repository.find_by_id(job.id)
+            if existing:
+                await self._repository.update_by_id(job.id, job_dict)
+            else:
+                await self._repository.create(job_dict)
+        except Exception as e:
+            logger.error(f"Failed to persist job {job.id}: {e}")
+
+    async def _delete_persisted_job(self, job_id: str):
+        """Delete job from database"""
+        if not self._repository:
+            return
+        
+        try:
+            await self._repository.delete_by_id(job_id)
+        except Exception as e:
+            logger.error(f"Failed to delete job {job_id} from database: {e}")
+
+    def _dict_to_job(self, data: Dict[str, Any]) -> QueuedJob:
+        """Convert dictionary to QueuedJob"""
+        return QueuedJob(
+            id=data["id"],
+            clip_id=data["clip_id"],
+            project_id=data["project_id"],
+            generation_type=data["generation_type"],
+            prompt=data["prompt"],
+            negative_prompt=data.get("negative_prompt", ""),
+            model=data.get("model"),
+            params=data.get("params", {}),
+            loras=data.get("loras", []),
+            priority=data.get("priority", 0),
+            server_id=data.get("server_id"),
+            status=data["status"],
+            created_at=data["created_at"] if isinstance(data["created_at"], datetime) else datetime.fromisoformat(data["created_at"].replace('Z', '+00:00')),
+            started_at=data["started_at"] if data.get("started_at") and isinstance(data["started_at"], datetime) else (datetime.fromisoformat(data["started_at"].replace('Z', '+00:00')) if data.get("started_at") else None),
+            completed_at=data["completed_at"] if data.get("completed_at") and isinstance(data["completed_at"], datetime) else (datetime.fromisoformat(data["completed_at"].replace('Z', '+00:00')) if data.get("completed_at") else None),
+            error=data.get("error"),
+            result_url=data.get("result_url"),
+            estimated_duration=data.get("estimated_duration"),
+            retry_count=data.get("retry_count", 0),
+            max_retries=data.get("max_retries", 3)
+        )
 
     async def add_job(
         self,
@@ -90,6 +172,8 @@ class QueueManager:
         Returns:
             QueuedJob object
         """
+        await self._load_from_db()
+        
         job = QueuedJob(
             id=job_id,
             clip_id=clip_id,
@@ -114,6 +198,7 @@ class QueueManager:
             self.queue.append(job)
             # Sort by priority (highest first), then by creation time
             self.queue.sort(key=lambda j: (-j.priority, j.created_at))
+            await self._persist_job(job)
 
         logger.info(f"Added job {job_id} to queue (priority: {priority})")
         return job
@@ -200,6 +285,8 @@ class QueueManager:
         Returns:
             QueuedJob or None if no work available
         """
+        await self._load_from_db()
+        
         async with self._processing_lock:
             # Find first job that can run on this server
             for i, job in enumerate(self.queue):
@@ -227,6 +314,7 @@ class QueueManager:
                         [j for j in self.queue if j.server_id == server_id]
                     )
 
+                await self._persist_job(job)
                 logger.info(f"Assigned job {job.id} to server {server_id}")
                 return job
 
@@ -234,6 +322,8 @@ class QueueManager:
 
     async def assign_pending_jobs(self):
         """Assign jobs to available servers (call periodically)"""
+        await self._load_from_db()
+        
         async with self._processing_lock:
             for job in list(self.queue):
                 if job.status != "queued":
@@ -242,6 +332,7 @@ class QueueManager:
                 best_server = self._get_best_server(job)
                 if best_server:
                     job.server_id = best_server
+                    await self._persist_job(job)
                     logger.info(f"Pre-assigned job {job.id} to server {best_server}")
 
     async def complete_job(
@@ -312,6 +403,8 @@ class QueueManager:
             # Remove from processing if not retrying
             if job.status != "queued":
                 del self.processing_jobs[job_id]
+
+            await self._persist_job(job)
 
     def get_job_status(self, job_id: str) -> Optional[Dict[str, Any]]:
         """Get status of a job"""
@@ -403,6 +496,7 @@ class QueueManager:
                 self.queue.insert(0, job)
                 self.queue.sort(key=lambda j: (-j.priority, j.created_at))
             
+            await self._persist_job(job)
             logger.info(f"Job {job_id} requeued for retry")
 
     async def cancel_job(self, job_id: str):
@@ -436,6 +530,7 @@ class QueueManager:
             if job in self.queue:
                 self.queue.remove(job)
             
+            await self._persist_job(job)
             logger.info(f"Job {job_id} cancelled")
 
     async def delete_job(self, job_id: str):
@@ -450,12 +545,14 @@ class QueueManager:
                     )
                 
                 del self.processing_jobs[job_id]
+                await self._delete_persisted_job(job_id)
                 logger.info(f"Deleted job {job_id} from processing")
                 return
             
             for i, job in enumerate(self.queue):
                 if job.id == job_id:
                     self.queue.pop(i)
+                    await self._delete_persisted_job(job_id)
                     logger.info(f"Deleted job {job_id} from queue")
                     return
             
@@ -470,6 +567,7 @@ class QueueManager:
                 jobs_to_delete = [job for job in self.queue if job.status == status]
                 for job in jobs_to_delete:
                     self.queue.remove(job)
+                    await self._delete_persisted_job(job.id)
                     deleted_count += 1
                 
                 processing_jobs_to_delete = [
@@ -485,14 +583,19 @@ class QueueManager:
                         )
                     
                     del self.processing_jobs[job_id]
+                    await self._delete_persisted_job(job_id)
                     deleted_count += 1
             else:
                 deleted_count = len(self.queue) + len(self.processing_jobs)
+                
+                for job in self.queue:
+                    await self._delete_persisted_job(job.id)
                 self.queue.clear()
                 
-                for job in self.processing_jobs.values():
+                for job_id, job in self.processing_jobs.items():
                     if job.server_id and job.server_id in self.server_loads:
                         self.server_loads[job.server_id].current_jobs = 0
+                    await self._delete_persisted_job(job_id)
                 
                 self.processing_jobs.clear()
             

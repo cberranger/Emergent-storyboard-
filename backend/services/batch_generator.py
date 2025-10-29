@@ -1,6 +1,6 @@
 """Batch generation service for processing multiple clips"""
 import asyncio
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 import logging
 
@@ -10,8 +10,39 @@ logger = logging.getLogger(__name__)
 class BatchGenerator:
     """Manages batch generation of multiple clips"""
 
-    def __init__(self):
+    def __init__(self, batch_repository=None):
         self.active_batches: Dict[str, Dict[str, Any]] = {}
+        self._repository = batch_repository
+        self._initialized = False
+
+    async def _load_from_db(self):
+        """Load active batches from database"""
+        if self._initialized or not self._repository:
+            return
+        
+        try:
+            active_batches = await self._repository.find_active_batches()
+            for batch_data in active_batches:
+                self.active_batches[batch_data["id"]] = batch_data
+            
+            self._initialized = True
+            logger.info(f"Loaded {len(self.active_batches)} active batches from database")
+        except Exception as e:
+            logger.error(f"Failed to load batches from database: {e}")
+
+    async def _persist_batch(self, batch: Dict[str, Any]):
+        """Persist batch to database"""
+        if not self._repository:
+            return
+        
+        try:
+            existing = await self._repository.find_by_id(batch["id"])
+            if existing:
+                await self._repository.update_by_id(batch["id"], batch)
+            else:
+                await self._repository.create(batch)
+        except Exception as e:
+            logger.error(f"Failed to persist batch {batch['id']}: {e}")
 
     async def generate_batch(
         self,
@@ -38,10 +69,12 @@ class BatchGenerator:
         from server import ComfyUIServer, ComfyUIClient
         from services.gallery_manager import gallery_manager
 
+        await self._load_from_db()
+        
         batch_id = str(uuid.uuid4())
 
         # Initialize batch tracking
-        self.active_batches[batch_id] = {
+        batch = {
             "id": batch_id,
             "status": "processing",
             "total": len(clip_ids),
@@ -51,24 +84,30 @@ class BatchGenerator:
             "started_at": datetime.now(timezone.utc),
             "updated_at": datetime.now(timezone.utc)
         }
+        self.active_batches[batch_id] = batch
+        await self._persist_batch(batch)
 
         logger.info(f"Starting batch generation {batch_id} for {len(clip_ids)} clips")
 
         # Get server
         server_data = await db.comfyui_servers.find_one({"id": server_id})
         if not server_data:
-            self.active_batches[batch_id]["status"] = "failed"
-            self.active_batches[batch_id]["error"] = "Server not found"
-            return self.active_batches[batch_id]
+            batch["status"] = "failed"
+            batch["error"] = "Server not found"
+            batch["updated_at"] = datetime.now(timezone.utc)
+            await self._persist_batch(batch)
+            return batch
 
         server = ComfyUIServer(**server_data)
         client = ComfyUIClient(server)
 
         # Check server connection
         if not await client.check_connection():
-            self.active_batches[batch_id]["status"] = "failed"
-            self.active_batches[batch_id]["error"] = "Server offline"
-            return self.active_batches[batch_id]
+            batch["status"] = "failed"
+            batch["error"] = "Server offline"
+            batch["updated_at"] = datetime.now(timezone.utc)
+            await self._persist_batch(batch)
+            return batch
 
         # Process clips
         tasks = []
@@ -82,7 +121,6 @@ class BatchGenerator:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Update batch status
-        batch = self.active_batches[batch_id]
         batch["status"] = "completed"
         batch["completed"] = sum(1 for r in results if not isinstance(r, Exception))
         batch["failed"] = sum(1 for r in results if isinstance(r, Exception))
@@ -91,6 +129,7 @@ class BatchGenerator:
             for r in results
         ]
         batch["updated_at"] = datetime.now(timezone.utc)
+        await self._persist_batch(batch)
 
         logger.info(f"Batch {batch_id} completed: {batch['completed']}/{batch['total']} successful")
 
@@ -180,15 +219,40 @@ class BatchGenerator:
                 "error": str(e)
             }
 
-    def get_batch_status(self, batch_id: str) -> Dict[str, Any]:
+    async def get_batch_status(self, batch_id: str) -> Dict[str, Any]:
         """Get status of a batch job"""
-        return self.active_batches.get(batch_id, {"error": "Batch not found"})
+        await self._load_from_db()
+        
+        batch = self.active_batches.get(batch_id)
+        if batch:
+            return batch
+        
+        if self._repository:
+            batch_data = await self._repository.find_by_id(batch_id)
+            if batch_data:
+                return batch_data
+        
+        return {"error": "Batch not found"}
 
-    def list_batches(self) -> List[Dict[str, Any]]:
+    async def list_batches(self) -> List[Dict[str, Any]]:
         """List all batch jobs"""
+        await self._load_from_db()
+        
+        if self._repository:
+            try:
+                recent_batches = await self._repository.list_recent(limit=100)
+                memory_batch_ids = set(self.active_batches.keys())
+                
+                for batch in recent_batches:
+                    if batch["id"] not in memory_batch_ids:
+                        self.active_batches[batch["id"]] = batch
+                
+            except Exception as e:
+                logger.error(f"Failed to list batches from database: {e}")
+        
         return list(self.active_batches.values())
 
-    def clear_completed_batches(self) -> int:
+    async def clear_completed_batches(self) -> int:
         """Clear completed batch jobs from memory"""
         to_remove = [
             batch_id for batch_id, batch in self.active_batches.items()

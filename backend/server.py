@@ -5287,6 +5287,24 @@ async def startup_db_client():
         # Initialize active models service
         active_models_service = ActiveModelsService(db_manager.client, db_manager.db_name)
         logger.info("Active models service initialized")
+        
+        # Initialize repositories for services
+        from repositories.queue_repository import QueueRepository
+        from repositories.gallery_repository import GalleryRepository
+        from repositories.batch_repository import BatchRepository
+        from services.queue_manager import queue_manager
+        from services.gallery_manager import gallery_manager
+        from services.batch_generator import batch_generator
+        
+        queue_repository = QueueRepository(db.queue_jobs)
+        gallery_repository = GalleryRepository(db.gallery_items)
+        batch_repository = BatchRepository(db.batch_jobs)
+        
+        queue_manager._repository = queue_repository
+        gallery_manager._repository = gallery_repository
+        batch_generator._repository = batch_repository
+        
+        logger.info("Repositories initialized for queue, gallery, and batch services")
         logger.info("Application started successfully")
 
         # Validate OpenAI configuration (non-fatal - ComfyUI flows can still run)
