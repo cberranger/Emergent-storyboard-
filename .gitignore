@@ -114,3 +114,5 @@ frontend/node_modules/.cache/default-development/6.pack
 # Environment files
 *.env
 *.env.*
+backend/checkpoint-page-1.json
+backend/checkpoint-page-2.json
