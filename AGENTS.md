@@ -1,13 +1,11 @@
-# StoryCanvas Developer Guide
+# StoryCanvas - Agent Guide
 
-## Setup & Commands
-
-### Initial Setup
+## Setup
 ```bash
 # Backend (Python 3.8+, MongoDB required)
 cd backend
-python -m venv venv  # or .venv
-venv\Scripts\activate  # Windows PowerShell
+python -m venv .venv
+.venv\Scripts\activate  # Windows: Use .venv not venv
 pip install -r requirements.txt
 
 # Frontend (Node.js 16+)
@@ -15,21 +13,25 @@ cd frontend
 yarn install  # or npm install
 ```
 
-### Run Commands
-- **Dev Server**: `.\launch.bat` or `.\launch.sh` (starts both frontend & backend)
-- **Backend Only**: `cd backend && uvicorn server:app --host localhost --port 8001 --reload`
-- **Frontend Only**: `cd frontend && yarn start`
+## Commands
 - **Build**: `cd frontend && yarn build`
-- **Lint**: No lint configured (ESLint dependencies present but not configured)
-- **Tests**: No test framework configured
+- **Lint**: Frontend has ESLint via `craco test` (no standalone lint command)
+- **Test**: `cd frontend && yarn test` (backend: `pytest` if tests exist)
+- **Dev**: Run `launch.bat` or `.\launch.ps1` (starts both servers with interactive config)
+- **Backend**: `cd backend && uvicorn server:app --host localhost --port 8001 --reload`
+- **Frontend**: `cd frontend && yarn start`
 
-## Tech Stack
-- **Backend**: FastAPI + Motor (MongoDB) + aiohttp
-- **Frontend**: React 18 + Shadcn UI + Radix UI + React DnD + Tailwind CSS
-- **Architecture**: Service layer pattern with repositories, DTOs, and API versioning (`/api/v1`)
+## Stack
+- **Backend**: FastAPI, MongoDB (Motor), Pydantic, aiohttp
+- **Frontend**: React 18, Shadcn UI (Radix), TailwindCSS, React Router, React DnD, Axios
+- **Architecture**: Service layer + Repository pattern + DTOs (backend); Component-based (frontend)
 
-## Code Conventions
-- **Python**: Service layer for business logic, repository pattern for data access, Pydantic models for validation
-- **React**: Functional components with hooks, shadcn/ui components via CVA (class-variance-authority), utility-first CSS with Tailwind
-- **Naming**: camelCase (JS), snake_case (Python)
-- **Styling**: Dark theme, `cn()` utility for class merging, CVA for component variants
+## Structure
+- `backend/`: API server (`server.py`), services, repositories, DTOs, models, utils
+- `frontend/src/`: Components, hooks, utils, services (API layer)
+- Virtual env: `.venv/` (per gitignore)
+
+## Style
+- **Backend**: Type hints, DTOs for validation, service layer for logic, repository for DB access
+- **Frontend**: Functional components with hooks, Shadcn UI components, @ path aliases, minimal comments
+- Naming: snake_case (Python), camelCase (JS)
