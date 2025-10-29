@@ -12,8 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import axios from 'axios';
-import { API } from '@/config';
+import { poolService } from '@/services';
 
 const GenerationPool = ({ project }) => {
   const [poolItems, setPoolItems] = useState([]);
@@ -38,18 +37,16 @@ const GenerationPool = ({ project }) => {
   const fetchPoolItems = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API}/pool/${project.id}`);
-      setPoolItems(response.data);
+      const data = await poolService.getPoolItems(project.id);
+      setPoolItems(data);
 
-      // Extract all unique tags
       const tags = new Set();
-      response.data.forEach(item => {
+      data.forEach(item => {
         item.tags?.forEach(tag => tags.add(tag));
       });
       setAllTags(Array.from(tags).sort());
     } catch (error) {
       console.error('Error fetching pool items:', error);
-      toast.error('Failed to load generation pool');
     } finally {
       setLoading(false);
     }
@@ -87,12 +84,11 @@ const GenerationPool = ({ project }) => {
     if (!confirm('Are you sure you want to delete this pool item?')) return;
 
     try {
-      await axios.delete(`${API}/pool/item/${itemId}`);
+      await poolService.deletePoolItem(itemId);
       toast.success('Pool item deleted');
       fetchPoolItems();
     } catch (error) {
       console.error('Error deleting pool item:', error);
-      toast.error('Failed to delete pool item');
     }
   };
 

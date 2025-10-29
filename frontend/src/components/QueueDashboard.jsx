@@ -16,9 +16,8 @@ import {
   Filter,
   Download
 } from 'lucide-react';
-import { API } from '@/config';
-import axios from 'axios';
 import { toast } from 'sonner';
+import { queueService } from '@/services';
 import {
   Select,
   SelectContent,
@@ -63,13 +62,11 @@ const QueueDashboard = () => {
         params.status = statusFilter;
       }
 
-      const response = await axios.get(`${API}/v1/queue/jobs`, { params });
-      const jobData = Array.isArray(response.data) ? response.data : (response.data.jobs || []);
-      setJobs(jobData);
-      calculateStats(jobData);
+      const data = await queueService.getJobs(params);
+      setJobs(data);
+      calculateStats(data);
     } catch (error) {
       console.error('Error fetching queue jobs:', error);
-      toast.error('Failed to fetch queue jobs');
     } finally {
       setLoading(false);
     }
@@ -99,23 +96,21 @@ const QueueDashboard = () => {
 
   const handleRetryJob = async (jobId) => {
     try {
-      await axios.post(`${API}/v1/queue/jobs/${jobId}/retry`);
+      await queueService.retryJob(jobId);
       toast.success('Job retry initiated');
       fetchJobs();
     } catch (error) {
       console.error('Error retrying job:', error);
-      toast.error('Failed to retry job');
     }
   };
 
   const handleCancelJob = async (jobId) => {
     try {
-      await axios.post(`${API}/v1/queue/jobs/${jobId}/cancel`);
+      await queueService.cancelJob(jobId);
       toast.success('Job cancelled');
       fetchJobs();
     } catch (error) {
       console.error('Error cancelling job:', error);
-      toast.error('Failed to cancel job');
     }
   };
 
@@ -123,12 +118,11 @@ const QueueDashboard = () => {
     if (!window.confirm('Are you sure you want to delete this job?')) return;
 
     try {
-      await axios.delete(`${API}/v1/queue/jobs/${jobId}`);
+      await queueService.deleteJob(jobId);
       toast.success('Job deleted');
       fetchJobs();
     } catch (error) {
       console.error('Error deleting job:', error);
-      toast.error('Failed to delete job');
     }
   };
 
@@ -136,14 +130,11 @@ const QueueDashboard = () => {
     if (!window.confirm('Clear all completed jobs?')) return;
 
     try {
-      await axios.delete(`${API}/v1/queue/clear`, {
-        params: { status: 'completed' }
-      });
+      await queueService.clearQueue({ status: 'completed' });
       toast.success('Completed jobs cleared');
       fetchJobs();
     } catch (error) {
       console.error('Error clearing completed jobs:', error);
-      toast.error('Failed to clear completed jobs');
     }
   };
 
@@ -151,14 +142,11 @@ const QueueDashboard = () => {
     if (!window.confirm('Clear all failed jobs?')) return;
 
     try {
-      await axios.delete(`${API}/v1/queue/clear`, {
-        params: { status: 'failed' }
-      });
+      await queueService.clearQueue({ status: 'failed' });
       toast.success('Failed jobs cleared');
       fetchJobs();
     } catch (error) {
       console.error('Error clearing failed jobs:', error);
-      toast.error('Failed to clear failed jobs');
     }
   };
 

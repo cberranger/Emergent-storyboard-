@@ -6,8 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import axios from 'axios';
-import { API } from '@/config';
+import { modelService } from '@/services';
 import ModelCard from './ModelCard';
 
 const ModelBrowser = ({ serverId, onModelUpdate }) => {
@@ -34,11 +33,10 @@ const ModelBrowser = ({ serverId, onModelUpdate }) => {
       }
       // If 'all', don't set the is_active parameter
       
-      const response = await axios.get(`${API}/models`, { params });
-      setModels(response.data);
+      const data = await modelService.getModels(params);
+      setModels(data);
     } catch (error) {
       console.error('Error fetching models:', error);
-      toast.error('Failed to load models');
     } finally {
       setLoading(false);
     }
@@ -49,12 +47,11 @@ const ModelBrowser = ({ serverId, onModelUpdate }) => {
     
     setSyncing(true);
     try {
-      const response = await axios.post(`${API}/servers/${serverId}/sync-models`);
-      toast.success(response.data.message);
-      fetchModels(); // Refresh the model list
+      const data = await modelService.syncServerModels(serverId);
+      toast.success(data.message);
+      fetchModels();
     } catch (error) {
       console.error('Error syncing models:', error);
-      toast.error('Failed to sync models from server');
     } finally {
       setSyncing(false);
     }

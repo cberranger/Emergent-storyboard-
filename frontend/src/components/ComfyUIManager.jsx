@@ -7,8 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import axios from 'axios';
-import { API } from '@/config';
+import { comfyuiService } from '@/services';
 import { validateURL, sanitizeInput } from '@/utils/validators';
 import ModelBrowser from './ModelBrowser';
 
@@ -48,26 +47,23 @@ const ComfyUIManager = ({ servers, onAddServer, onRefresh, onDeleteServer }) => 
     };
     
     try {
-      const response = await axios.post(`${API}/comfyui/servers`, serverData);
-      onAddServer && await onAddServer(); // Refresh the list
+      const data = await comfyuiService.createServer(serverData);
+      onAddServer && await onAddServer();
       setNewServer({ name: '', url: '', server_type: 'standard', api_key: '' });
       setIsAddOpen(false);
-      // Fetch info for the new server
-      fetchServerInfo(response.data.id);
+      fetchServerInfo(data.id);
     } catch (error) {
       console.error('Error adding server:', error);
-      toast.error('Failed to add server');
     }
   };
 
   const fetchServerInfo = async (serverId) => {
     setLoading(prev => ({ ...prev, [serverId]: true }));
     try {
-      const response = await axios.get(`${API}/comfyui/servers/${serverId}/info`);
-      setServerInfos(prev => ({ ...prev, [serverId]: response.data }));
+      const data = await comfyuiService.getServerInfo(serverId);
+      setServerInfos(prev => ({ ...prev, [serverId]: data }));
     } catch (error) {
       console.error('Error fetching server info:', error);
-      toast.error('Failed to fetch server info');
     } finally {
       setLoading(prev => ({ ...prev, [serverId]: false }));
     }
@@ -79,15 +75,14 @@ const ComfyUIManager = ({ servers, onAddServer, onRefresh, onDeleteServer }) => 
     }
     
     try {
-      await axios.delete(`${API}/comfyui/servers/${serverId}`);
+      await comfyuiService.deleteServer(serverId);
       toast.success('Server deleted successfully');
-      // Remove from local state
       setServerInfos(prev => {
         const newInfos = { ...prev };
         delete newInfos[serverId];
         return newInfos;
       });
-      onDeleteServer && await onDeleteServer(); // Refresh the list
+      onDeleteServer && await onDeleteServer();
     } catch (error) {
       console.error('Error deleting server:', error);
       toast.error('Failed to delete server');

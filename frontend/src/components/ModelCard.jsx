@@ -10,8 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import axios from 'axios';
-import { API } from '@/config';
+import { modelService } from '@/services';
 import { 
   InfoRow, 
   StatsCard, 
@@ -68,11 +67,10 @@ const ModelCard = ({ model, onUpdate, onSyncCivitai }) => {
     
     setSyncing(true);
     try {
-      const response = await axios.post(`${API}/models/${model.id}/sync-civitai`);
-      onUpdate?.(response.data);
+      const data = await modelService.syncModelToCivitai(model.id);
+      onUpdate?.(data);
       
-      // Show appropriate success message based on match quality
-      const matchQuality = response.data.civitai_match_quality;
+      const matchQuality = data.civitai_match_quality;
       if (matchQuality === 'low_confidence') {
         toast.success('Model synced with low confidence match. Please verify the details.', {
           duration: 5000
@@ -89,8 +87,6 @@ const ModelCard = ({ model, onUpdate, onSyncCivitai }) => {
         toast.error(error.response.data.detail || 'This model is not active on any backend server.');
       } else if (error.response?.status === 400) {
         toast.error(error.response.data.detail || 'Failed to sync from Civitai API');
-      } else {
-        toast.error('Failed to sync from Civitai API');
       }
     } finally {
       setSyncing(false);
@@ -105,23 +101,21 @@ const ModelCard = ({ model, onUpdate, onSyncCivitai }) => {
 
     setSearching(true);
     try {
-      const response = await axios.post(`${API}/models/${model.id}/search-civitai`, {
+      const data = await modelService.searchCivitai(model.id, {
         search_query: searchQuery.trim()
       });
       
-      setSearchResults(response.data.matches);
+      setSearchResults(data.matches);
       
-      if (response.data.matches.length === 0) {
+      if (data.matches.length === 0) {
         toast.error('No results found. Try different keywords.');
       } else {
-        toast.success(`Found ${response.data.matches.length} potential matches`);
+        toast.success(`Found ${data.matches.length} potential matches`);
       }
     } catch (error) {
       console.error('Error searching Civitai:', error);
       if (error.response?.status === 403) {
         toast.error(error.response.data.detail || 'This model is not active on any backend server.');
-      } else {
-        toast.error('Failed to search Civitai');
       }
     } finally {
       setSearching(false);
@@ -131,18 +125,17 @@ const ModelCard = ({ model, onUpdate, onSyncCivitai }) => {
   const handleLinkModel = async (civitaiModelId) => {
     try {
       setSearching(true);
-      const response = await axios.post(`${API}/models/${model.id}/link-civitai`, {
+      const data = await modelService.linkToCivitai(model.id, {
         civitai_model_id: civitaiModelId
       });
       
-      onUpdate?.(response.data);
+      onUpdate?.(data);
       setShowSearch(false);
       setSearchResults([]);
       setSearchQuery('');
       toast.success('Model successfully linked to Civitai');
     } catch (error) {
       console.error('Error linking model:', error);
-      toast.error('Failed to link model');
     } finally {
       setSearching(false);
     }

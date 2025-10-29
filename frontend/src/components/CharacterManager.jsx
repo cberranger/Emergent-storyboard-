@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { API } from '@/config';
+import { comfyuiService, characterService } from '@/services';
 import { toast } from 'sonner';
 import { Users, Plus, Edit, Trash2, Image as ImageIcon, Sparkles, X, Upload, Play, Server } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -56,10 +55,10 @@ const CharacterManager = ({ activeProject }) => {
 
   const fetchComfyUIServers = async () => {
     try {
-      const response = await axios.get(`${API}/comfyui/servers`);
-      setComfyUIServers(response.data);
-      if (response.data.length > 0 && !selectedServer) {
-        setSelectedServer(response.data[0].id);
+      const data = await comfyuiService.getServers();
+      setComfyUIServers(data);
+      if (data.length > 0 && !selectedServer) {
+        setSelectedServer(data[0].id);
       }
     } catch (error) {
       console.error('Error fetching ComfyUI servers:', error);
@@ -69,13 +68,10 @@ const CharacterManager = ({ activeProject }) => {
   const fetchCharacters = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API}/characters`, {
-        params: { project_id: activeProject.id }
-      });
-      setCharacters(response.data);
+      const data = await characterService.getCharacters({ project_id: activeProject.id });
+      setCharacters(data);
     } catch (error) {
       console.error('Error fetching characters:', error);
-      toast.error('Failed to load characters');
     } finally {
       setLoading(false);
     }
@@ -135,12 +131,10 @@ const CharacterManager = ({ activeProject }) => {
       };
 
       if (isEditing && selectedCharacter) {
-        // Update existing character
-        await axios.put(`${API}/characters/${selectedCharacter.id}`, characterData);
+        await characterService.updateCharacter(selectedCharacter.id, characterData);
         toast.success('Character updated successfully');
       } else {
-        // Create new character
-        await axios.post(`${API}/characters`, characterData);
+        await characterService.createCharacter(characterData);
         toast.success('Character created successfully');
       }
 
@@ -148,7 +142,6 @@ const CharacterManager = ({ activeProject }) => {
       fetchCharacters();
     } catch (error) {
       console.error('Error saving character:', error);
-      toast.error(`Failed to ${isEditing ? 'update' : 'create'} character`);
     }
   };
 
@@ -158,12 +151,11 @@ const CharacterManager = ({ activeProject }) => {
     }
 
     try {
-      await axios.delete(`${API}/characters/${characterId}`);
+      await characterService.deleteCharacter(characterId);
       toast.success('Character deleted successfully');
       fetchCharacters();
     } catch (error) {
       console.error('Error deleting character:', error);
-      toast.error('Failed to delete character');
     }
   };
 
@@ -175,19 +167,18 @@ const CharacterManager = ({ activeProject }) => {
 
     try {
       setGeneratingSamples(true);
-      const response = await axios.post(`${API}/characters/${character.id}/generate`, {
+      const data = await characterService.generateCharacter(character.id, {
         server_id: selectedServer,
         prompt: '',
         samples: 4,
         model: null
       });
 
-      setCharacterSamples(response.data.samples);
+      setCharacterSamples(data.samples);
       setShowSamplesDialog(true);
-      toast.success(`Generated ${response.data.total_generated} samples for ${character.name}`);
+      toast.success(`Generated ${data.total_generated} samples for ${character.name}`);
     } catch (error) {
       console.error('Error generating character samples:', error);
-      toast.error('Failed to generate character samples');
     } finally {
       setGeneratingSamples(false);
     }
@@ -198,18 +189,12 @@ const CharacterManager = ({ activeProject }) => {
       const formData = new FormData();
       formData.append('file', file);
       
-      const response = await axios.post(`${API}/upload-face-image`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      const data = await characterService.uploadFaceImage(formData);
 
-      const faceImageUrl = `${API}${response.data.file_url}`;
-      setFormData(prev => ({ ...prev, face_image: faceImageUrl }));
+      setFormData(prev => ({ ...prev, face_image: data.file_url }));
       toast.success('Face image uploaded successfully');
     } catch (error) {
       console.error('Error uploading face image:', error);
-      toast.error('Failed to upload face image');
     }
   };
 

@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import axios from "axios";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
-import { API } from "@/config";
+import { projectService, comfyuiService } from "@/services";
 
 // Import components
 import Sidebar from "@/components/Sidebar";
@@ -37,11 +36,10 @@ function App() {
 
   const fetchProjects = async () => {
     try {
-      const response = await axios.get(`${API}/projects`);
-      setProjects(response.data);
+      const data = await projectService.getProjects();
+      setProjects(data);
     } catch (error) {
       console.error('Error fetching projects:', error);
-      toast.error('Failed to fetch projects');
     } finally {
       setLoading(false);
     }
@@ -49,26 +47,21 @@ function App() {
 
   const fetchComfyUIServers = async () => {
     try {
-      const response = await axios.get(`${API}/comfyui/servers`);
-      setComfyUIServers(response.data);
+      const data = await comfyuiService.getServers();
+      setComfyUIServers(data);
     } catch (error) {
       console.error('Error fetching ComfyUI servers:', error);
-      toast.error('Failed to fetch ComfyUI servers');
     }
   };
 
   const createProject = async (name, description) => {
     try {
-      const response = await axios.post(`${API}/projects`, {
-        name,
-        description
-      });
-      setProjects([...projects, response.data]);
+      const project = await projectService.createProject({ name, description });
+      setProjects([...projects, project]);
       toast.success('Project created successfully');
-      return response.data;
+      return project;
     } catch (error) {
       console.error('Error creating project:', error);
-      toast.error('Failed to create project');
       return null;
     }
   };

@@ -8,8 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import axios from 'axios';
-import { API } from '@/config';
+import { projectService, sceneService, clipService } from '@/services';
 import TimelineClipSimple from './TimelineClipSimple';
 import SceneActionButtons from './SceneActionButtons';
 
@@ -40,11 +39,10 @@ const ProjectTimeline = ({ project, onSceneClick, onClipClick }) => {
 
   const fetchTimelineData = async () => {
     try {
-      const response = await axios.get(`${API}/projects/${project.id}/timeline`);
-      setTimelineData(response.data);
+      const data = await projectService.getProjectTimeline(project.id);
+      setTimelineData(data);
     } catch (error) {
       console.error('Error fetching timeline:', error);
-      toast.error('Failed to load project timeline');
     } finally {
       setLoading(false);
     }
@@ -70,12 +68,11 @@ const ProjectTimeline = ({ project, onSceneClick, onClipClick }) => {
 
   const handleCreateAlternate = async (sceneId) => {
     try {
-      await axios.post(`${API}/scenes/${sceneId}/create-alternate`);
+      await sceneService.createSceneAlternate(sceneId);
       toast.success('Scene alternate created');
       fetchTimelineData();
     } catch (error) {
       console.error('Error creating alternate:', error);
-      toast.error('Failed to create alternate');
     }
   };
 
@@ -87,7 +84,7 @@ const ProjectTimeline = ({ project, onSceneClick, onClipClick }) => {
 
     try {
       const order = timelineData?.scenes?.length || 0;
-      await axios.post(`${API}/scenes`, {
+      await sceneService.createScene({
         project_id: project.id,
         name: newSceneName.trim(),
         description: newSceneDescription.trim(),
@@ -118,12 +115,11 @@ const ProjectTimeline = ({ project, onSceneClick, onClipClick }) => {
     }
 
     try {
-      // Find existing clips in the scene to determine order
       const scene = timelineData?.scenes?.find(s => s.id === newClipSceneId);
       const existingClips = scene?.clips || [];
       const order = existingClips.length;
 
-      await axios.post(`${API}/clips`, {
+      await clipService.createClip({
         scene_id: newClipSceneId,
         name: newClipName.trim(),
         lyrics: newClipLyrics.trim(),
@@ -141,7 +137,6 @@ const ProjectTimeline = ({ project, onSceneClick, onClipClick }) => {
       fetchTimelineData();
     } catch (error) {
       console.error('Error creating clip:', error);
-      toast.error('Failed to create clip');
     }
   };
 

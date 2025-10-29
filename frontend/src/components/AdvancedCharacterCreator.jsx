@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { API } from '@/config';
 import { toast } from 'sonner';
+import { characterService } from '@/services';
 import {
   Users, Plus, Upload, Camera, Image as ImageIcon, 
   Settings, Play, Download, RefreshCw, Zap, Eye,
@@ -67,19 +66,16 @@ const AdvancedCharacterCreator = ({ activeProject, onCharacterCreated, comfyUISe
         formData.append('reference_images', file);
       }
       
-      const response = await axios.post(`${API}/upload-character-images`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const data = await characterService.uploadCharacterImages(formData);
       
       setUploadedImages(prev => ({
         ...prev,
-        ...response.data.files
+        ...data.files
       }));
       
       toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} image uploaded successfully`);
     } catch (error) {
       console.error('Error uploading image:', error);
-      toast.error(`Failed to upload ${type} image`);
     } finally {
       setLoading(false);
     }
@@ -101,8 +97,7 @@ const AdvancedCharacterCreator = ({ activeProject, onCharacterCreated, comfyUISe
         full_body_image: uploadedImages.full_body_image || ''
       };
 
-      const response = await axios.post(`${API}/characters`, characterPayload);
-      const character = response.data;
+      const character = await characterService.createCharacter(characterPayload);
       
       toast.success('Character created successfully');
       setIsOpen(false);
@@ -112,12 +107,10 @@ const AdvancedCharacterCreator = ({ activeProject, onCharacterCreated, comfyUISe
         onCharacterCreated(character);
       }
       
-      // Show profile generation dialog
       generateCharacterProfiles(character.id);
       
     } catch (error) {
       console.error('Error creating character:', error);
-      toast.error('Failed to create character');
     } finally {
       setLoading(false);
     }
@@ -131,18 +124,17 @@ const AdvancedCharacterCreator = ({ activeProject, onCharacterCreated, comfyUISe
 
     try {
       setLoading(true);
-      const response = await axios.post(`${API}/generate-character-profiles`, {
+      const data = await characterService.generateCharacterProfiles({
         character_id: characterId,
         server_id: selectedServer,
         ...profileSettings
       });
 
-      setGeneratedProfiles(response.data.profiles);
+      setGeneratedProfiles(data.profiles);
       setShowProfiles(true);
-      toast.success(`Generated ${response.data.total_generated} character profiles`);
+      toast.success(`Generated ${data.total_generated} character profiles`);
     } catch (error) {
       console.error('Error generating profiles:', error);
-      toast.error('Failed to generate character profiles');
     } finally {
       setLoading(false);
     }

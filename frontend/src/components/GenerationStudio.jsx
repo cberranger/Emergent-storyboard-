@@ -7,8 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import axios from 'axios';
-import { API } from '@/config';
+import { projectService } from '@/services';
 import EnhancedGenerationDialog from './EnhancedGenerationDialog';
 import MediaViewerDialog from './MediaViewerDialog';
 
@@ -35,17 +34,15 @@ const GenerationStudio = ({ project, comfyUIServers }) => {
     try {
       setLoading(true);
 
-      // Fetch scenes and clips
-      const [scenesResponse, clipsResponse] = await Promise.all([
-        axios.get(`${API}/projects/${project.id}/scenes`),
-        axios.get(`${API}/projects/${project.id}/clips`)
+      const [scenesData, clipsData] = await Promise.all([
+        projectService.getProjectScenes(project.id),
+        projectService.getProjectClips(project.id)
       ]);
 
-      setScenes(scenesResponse.data || []);
-      setClips(clipsResponse.data || []);
+      setScenes(scenesData || []);
+      setClips(clipsData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('Failed to load generation studio data');
     } finally {
       setLoading(false);
     }

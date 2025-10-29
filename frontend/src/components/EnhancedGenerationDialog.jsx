@@ -13,10 +13,8 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { toast } from 'sonner';
-import axios from 'axios';
+import { comfyuiService, modelService, clipService, sceneService, characterService, generationService, poolService } from '@/services';
 import MediaViewerDialog from './MediaViewerDialog';
-
-import { API } from '@/config';
 import {
   isValidUUID,
   validatePromptLength,
@@ -236,26 +234,23 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
 
   const fetchServerInfo = async (serverId) => {
     try {
-      const response = await axios.get(`${API}/comfyui/servers/${serverId}/info`);
-      setServerInfo(response.data);
+      const data = await comfyuiService.getServerInfo(serverId);
+      setServerInfo(data);
       
-      // Auto-select first model if available
-      if (response.data.models.length > 0) {
-        setSelectedModel(response.data.models[0].name);
+      if (data.models.length > 0) {
+        setSelectedModel(data.models[0].name);
       }
       
-      // Fetch available workflows
       fetchServerWorkflows(serverId);
     } catch (error) {
       console.error('Error fetching server info:', error);
-      toast.error('Failed to fetch server info');
     }
   };
 
   const fetchServerWorkflows = async (serverId) => {
     try {
-      const response = await axios.get(`${API}/comfyui/servers/${serverId}/workflows`);
-      setAvailableWorkflows(response.data.workflows || []);
+      const data = await comfyuiService.getServerWorkflows(serverId);
+      setAvailableWorkflows(data.workflows || []);
     } catch (error) {
       console.error('Error fetching workflows:', error);
       setAvailableWorkflows([]);
@@ -264,26 +259,23 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
 
   const fetchModelPresets = async (modelName) => {
     try {
-      const response = await axios.get(`${API}/models/presets/${encodeURIComponent(modelName)}`);
-      setModelPresets(response.data.presets || {});
+      const data = await modelService.getModelPresets(modelName);
+      setModelPresets(data.presets || {});
       
-      // Auto-apply fast preset by default
-      if (response.data.presets?.fast) {
-        applyPreset('fast', response.data.presets.fast);
+      if (data.presets?.fast) {
+        applyPreset('fast', data.presets.fast);
       }
       
-      // Fetch available parameters for this model
       fetchAvailableParameters(modelName);
     } catch (error) {
       console.error('Error fetching model presets:', error);
-      toast.error('Failed to fetch model presets');
     }
   };
 
   const fetchAvailableParameters = async (modelName) => {
     try {
-      const response = await axios.get(`${API}/models/parameters/${encodeURIComponent(modelName)}`);
-      setAvailableParameters(response.data.parameters || {});
+      const data = await modelService.getModelParameters(modelName);
+      setAvailableParameters(data.parameters || {});
     } catch (error) {
       console.error('Error fetching model parameters:', error);
     }
@@ -327,14 +319,13 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
     if (!clip?.id) return;
     
     try {
-      const response = await axios.get(`${API}/clips/${clip.id}/gallery`);
-      setGallery(response.data);
+      const data = await clipService.getClipGallery(clip.id);
+      setGallery(data);
       
-      // Auto-select the first image/video if none is selected
-      if (response.data.images?.length > 0 && !response.data.images.some(img => img.is_selected)) {
-        selectContent(response.data.images[0].id, 'image');
+      if (data.images?.length > 0 && !data.images.some(img => img.is_selected)) {
+        selectContent(data.images[0].id, 'image');
       }
-      if (response.data.videos?.length > 0 && !response.data.videos.some(vid => vid.is_selected)) {
+      if (data.videos?.length > 0 && !data.videos.some(vid => vid.is_selected)) {
         selectContent(response.data.videos[0].id, 'video');
       }
     } catch (error) {
@@ -415,9 +406,7 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
         return;
       }
 
-      // Build request and endpoint based on provider
       const isOpenAI = provider === 'openai';
-      const endpoint = isOpenAI ? `${API}/v1/generate` : `${API}/generate`;
 
       const requestData = {
         clip_id: clip.id,
@@ -430,7 +419,11 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
         params,
       };
 
-      await axios.post(endpoint, requestData);
+      if (isOpenAI) {
+        await generationService.generateV1(requestData);
+      } else {
+        await generationService.generate(requestData);
+      }
 
       toast.success(`${(isOpenAI || activeTab === 'video') ? 'Video' : 'Image'} generation started successfully`);
 
@@ -454,11 +447,9 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
 
   const updateClipPrompts = async () => {
     try {
-      await axios.put(`${API}/clips/${clip.id}/prompts`, null, {
-        params: {
-          image_prompt: prompts.image,
-          video_prompt: prompts.video
-        }
+      await clipService.updateClipPrompts(clip.id, {
+        image_prompt: prompts.image,
+        video_prompt: prompts.video
       });
     } catch (error) {
       console.error('Error updating prompts:', error);
@@ -467,18 +458,15 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
 
   const selectContent = async (contentId, contentType) => {
     try {
-      await axios.put(`${API}/clips/${clip.id}/select-content`, null, {
-        params: {
-          content_id: contentId,
-          content_type: contentType
-        }
+      await clipService.selectClipContent(clip.id, {
+        content_id: contentId,
+        content_type: contentType
       });
       
       toast.success(`Selected ${contentType}`);
       fetchGallery();
     } catch (error) {
       console.error('Error selecting content:', error);
-      toast.error('Failed to select content');
     }
   };
 
@@ -551,17 +539,12 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await axios.post(`${API}/upload-face-image`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      const data = await characterService.uploadFaceImage(formData);
 
-      updateAdvancedParam('reactor_face_image', response.data.file_url);
+      updateAdvancedParam('reactor_face_image', data.file_url);
       toast.success('Face image uploaded successfully');
     } catch (error) {
       console.error('Error uploading face image:', error);
-      toast.error('Failed to upload face image');
     } finally {
       setIsUploadingFace(false);
     }
@@ -581,16 +564,12 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
       const formData = new FormData();
       formData.append('file', file);
 
-      // Reuse existing backend image upload endpoint
-      const response = await axios.post(`${API}/upload-face-image`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const data = await characterService.uploadFaceImage(formData);
 
-      setSoraReferenceImageUrl(response.data.file_url);
+      setSoraReferenceImageUrl(data.file_url);
       toast.success('Reference image uploaded successfully');
     } catch (error) {
       console.error('Error uploading reference image:', error);
-      toast.error('Failed to upload reference image');
     } finally {
       setIsUploadingFace(false);
     }
@@ -598,10 +577,9 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
 
   const sendToPool = async (content, contentType) => {
     try {
-      // Get the clip's scene for project_id
-      const clipData = await axios.get(`${API}/clips/${clip.id}`);
-      const sceneData = await axios.get(`${API}/scenes/${clipData.data.scene_id}`);
-      const project_id = sceneData.data.project_id;
+      const clipData = await clipService.getClip(clip.id);
+      const sceneData = await sceneService.getScene(clipData.scene_id);
+      const project_id = sceneData.project_id;
 
       const poolData = {
         project_id: project_id,
@@ -626,11 +604,10 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
         }
       };
 
-      await axios.post(`${API}/pool`, poolData);
+      await poolService.addToPool(poolData);
       toast.success('Sent to generation pool!');
     } catch (error) {
       console.error('Error sending to pool:', error);
-      toast.error('Failed to send to pool');
     }
   };
 

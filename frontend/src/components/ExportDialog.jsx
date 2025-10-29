@@ -11,8 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import axios from 'axios';
-import { API } from '@/config';
+import { exportService } from '@/services';
 import {
   Download,
   FileVideo,
@@ -75,16 +74,9 @@ const ExportDialog = ({ open, onOpenChange, project }) => {
     setExportingFormat(format.id);
 
     try {
-      // Make request to export endpoint
-      const response = await axios.get(
-        `${API}/projects/${project.id}${format.endpoint}`,
-        {
-          responseType: 'blob' // Important for downloading files
-        }
-      );
+      const data = await exportService.exportProject(project.id, format.id);
 
-      // Create blob URL and trigger download
-      const blob = new Blob([response.data], {
+      const blob = new Blob([JSON.stringify(data)], {
         type: format.id === 'json' ? 'application/json' : 'text/xml'
       });
       const url = window.URL.createObjectURL(blob);

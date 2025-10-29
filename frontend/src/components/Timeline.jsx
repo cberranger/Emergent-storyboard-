@@ -10,14 +10,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import axios from 'axios';
 import { useDrag, useDrop, DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { projectService, sceneService, clipService } from '@/services';
 import SceneManager from './SceneManager';
 import EnhancedGenerationDialog from './EnhancedGenerationDialog';
 import BatchGenerationDialog from './BatchGenerationDialog';
 import ExportDialog from './ExportDialog';
-import { API } from '@/config';
 
 const ItemTypes = {
   CLIP: 'clip'
@@ -168,14 +167,13 @@ const Timeline = ({ project, comfyUIServers }) => {
 
   const fetchScenes = async () => {
     try {
-      const response = await axios.get(`${API}/projects/${project.id}/scenes`);
-      setScenes(response.data);
-      if (response.data.length > 0 && !activeScene) {
-        setActiveScene(response.data[0]);
+      const data = await projectService.getProjectScenes(project.id);
+      setScenes(data);
+      if (data.length > 0 && !activeScene) {
+        setActiveScene(data[0]);
       }
     } catch (error) {
       console.error('Error fetching scenes:', error);
-      toast.error('Failed to fetch scenes');
     }
   };
 
@@ -183,13 +181,11 @@ const Timeline = ({ project, comfyUIServers }) => {
     if (!activeScene?.id) return;
 
     try {
-      const response = await axios.get(`${API}/scenes/${activeScene.id}/clips`);
-      setClips(response.data);
-      // Fetch timeline analysis after clips load
+      const data = await sceneService.getSceneClips(activeScene.id);
+      setClips(data);
       fetchTimelineAnalysis();
     } catch (error) {
       console.error('Error fetching clips:', error);
-      toast.error('Failed to fetch clips');
     }
   };
 
@@ -197,27 +193,22 @@ const Timeline = ({ project, comfyUIServers }) => {
     if (!activeScene?.id) return;
 
     try {
-      const response = await axios.get(`${API}/scenes/${activeScene.id}/timeline-analysis`);
-      setTimelineAnalysis(response.data);
+      const data = await sceneService.getSceneTimelineAnalysis(activeScene.id);
+      setTimelineAnalysis(data);
 
-      // Show warning if overlaps detected
-      if (response.data.has_issues) {
-        const overlapCount = response.data.overlaps.length;
+      if (data.has_issues) {
+        const overlapCount = data.overlaps.length;
         toast.warning(`Timeline has ${overlapCount} overlap${overlapCount > 1 ? 's' : ''}`);
       }
     } catch (error) {
       console.error('Error fetching timeline analysis:', error);
-      // Don't show error toast - analysis is optional
     }
   };
 
   const handleClipMove = async (clipId, newPosition, retryWithSuggested = false) => {
     try {
-      // Send proper JSON payload with position field
-      await axios.put(`${API}/clips/${clipId}/timeline-position`, {
+      await clipService.updateClipTimelinePosition(clipId, {
         position: newPosition
-      }, {
-        headers: { 'Content-Type': 'application/json' }
       });
 
       setClips(prevClips =>
@@ -281,15 +272,13 @@ const Timeline = ({ project, comfyUIServers }) => {
     if (!activeScene?.id) return;
     
     try {
-      await axios.put(`${API}/scenes/${activeScene.id}`, sceneEditData);
+      await sceneService.updateScene(activeScene.id, sceneEditData);
       
-      // Update the local scene data
       setActiveScene(prev => ({
         ...prev,
         ...sceneEditData
       }));
       
-      // Update scenes list
       setScenes(prevScenes =>
         prevScenes.map(scene =>
           scene.id === activeScene.id
@@ -302,7 +291,6 @@ const Timeline = ({ project, comfyUIServers }) => {
       toast.success('Scene updated successfully');
     } catch (error) {
       console.error('Error updating scene:', error);
-      toast.error('Failed to update scene');
     }
   };
 
@@ -321,15 +309,12 @@ const Timeline = ({ project, comfyUIServers }) => {
       const formData = new FormData();
       formData.append('file', file);
       
-      await axios.post(`${API}/projects/${project.id}/upload-music`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      await projectService.uploadProjectMusic(project.id, formData);
       
       setMusicFile(file);
       toast.success('Music uploaded successfully');
     } catch (error) {
       console.error('Error uploading music:', error);
-      toast.error('Failed to upload music');
     }
   };
 

@@ -20,8 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import axios from 'axios';
-import { API } from '@/config';
+import { projectService } from '@/services';
 
 const ProjectDashboard = ({ project, onProjectUpdate, onSceneSelect }) => {
   const [projectData, setProjectData] = useState(null);
@@ -63,11 +62,10 @@ const ProjectDashboard = ({ project, onProjectUpdate, onSceneSelect }) => {
 
   const fetchProjectData = async () => {
     try {
-      const response = await axios.get(`${API}/projects/${project.id}`);
-      setProjectData(response.data);
+      const data = await projectService.getProject(project.id);
+      setProjectData(data);
     } catch (error) {
       console.error('Error fetching project:', error);
-      toast.error('Failed to load project details');
     } finally {
       setLoading(false);
     }
@@ -75,8 +73,8 @@ const ProjectDashboard = ({ project, onProjectUpdate, onSceneSelect }) => {
 
   const fetchScenes = async () => {
     try {
-      const response = await axios.get(`${API}/projects/${project.id}/scenes`);
-      setScenes(response.data);
+      const data = await projectService.getProjectScenes(project.id);
+      setScenes(data);
     } catch (error) {
       console.error('Error fetching scenes:', error);
     }
@@ -109,45 +107,24 @@ const ProjectDashboard = ({ project, onProjectUpdate, onSceneSelect }) => {
   const handleUpdateSettings = async () => {
     setUpdateError(null);
     try {
-      const updatePayload = {};
-      if (settingsForm.name !== projectData.name) {
-        updatePayload.name = settingsForm.name;
-      }
-      if (settingsForm.description !== projectData.description) {
-        updatePayload.description = settingsForm.description;
-      }
-      const currentMusicFile = projectData.music_file_path || projectData.music_file || '';
-      if (settingsForm.music_file !== currentMusicFile) {
-        updatePayload.music_file = settingsForm.music_file;
-      }
-
-      if (Object.keys(updatePayload).length === 0) {
-        toast.info('No changes to save');
-        return;
-      }
-
-      await axios.put(`${API}/projects/${project.id}`, updatePayload);
+      await projectService.updateProject(project.id, settingsForm);
       toast.success('Project settings updated');
       setShowSettings(false);
       fetchProjectData();
       if (onProjectUpdate) onProjectUpdate();
     } catch (error) {
       console.error('Error updating project:', error);
-      const errorMessage = error.response?.data?.detail || 'Failed to update project settings';
-      setUpdateError(errorMessage);
-      toast.error(errorMessage);
     }
   };
 
   const handleDeleteProject = async () => {
     try {
-      await axios.delete(`${API}/projects/${project.id}`);
+      await projectService.deleteProject(project.id);
       toast.success('Project deleted');
       setShowDeleteConfirm(false);
       if (onProjectUpdate) onProjectUpdate();
     } catch (error) {
       console.error('Error deleting project:', error);
-      toast.error('Failed to delete project');
     }
   };
 

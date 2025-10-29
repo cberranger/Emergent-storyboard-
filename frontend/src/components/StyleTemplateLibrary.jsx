@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { API } from '@/config';
 import { toast } from 'sonner';
+import { styleTemplateService } from '@/services';
 import { Palette, Plus, Edit, Trash2, Copy, TrendingUp, Filter, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -71,11 +70,10 @@ const StyleTemplateLibrary = ({ activeProject }) => {
   const fetchTemplates = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API}/style-templates`);
-      setTemplates(response.data);
+      const data = await styleTemplateService.getTemplates();
+      setTemplates(data);
     } catch (error) {
       console.error('Error fetching templates:', error);
-      toast.error('Failed to load style templates');
     } finally {
       setLoading(false);
     }
@@ -157,10 +155,10 @@ const StyleTemplateLibrary = ({ activeProject }) => {
       };
 
       if (isEditing && selectedTemplate) {
-        await axios.put(`${API}/style-templates/${selectedTemplate.id}`, templateData);
+        await styleTemplateService.updateTemplate(selectedTemplate.id, templateData);
         toast.success('Template updated successfully');
       } else {
-        await axios.post(`${API}/style-templates`, templateData);
+        await styleTemplateService.createTemplate(templateData);
         toast.success('Template created successfully');
       }
 
@@ -168,7 +166,6 @@ const StyleTemplateLibrary = ({ activeProject }) => {
       fetchTemplates();
     } catch (error) {
       console.error('Error saving template:', error);
-      toast.error(`Failed to ${isEditing ? 'update' : 'create'} template`);
     }
   };
 
@@ -178,18 +175,17 @@ const StyleTemplateLibrary = ({ activeProject }) => {
     }
 
     try {
-      await axios.delete(`${API}/style-templates/${templateId}`);
+      await styleTemplateService.deleteTemplate(templateId);
       toast.success('Template deleted successfully');
       fetchTemplates();
     } catch (error) {
       console.error('Error deleting template:', error);
-      toast.error('Failed to delete template');
     }
   };
 
   const handleUseTemplate = async (template) => {
     try {
-      await axios.post(`${API}/style-templates/${template.id}/use`);
+      await styleTemplateService.useTemplate(template.id);
       toast.success(`Applied template: ${template.name}`);
       fetchTemplates(); // Refresh to update use count
     } catch (error) {

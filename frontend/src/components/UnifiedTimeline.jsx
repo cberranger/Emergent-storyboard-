@@ -12,8 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import axios from 'axios';
-import { API } from '@/config';
+import { projectService, sceneService, clipService } from '@/services';
 import EnhancedGenerationDialog from './EnhancedGenerationDialog';
 import TimelineClipCard from './TimelineClipCard';
 
@@ -58,16 +57,13 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
 
   const fetchTimelineData = async () => {
     try {
-      // Fetch scenes for this project
-      const scenesResponse = await axios.get(`${API}/projects/${project.id}/scenes`);
-      const scenesData = scenesResponse.data || [];
+      const scenesData = await projectService.getProjectScenes(project.id);
 
-      // Fetch clips for each scene
       const scenesWithClips = await Promise.all(
         scenesData.map(async (scene) => {
           try {
-            const clipsResponse = await axios.get(`${API}/scenes/${scene.id}/clips`);
-            return { ...scene, clips: clipsResponse.data || [] };
+            const clips = await sceneService.getSceneClips(scene.id);
+            return { ...scene, clips: clips || [] };
           } catch (error) {
             console.error(`Error fetching clips for scene ${scene.id}:`, error);
             return { ...scene, clips: [] };
@@ -105,23 +101,21 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
 
   const handleCreateSceneAlternate = async (sceneId) => {
     try {
-      await axios.post(`${API}/scenes/${sceneId}/create-alternate`);
+      await sceneService.createSceneAlternate(sceneId);
       toast.success('Scene alternate created');
       fetchTimelineData();
     } catch (error) {
       console.error('Error creating scene alternate:', error);
-      toast.error('Failed to create alternate');
     }
   };
 
   const handleCreateClipAlternate = async (clipId) => {
     try {
-      await axios.post(`${API}/clips/${clipId}/create-alternate`);
+      await clipService.createClipAlternate(clipId);
       toast.success('Clip alternate created');
       fetchTimelineData();
     } catch (error) {
       console.error('Error creating clip alternate:', error);
-      toast.error('Failed to create alternate');
     }
   };
 
@@ -137,7 +131,7 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
     }
 
     try {
-      const response = await axios.post(`${API}/clips`, {
+      await clipService.createClip({
         scene_id: createClipSceneId,
         name: newClipData.name.trim(),
         lyrics: newClipData.lyrics.trim(),
@@ -145,7 +139,7 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
         timeline_position: parseFloat(newClipData.timeline_position),
         image_prompt: newClipData.image_prompt.trim(),
         video_prompt: newClipData.video_prompt.trim(),
-        order: 0 // Will be recalculated on backend
+        order: 0
       });
 
       toast.success('Clip created successfully');
@@ -162,7 +156,6 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
       fetchTimelineData();
     } catch (error) {
       console.error('Error creating clip:', error);
-      toast.error('Failed to create clip');
     }
   };
 

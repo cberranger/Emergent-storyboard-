@@ -21,8 +21,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import axios from 'axios';
-import { API } from '@/config';
+import { comfyuiService, generationService } from '@/services';
 import {
   Wand2,
   Loader2,
@@ -64,16 +63,14 @@ const BatchGenerationDialog = ({
 
   const fetchServerInfo = async (serverId) => {
     try {
-      const response = await axios.get(`${API}/comfyui/servers/${serverId}`);
-      setServerInfo(response.data);
+      const data = await comfyuiService.getServer(serverId);
+      setServerInfo(data);
 
-      // Auto-select first model if available
-      if (response.data.models && response.data.models.length > 0 && !selectedModel) {
-        setSelectedModel(response.data.models[0].name);
+      if (data.models && data.models.length > 0 && !selectedModel) {
+        setSelectedModel(data.models[0].name);
       }
     } catch (error) {
       console.error('Error fetching server info:', error);
-      toast.error('Failed to fetch server information');
     }
   };
 
@@ -124,7 +121,7 @@ const BatchGenerationDialog = ({
         seed
       };
 
-      const response = await axios.post(`${API}/generate/batch`, {
+      await generationService.generateBatch({
         clip_ids: selectedClipIds,
         server_id: selectedServer,
         generation_type: generationType,

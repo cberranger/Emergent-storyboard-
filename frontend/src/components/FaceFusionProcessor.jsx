@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { API } from '@/config';
+import { faceFusionService } from '@/services';
 import { toast } from 'sonner';
 import {
   Wand2, Sparkles, Clock, AlertCircle, CheckCircle, 
@@ -71,10 +70,8 @@ const FaceFusionProcessor = ({ character, onProcessComplete }) => {
 
   const checkFaceFusionStatus = async () => {
     try {
-      const response = await axios.get(`${API}/facefusion/status`, {
-        params: { facefusion_url: facefusionUrl }
-      });
-      setFacefusionStatus(response.data.is_online ? 'online' : 'offline');
+      const data = await faceFusionService.getStatus({ facefusion_url: facefusionUrl });
+      setFacefusionStatus(data.is_online ? 'online' : 'offline');
     } catch (error) {
       setFacefusionStatus('offline');
       console.error('Error checking FaceFusion status:', error);
@@ -84,7 +81,7 @@ const FaceFusionProcessor = ({ character, onProcessComplete }) => {
   const enhanceFace = async (imageUrl, model = 'gfpgan_1.4') => {
     try {
       setLoading(true);
-      const response = await axios.post(`${API}/facefusion/enhance-face`, {
+      const data = await faceFusionService.enhanceFace({
         character_id: character.id,
         image_url: imageUrl,
         enhancement_model: model,
@@ -93,10 +90,10 @@ const FaceFusionProcessor = ({ character, onProcessComplete }) => {
 
       return {
         success: true,
-        result: response.data,
+        result: data,
         type: 'enhance',
         original: imageUrl,
-        processed: response.data.enhanced_image,
+        processed: data.enhanced_image,
         model: model
       };
     } catch (error) {
@@ -114,7 +111,7 @@ const FaceFusionProcessor = ({ character, onProcessComplete }) => {
   const adjustFaceAge = async (imageUrl, targetAge) => {
     try {
       setLoading(true);
-      const response = await axios.post(`${API}/facefusion/adjust-face-age`, {
+      const data = await faceFusionService.adjustFaceAge({
         character_id: character.id,
         image_url: imageUrl,
         target_age: targetAge,
@@ -123,10 +120,10 @@ const FaceFusionProcessor = ({ character, onProcessComplete }) => {
 
       return {
         success: true,
-        result: response.data,
+        result: data,
         type: 'age_adjust',
         original: imageUrl,
-        processed: response.data.adjusted_image,
+        processed: data.adjusted_image,
         targetAge: targetAge
       };
     } catch (error) {
@@ -144,7 +141,7 @@ const FaceFusionProcessor = ({ character, onProcessComplete }) => {
   const swapFace = async (sourceFaceUrl, targetImageUrl) => {
     try {
       setLoading(true);
-      const response = await axios.post(`${API}/facefusion/swap-face`, {
+      const data = await faceFusionService.swapFace({
         character_id: character.id,
         source_face_url: sourceFaceUrl,
         target_image_url: targetImageUrl,
@@ -153,10 +150,10 @@ const FaceFusionProcessor = ({ character, onProcessComplete }) => {
 
       return {
         success: true,
-        result: response.data,
+        result: data,
         type: 'swap',
         original: targetImageUrl,
-        processed: response.data.swapped_image,
+        processed: data.swapped_image,
         sourceFace: sourceFaceUrl
       };
     } catch (error) {
@@ -174,7 +171,7 @@ const FaceFusionProcessor = ({ character, onProcessComplete }) => {
   const batchProcess = async (operations) => {
     try {
       setLoading(true);
-      const response = await axios.post(`${API}/facefusion/batch-process`, {
+      const data = await faceFusionService.batchProcess({
         character_id: character.id,
         operations: operations,
         facefusion_url: facefusionUrl
@@ -182,10 +179,10 @@ const FaceFusionProcessor = ({ character, onProcessComplete }) => {
 
       return {
         success: true,
-        results: response.data.results,
+        results: data.results,
         summary: {
-          total: response.data.total_operations,
-          successful: response.data.successful_operations
+          total: data.total_operations,
+          successful: data.successful_operations
         }
       };
     } catch (error) {

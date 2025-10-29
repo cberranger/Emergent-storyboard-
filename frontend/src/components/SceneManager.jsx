@@ -9,8 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import axios from 'axios';
-import { API } from '@/config';
+import { sceneService, clipService } from '@/services';
 
 const SceneManager = ({ 
   open, 
@@ -45,7 +44,7 @@ const SceneManager = ({
     if (!newScene.name.trim()) return;
     
     try {
-      await axios.post(`${API}/scenes`, {
+      await sceneService.createScene({
         project_id: project.id,
         name: newScene.name,
         description: newScene.description,
@@ -59,7 +58,6 @@ const SceneManager = ({
       toast.success('Scene created successfully');
     } catch (error) {
       console.error('Error creating scene:', error);
-      toast.error('Failed to create scene');
     }
   };
 
@@ -68,7 +66,7 @@ const SceneManager = ({
     if (!newClip.name.trim() || !activeScene?.id) return;
     
     try {
-      await axios.post(`${API}/clips`, {
+      await clipService.createClip({
         scene_id: activeScene.id,
         name: newClip.name,
         lyrics: newClip.lyrics,
@@ -85,7 +83,6 @@ const SceneManager = ({
       toast.success('Clip created successfully');
     } catch (error) {
       console.error('Error creating clip:', error);
-      toast.error('Failed to create clip');
     }
   };
 

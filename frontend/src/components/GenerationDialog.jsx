@@ -10,8 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import axios from 'axios';
-import { API } from '@/config';
+import { comfyuiService, generationService } from '@/services';
 import {
   saveGenerationSettings,
   loadGenerationSettings,
@@ -108,16 +107,14 @@ const GenerationDialog = ({ open, onOpenChange, clip, servers, onGenerated }) =>
 
   const fetchServerInfo = async (serverId) => {
     try {
-      const response = await axios.get(`${API}/comfyui/servers/${serverId}/info`);
-      setServerInfo(response.data);
+      const data = await comfyuiService.getServerInfo(serverId);
+      setServerInfo(data);
 
-      // Auto-select first model if available (ComfyUI only)
-      if (response.data.models.length > 0) {
-        setSelectedModel(response.data.models[0].name);
+      if (data.models.length > 0) {
+        setSelectedModel(data.models[0].name);
       }
     } catch (error) {
       console.error('Error fetching server info:', error);
-      toast.error('Failed to fetch server info');
     }
   };
 
@@ -159,8 +156,7 @@ const GenerationDialog = ({ open, onOpenChange, clip, servers, onGenerated }) =>
           params,
         };
 
-        // Use v1 API to invoke GenerationService routing (OpenAI path)
-        await axios.post(`${API}/v1/generate`, requestData);
+        await generationService.generateV1(requestData);
 
         toast.success('Video generation started with OpenAI Sora');
         onGenerated();
@@ -206,7 +202,7 @@ const GenerationDialog = ({ open, onOpenChange, clip, servers, onGenerated }) =>
           },
         };
 
-        await axios.post(`${API}/generate`, requestData);
+        await generationService.generate(requestData);
 
         toast.success(`${generationType === 'image' ? 'Image' : 'Video'} generation started successfully`);
         onGenerated();
