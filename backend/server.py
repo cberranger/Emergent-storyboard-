@@ -1,6 +1,8 @@
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form, Depends, Request
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 import os
 import logging
 from pathlib import Path
@@ -13,6 +15,7 @@ import json
 import asyncio
 from fastapi.staticfiles import StaticFiles
 import shutil
+import warnings
 
 import sys
 # Ensure 'backend' directory is on sys.path for absolute-style imports (services, repositories, database)
@@ -122,10 +125,54 @@ class FaceFusionClient:
             return False
 
 # Create the main app without a prefix
-app = FastAPI()
+app = FastAPI(
+    title="StoryCanvas API",
+    description=(
+        "StoryCanvas API for AI-powered video production. "
+        "\n\n**Note:** Legacy `/api` endpoints are deprecated and will be removed on 2025-06-01. "
+        "All new integrations should use `/api/v1` endpoints. "
+        "See [API Migration Guide](/api/v1/docs) for details."
+    ),
+    version="1.0.0"
+)
 
 # Create a router without prefix (will be added when mounting)
-api_router = APIRouter()
+# All endpoints in this router are deprecated
+api_router = APIRouter(
+    deprecated=True,
+    tags=["⚠️ DEPRECATED - Legacy API (Use /api/v1 instead)"]
+)
+
+# Deprecation configuration
+LEGACY_API_SUNSET_DATE = "2025-06-01"
+LEGACY_API_VERSION = "legacy"
+CURRENT_API_VERSION = "v1"
+
+# Middleware to add deprecation headers to legacy API endpoints
+class DeprecationMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        
+        # Add version header to all API responses
+        if request.url.path.startswith("/api/"):
+            if request.url.path.startswith("/api/v1/"):
+                response.headers["X-API-Version"] = CURRENT_API_VERSION
+            elif not request.url.path.startswith("/api/v"):
+                # Legacy endpoint
+                response.headers["X-API-Version"] = LEGACY_API_VERSION
+                response.headers["Deprecated"] = "true"
+                response.headers["Sunset"] = LEGACY_API_SUNSET_DATE
+                response.headers["Link"] = '</api/v1>; rel="alternate"'
+                
+                # Log deprecation warning
+                logging.warning(
+                    f"DEPRECATED API CALL: {request.method} {request.url.path} - "
+                    f"Migrate to /api/v1 before {LEGACY_API_SUNSET_DATE}"
+                )
+                
+        return response
+
+app.add_middleware(DeprecationMiddleware)
 
 # Create uploads directory
 UPLOADS_DIR = Path("uploads")
@@ -2206,18 +2253,34 @@ class ComfyUIClient:
         return await self.generate_image(prompt, negative_prompt or "low quality, blurry", model, params, [])
 
 # API Routes
+# DEPRECATED: These legacy /api endpoints are deprecated. Use /api/v1 instead.
+# Sunset date: 2025-06-01
 
 @api_router.get("/")
 async def root():
-    return {"message": "StoryCanvas API is running", "status": "healthy"}
+    """DEPRECATED: Use /api/v1/ instead. This endpoint will be removed on 2025-06-01."""
+    warnings.warn("Legacy /api/ endpoint is deprecated. Use /api/v1/", DeprecationWarning)
+    logging.warning("Legacy /api/ endpoint accessed. Client should migrate to /api/v1/")
+    return {
+        "message": "StoryCanvas API is running", 
+        "status": "healthy",
+        "deprecated": True,
+        "sunset_date": LEGACY_API_SUNSET_DATE,
+        "migration_url": "/api/v1/"
+    }
 
 @api_router.get("/health")
 async def health_check():
-    """Comprehensive health check endpoint"""
+    """DEPRECATED: Use /api/v1/health instead. This endpoint will be removed on 2025-06-01."""
+    warnings.warn("Legacy /api/health endpoint is deprecated. Use /api/v1/health", DeprecationWarning)
+    logging.warning("Legacy /api/health endpoint accessed. Client should migrate to /api/v1/health")
     health_status = {
         "status": "healthy",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "components": {}
+        "components": {},
+        "deprecated": True,
+        "sunset_date": LEGACY_API_SUNSET_DATE,
+        "migration_url": "/api/v1/health"
     }
 
     # Check database

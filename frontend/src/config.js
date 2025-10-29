@@ -56,6 +56,11 @@ class Config {
     }
 
     get apiUrl() {
+        return `${this.backendUrl}/api/v1`;
+    }
+    
+    // Legacy API URL (deprecated, for migration purposes only)
+    get legacyApiUrl() {
         return `${this.backendUrl}/api`;
     }
 }
