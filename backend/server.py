@@ -5024,12 +5024,9 @@ async def complete_job(
     )
     return {"message": "Job status updated"}
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Configure structured logging
+from utils.logging_config import setup_logging, get_logger
+logger = setup_logging()
 
 # Add CORS middleware with environment-based configuration BEFORE mounting routers
 from config import config as app_config
@@ -5042,6 +5039,13 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],  # Specify allowed headers
 )
+
+# Add logging and performance middleware
+from utils.logging_middleware import LoggingMiddleware
+from utils.performance_middleware import PerformanceMiddleware
+
+app.add_middleware(LoggingMiddleware, logger=get_logger("request"))
+app.add_middleware(PerformanceMiddleware)
 
 async def find_best_civitai_match_mongodb(server_model_name: str, db_conn, fallback: bool = False) -> dict:
     """

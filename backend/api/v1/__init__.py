@@ -12,6 +12,7 @@ from . import (
     scenes_router,
     templates_router,
     openai_router,
+    admin_router,
 )
 
 api_v1_router = APIRouter()
@@ -27,3 +28,4 @@ api_v1_router.include_router(queue_router.router)
 api_v1_router.include_router(templates_router.router)
 api_v1_router.include_router(characters_router.router)
 api_v1_router.include_router(openai_router.router)
+api_v1_router.include_router(admin_router.router)

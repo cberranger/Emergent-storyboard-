@@ -14,6 +14,14 @@ class Config:
     ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
     ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm", "video/quicktime"}
 
+    # Logging Configuration
+    LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
+    LOG_FORMAT = os.environ.get("LOG_FORMAT", "json")
+    LOG_FILE = os.environ.get("LOG_FILE", "backend.log")
+    LOG_MAX_BYTES = int(os.environ.get("LOG_MAX_BYTES", str(10 * 1024 * 1024)))
+    LOG_BACKUP_COUNT = int(os.environ.get("LOG_BACKUP_COUNT", "5"))
+    ENABLE_CONSOLE_LOG = os.environ.get("ENABLE_CONSOLE_LOG", "true").lower() == "true"
+
     # OpenAI / Sora configuration
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
     OPENAI_DEFAULT_VIDEO_MODEL = os.environ.get("OPENAI_DEFAULT_VIDEO_MODEL", "sora-2")

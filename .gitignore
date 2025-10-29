@@ -42,6 +42,10 @@ yarn-error.log*
 .pnpm-debug.log*
 dump.rdb
 
+# Backend logs and rotation
+backend/*.log
+backend/*.log.*
+
 # System files
 .DS_Store
 *.pem
