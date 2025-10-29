@@ -19,6 +19,7 @@ cd frontend; npm install; cd ..
 - **Backend**: FastAPI + Motor (MongoDB) + aiohttp (ComfyUI integration) + Pydantic
 - **Frontend**: React 18 + Shadcn UI + React Router + React DnD + Axios
 - **Database**: MongoDB (local or 192.168.1.10:27017)
+- **AI Integration**: ComfyUI API (local/RunPod), OpenAI (Sora)
 - **Architecture**: Service Layer + Repository Pattern + DTOs
 
 ## 📁 Structure
