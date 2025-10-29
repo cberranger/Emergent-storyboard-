@@ -1,37 +1,44 @@
-# StoryCanvas - Agent Guide
+# AGENTS.md - StoryCanvas Development Guide
 
-## Setup
+## Commands
+
+**Initial Setup:**
 ```bash
-# Backend (Python 3.8+, MongoDB required)
+# Backend
 cd backend
 python -m venv .venv
-.venv\Scripts\activate  # Windows: Use .venv not venv
+.venv\Scripts\activate
 pip install -r requirements.txt
 
-# Frontend (Node.js 16+)
+# Frontend
 cd frontend
 yarn install  # or npm install
 ```
 
-## Commands
-- **Build**: `cd frontend && yarn build`
-- **Lint**: Frontend has ESLint via `craco test` (no standalone lint command)
-- **Test**: `cd frontend && yarn test` (backend: `pytest` if tests exist)
-- **Dev**: Run `launch.bat` or `.\launch.ps1` (starts both servers with interactive config)
-- **Backend**: `cd backend && uvicorn server:app --host localhost --port 8001 --reload`
-- **Frontend**: `cd frontend && yarn start`
+**Build:** `cd frontend && yarn build`
 
-## Stack
-- **Backend**: FastAPI, MongoDB (Motor), Pydantic, aiohttp
-- **Frontend**: React 18, Shadcn UI (Radix), TailwindCSS, React Router, React DnD, Axios
-- **Architecture**: Service layer + Repository pattern + DTOs (backend); Component-based (frontend)
+**Lint:** `cd frontend && npx eslint src/`
 
-## Structure
-- `backend/`: API server (`server.py`), services, repositories, DTOs, models, utils
-- `frontend/src/`: Components, hooks, utils, services (API layer)
-- Virtual env: `.venv/` (per gitignore)
+**Tests:** No test framework currently configured
 
-## Style
-- **Backend**: Type hints, DTOs for validation, service layer for logic, repository for DB access
-- **Frontend**: Functional components with hooks, Shadcn UI components, @ path aliases, minimal comments
-- Naming: snake_case (Python), camelCase (JS)
+**Dev Server:** `.\launch.bat` or `.\launch.ps1` (starts both backend & frontend)
+
+## Tech Stack
+
+- **Backend:** FastAPI, MongoDB (Motor), aiohttp, Pydantic
+- **Frontend:** React 18, Shadcn UI, React Router, React DnD, Axios
+- **Architecture:** Service layer + Repository pattern with DTOs
+
+## Repo Structure
+
+- `backend/` - FastAPI server with `server.py`, `services/`, `repositories/`, `dtos/`, `api/v1/`
+- `frontend/src/` - React app with `components/`, `hooks/`, `utils/`, main `App.js`
+- `docs/` - Documentation and implementation guides
+
+## Code Style
+
+- No comments unless complex logic requires explanation
+- Follow existing patterns: check neighboring files for conventions
+- Use TypeScript-style JSDoc for complex functions (frontend)
+- Python: PEP 8 style, async/await for I/O operations
+- React: Functional components with hooks, extract reusable logic to custom hooks
