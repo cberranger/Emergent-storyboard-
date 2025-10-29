@@ -5,6 +5,7 @@ from .project_repository import ProjectRepository
 from .scene_repository import SceneRepository
 from .clip_repository import ClipRepository
 from .comfyui_repository import ComfyUIRepository
+from .inference_configuration_repository import InferenceConfigurationRepository
 
 __all__ = [
     "BaseRepository",
@@ -12,4 +13,5 @@ __all__ = [
     "SceneRepository",
     "ClipRepository",
     "ComfyUIRepository",
+    "InferenceConfigurationRepository",
 ]

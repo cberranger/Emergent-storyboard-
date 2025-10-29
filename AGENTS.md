@@ -1,38 +1,52 @@
-# StoryCanvas - AI Agent Guide
+# 🤖 AGENTS.md - AI Agent Development Guide
 
-## Setup
+## 📦 Setup Commands
+
 ```bash
-# Backend - Python virtual environment in venv/
+# Backend
 cd backend
-python -m venv venv
-venv\Scripts\activate  # Windows: venv\Scripts\activate | Linux/Mac: source venv/bin/activate
+python -m venv venv              # Windows: venv\Scripts\activate
+source venv/bin/activate         # macOS/Linux
 pip install -r requirements.txt
 
-# Frontend - Node.js with Yarn
+# Frontend
 cd frontend
-yarn install  # or npm install
+yarn install                     # or npm install
+
+# MongoDB (required)
+# Windows: Install MongoDB Community Server
+# macOS: brew services start mongodb-community
+# Linux: sudo systemctl start mongod
 ```
 
-## Commands
-- **Build**: `cd frontend && yarn build`
-- **Lint**: `cd frontend && yarn eslint`  _(Note: No explicit lint script defined)_
-- **Test**: Backend: `python -m pytest` Frontend: `cd frontend && yarn test`
-- **Dev Server**: `.\launch.bat` (automated) or manually:
-  - Backend: `cd backend && uvicorn server:app --reload --host localhost --port 8001`
-  - Frontend: `cd frontend && yarn start` (port 3000)
+## 🛠️ Development Commands
 
-## Tech Stack
-- **Backend**: FastAPI + MongoDB (Motor) + aiohttp | Service/Repository pattern
-- **Frontend**: React 18 + Shadcn UI + React DnD + Tailwindcss
-- **Integration**: ComfyUI API, RunPod serverless, FaceFusion
-- **Database**: MongoDB (default: `192.168.1.10:27017`, db: `storyboard`)
+- **Run Dev Server**: `.\launch.bat` (Windows) or `./launch.sh` (macOS/Linux)
+- **Backend Only**: `cd backend && uvicorn server:app --host localhost --port 8001 --reload`
+- **Frontend Only**: `cd frontend && yarn start`
+- **Build Frontend**: `cd frontend && yarn build`
+- **Run Tests**: `cd frontend && yarn test`
+- **Lint**: No explicit lint script configured
 
-## Architecture
-- Backend: `/api/v1` versioned endpoints, service layer (`services/`), repository pattern (`repositories/`), Pydantic DTOs
-- Frontend: Component-based (`components/`), hooks (`hooks/`), API service layer, React Router
+## 🏗️ Architecture
 
-## Code Conventions
-- **Style**: No excessive comments; follow existing patterns
-- **Backend**: Async/await, dependency injection, centralized error handling
-- **Frontend**: Functional components, custom hooks, JSX with Tailwind utilities
-- **Naming**: PascalCase for components/classes, snake_case for Python, camelCase for JS variables
+**Stack**: FastAPI (backend) + React (frontend) + MongoDB + ComfyUI integration  
+**Backend**: Service layer + Repository pattern + DTOs, API routes in `backend/server.py` and `backend/api/`  
+**Frontend**: React components with Shadcn UI, React Router, state via hooks, drag-and-drop timeline  
+**Structure**: Projects → Scenes → Clips hierarchy with character/style templates, queue management
+
+## 📁 Key Directories
+
+- `backend/services/` - Business logic layer
+- `backend/repositories/` - Data access layer  
+- `backend/dtos/` - Pydantic data transfer objects
+- `frontend/src/components/` - React components
+- `frontend/src/hooks/` - Custom React hooks
+
+## 🎨 Code Style
+
+- **Backend**: Service/repository pattern, async/await, type hints, Pydantic models
+- **Frontend**: Functional components, hooks (useState/useEffect), Shadcn UI components
+- **Naming**: snake_case (Python), camelCase (JavaScript), PascalCase (components)
+- **No comments** unless complex logic requires explanation
+- Follow existing patterns in neighboring files

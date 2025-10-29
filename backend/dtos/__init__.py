@@ -60,6 +60,11 @@ from .queue_dtos import (
     QueueServerRegistrationDTO,
     QueueJobStatusDTO,
 )
+from .inference_config_dtos import (
+    InferenceConfigurationDTO,
+    InferenceConfigurationCreateDTO,
+    InferenceConfigurationUpdateDTO,
+)
 
 __all__ = [
     # ComfyUI DTOs
@@ -113,4 +118,8 @@ __all__ = [
     "QueueStatusDTO",
     "QueueServerRegistrationDTO",
     "QueueJobStatusDTO",
+    # Inference Configuration DTOs
+    "InferenceConfigurationDTO",
+    "InferenceConfigurationCreateDTO",
+    "InferenceConfigurationUpdateDTO",
 ]
