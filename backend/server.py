@@ -248,14 +248,25 @@ class Project(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     description: Optional[str] = ""
-    music_file_path: Optional[str] = None
+    music_file_path: Optional[str] = Field(None, alias="music_file")
     music_duration: Optional[float] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
+    class Config:
+        populate_by_name = True
 
 class ProjectCreate(BaseModel):
     name: str
     description: Optional[str] = ""
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    music_file: Optional[str] = None
+    
+    class Config:
+        populate_by_name = True
 
 class Scene(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -3023,6 +3034,32 @@ async def get_project(project_id: str, db_conn = Depends(get_database)):
     if not project_data:
         raise ProjectNotFoundError(project_id)
     return Project(**project_data)
+
+@api_router.put("/projects/{project_id}", response_model=Project)
+async def update_project(project_id: str, project_data: ProjectUpdate, db_conn = Depends(get_database)):
+    from utils.errors import ProjectNotFoundError, ValidationError
+    
+    existing_project = await db_conn.projects.find_one({"id": project_id})
+    if not existing_project:
+        raise ProjectNotFoundError(project_id)
+    
+    update_data = project_data.dict(exclude_unset=True)
+    if not update_data:
+        raise ValidationError("No fields to update")
+    
+    # Map music_file to music_file_path for database storage
+    if "music_file" in update_data:
+        update_data["music_file_path"] = update_data.pop("music_file")
+    
+    update_data["updated_at"] = datetime.now(timezone.utc)
+    
+    await db_conn.projects.update_one(
+        {"id": project_id},
+        {"$set": update_data}
+    )
+    
+    updated_project = await db_conn.projects.find_one({"id": project_id})
+    return Project(**updated_project)
 
 @api_router.post("/projects/{project_id}/upload-music")
 async def upload_music(project_id: str, file: UploadFile = File(...)):

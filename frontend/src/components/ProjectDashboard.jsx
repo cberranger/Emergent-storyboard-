@@ -42,6 +42,7 @@ const ProjectDashboard = ({ project, onProjectUpdate, onSceneSelect }) => {
     description: '',
     music_file: ''
   });
+  const [updateError, setUpdateError] = useState(null);
 
   useEffect(() => {
     if (project?.id) {
@@ -55,7 +56,7 @@ const ProjectDashboard = ({ project, onProjectUpdate, onSceneSelect }) => {
       setSettingsForm({
         name: projectData.name || '',
         description: projectData.description || '',
-        music_file: projectData.music_file || ''
+        music_file: projectData.music_file_path || projectData.music_file || ''
       });
     }
   }, [projectData]);
@@ -106,15 +107,35 @@ const ProjectDashboard = ({ project, onProjectUpdate, onSceneSelect }) => {
   };
 
   const handleUpdateSettings = async () => {
+    setUpdateError(null);
     try {
-      await axios.put(`${API}/projects/${project.id}`, settingsForm);
+      const updatePayload = {};
+      if (settingsForm.name !== projectData.name) {
+        updatePayload.name = settingsForm.name;
+      }
+      if (settingsForm.description !== projectData.description) {
+        updatePayload.description = settingsForm.description;
+      }
+      const currentMusicFile = projectData.music_file_path || projectData.music_file || '';
+      if (settingsForm.music_file !== currentMusicFile) {
+        updatePayload.music_file = settingsForm.music_file;
+      }
+
+      if (Object.keys(updatePayload).length === 0) {
+        toast.info('No changes to save');
+        return;
+      }
+
+      await axios.put(`${API}/projects/${project.id}`, updatePayload);
       toast.success('Project settings updated');
       setShowSettings(false);
       fetchProjectData();
       if (onProjectUpdate) onProjectUpdate();
     } catch (error) {
       console.error('Error updating project:', error);
-      toast.error('Failed to update project settings');
+      const errorMessage = error.response?.data?.detail || 'Failed to update project settings';
+      setUpdateError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -290,7 +311,7 @@ const ProjectDashboard = ({ project, onProjectUpdate, onSceneSelect }) => {
         </div>
 
         {/* Music Player */}
-        {projectData?.music_file && (
+        {(projectData?.music_file_path || projectData?.music_file) && (
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader>
               <CardTitle className="flex items-center text-gray-200">
@@ -301,7 +322,7 @@ const ProjectDashboard = ({ project, onProjectUpdate, onSceneSelect }) => {
             <CardContent className="space-y-4">
               <audio
                 ref={audioRef}
-                src={projectData.music_file}
+                src={projectData.music_file_path || projectData.music_file}
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
                 onEnded={() => setIsPlaying(false)}
@@ -363,7 +384,7 @@ const ProjectDashboard = ({ project, onProjectUpdate, onSceneSelect }) => {
                 </div>
 
                 <p className="text-xs text-gray-500">
-                  {projectData.music_file.split('/').pop()}
+                  {(projectData.music_file_path || projectData.music_file || '').split('/').pop()}
                 </p>
               </div>
             </CardContent>
@@ -461,6 +482,12 @@ const ProjectDashboard = ({ project, onProjectUpdate, onSceneSelect }) => {
               Update your project information
             </DialogDescription>
           </DialogHeader>
+
+          {updateError && (
+            <div className="bg-red-900/20 border border-red-700 rounded p-3 text-sm text-red-400">
+              {updateError}
+            </div>
+          )}
 
           <div className="space-y-4">
             <div>

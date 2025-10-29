@@ -16,6 +16,7 @@ from dtos.project_dtos import (
     ProjectCreateDTO,
     ProjectListResponseDTO,
     ProjectResponseDTO,
+    ProjectUpdateDTO,
     ProjectWithScenesDTO,
 )
 from dtos.scene_dtos import (
@@ -569,27 +570,27 @@ class ProjectService:
     # -------------------------------------------------------------------------
     # Additional CRUD Operations
     # -------------------------------------------------------------------------
-    async def update_project(self, project_id: str, payload: Any) -> Any:
+    async def update_project(self, project_id: str, payload: ProjectUpdateDTO) -> ProjectResponseDTO:
         """Update a project"""
-        await self._ensure_project_exists(project_id)
+        existing_project = await self._projects.find_by_id(project_id)
+        if not existing_project:
+            raise ProjectNotFoundError(project_id)
 
-        update_data = {
-            "updated_at": datetime.now(timezone.utc).isoformat()
+        updates = {
+            key: value
+            for key, value in payload.model_dump(exclude_none=True).items()
+            if key != "updated_at"
         }
+        if not updates:
+            raise ValidationError("No valid fields provided for update")
 
-        if hasattr(payload, 'name') and payload.name is not None:
-            update_data["name"] = payload.name
-        if hasattr(payload, 'description') and payload.description is not None:
-            update_data["description"] = payload.description
-        if hasattr(payload, 'target_aspect_ratio') and payload.target_aspect_ratio is not None:
-            update_data["target_aspect_ratio"] = payload.target_aspect_ratio
-        if hasattr(payload, 'target_fps') and payload.target_fps is not None:
-            update_data["target_fps"] = payload.target_fps
-        if hasattr(payload, 'music_url') and payload.music_url is not None:
-            update_data["music_url"] = payload.music_url
+        updates["updated_at"] = datetime.now(timezone.utc)
 
-        updated = await self._projects.update(project_id, update_data)
-        return updated
+        updated = await self._projects.update_project(project_id, updates)
+        updated = _cleanup_document(updated)
+        if not updated:
+            raise ProjectNotFoundError(project_id)
+        return ProjectResponseDTO(**updated)
 
     async def delete_project(self, project_id: str) -> None:
         """Delete a project and all its scenes and clips"""
