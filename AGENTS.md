@@ -1,74 +1,33 @@
-# AGENTS.md
+# 🤖 AGENTS.md - StoryCanvas Developer Quick Reference
 
-## 🚀 Commands
+## 📦 Initial Setup
+```powershell
+# Create backend venv in .venv/ directory
+cd backend; python -m venv .venv; .venv\Scripts\activate; pip install -r requirements.txt; cd ..
 
-### Initial Setup
-```bash
-# Backend: Python 3.8+, create venv/ or .venv/ (see .gitignore)
-cd backend
-python -m venv venv
-venv\Scripts\activate  # Windows
-pip install -r requirements.txt
-
-# Frontend: Node.js 16+, Yarn preferred
-cd frontend
-yarn install  # or npm install
+# Install frontend dependencies
+cd frontend; npm install; cd ..
 ```
 
-### Build
-```bash
-cd frontend
-yarn build  # or npm run build
-```
-
-### Lint
-```bash
-cd frontend
-npx eslint src  # ESLint installed but no config file yet
-```
-
-### Tests
-```bash
-# Backend: test_*.py files exist but no framework configured
-cd backend
-python -m pytest  # if pytest is added
-
-# Frontend: CRA test runner
-cd frontend
-yarn test  # or npm test
-```
-
-### Dev Server
-```bash
-# Automated: launch.bat or launch.ps1 (starts both)
-.\launch.bat
-
-# Manual Backend
-cd backend
-venv\Scripts\activate
-uvicorn server:app --host localhost --port 8001 --reload
-
-# Manual Frontend
-cd frontend
-yarn start  # or npm start (port 3000)
-```
+## 🛠️ Commands
+- **Build**: Frontend only - `cd frontend; npm run build`
+- **Lint**: Frontend only - `cd frontend; npx eslint src/`
+- **Test**: Frontend - `cd frontend; npm test` | Backend - `cd backend; pytest` (tests in root/backend as test_*.py)
+- **Dev Server**: `.\launch.bat` (prompts for config) or manually: Backend `cd backend; uvicorn server:app --reload` + Frontend `cd frontend; npm start`
 
 ## 🏗️ Tech Stack
+- **Backend**: FastAPI + Motor (MongoDB) + aiohttp (ComfyUI integration) + Pydantic
+- **Frontend**: React 18 + Shadcn UI + React Router + React DnD + Axios
+- **Database**: MongoDB (local or 192.168.1.10:27017)
+- **Architecture**: Service Layer + Repository Pattern + DTOs
 
-**Backend:** FastAPI, Motor (async MongoDB), Pydantic, aiohttp (ComfyUI client)  
-**Frontend:** React 18, Shadcn UI (56 Radix components), React DnD, Axios, React Router  
-**Database:** MongoDB  
-**AI:** ComfyUI integration (image/video), RunPod serverless support, OpenAI (Sora)
-
-## 📁 Architecture
-
-- **Backend:** Service layer → Repository pattern → MongoDB
-- **Frontend:** Component-based, API service layer in `src/services/`, hooks in `src/hooks/`
-- **Key directories:** `backend/services/`, `backend/repositories/`, `frontend/src/components/`
+## 📁 Structure
+- `backend/` - FastAPI server with services/, repositories/, api/, dtos/, utils/
+- `frontend/src/` - React components, hooks, utils
+- Launch scripts create .env files automatically
 
 ## 🎨 Code Style
-
-- **No comments** unless complex logic requires context
-- Follow existing patterns: check imports, neighboring files, package.json for libs
-- Backend: snake_case, type hints; Frontend: camelCase, functional components, destructured props
-- Use Shadcn UI components (`@/components/ui/`), Tailwind utilities, dark theme defaults
+- **Backend**: Snake_case, Pydantic models, async/await, service layer pattern
+- **Frontend**: JSX (not TSX), camelCase, functional components with hooks, Shadcn UI components
+- **Minimal comments** - code should be self-documenting
+- Follow existing patterns in neighboring files

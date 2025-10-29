@@ -372,6 +372,133 @@ class QueueManager:
 
         return jobs
 
+    async def retry_job(self, job_id: str):
+        """Retry a failed or cancelled job"""
+        async with self._processing_lock:
+            job = self.processing_jobs.get(job_id)
+            
+            if not job:
+                for queued_job in self.queue:
+                    if queued_job.id == job_id:
+                        job = queued_job
+                        break
+            
+            if not job:
+                raise ValueError(f"Job {job_id} not found")
+            
+            if job.status not in ["failed", "cancelled"]:
+                raise ValueError(f"Can only retry failed or cancelled jobs, job is {job.status}")
+            
+            job.status = "queued"
+            job.error = None
+            job.started_at = None
+            job.completed_at = None
+            job.server_id = None
+            job.retry_count += 1
+            
+            if job_id in self.processing_jobs:
+                del self.processing_jobs[job_id]
+            
+            if job not in self.queue:
+                self.queue.insert(0, job)
+                self.queue.sort(key=lambda j: (-j.priority, j.created_at))
+            
+            logger.info(f"Job {job_id} requeued for retry")
+
+    async def cancel_job(self, job_id: str):
+        """Cancel a pending or processing job"""
+        async with self._processing_lock:
+            job = self.processing_jobs.get(job_id)
+            
+            if not job:
+                for queued_job in self.queue:
+                    if queued_job.id == job_id:
+                        job = queued_job
+                        break
+            
+            if not job:
+                raise ValueError(f"Job {job_id} not found")
+            
+            if job.status not in ["queued", "processing"]:
+                raise ValueError(f"Can only cancel pending or processing jobs, job is {job.status}")
+            
+            job.status = "cancelled"
+            job.completed_at = datetime.now(timezone.utc)
+            
+            if job_id in self.processing_jobs:
+                del self.processing_jobs[job_id]
+                
+                if job.server_id and job.server_id in self.server_loads:
+                    self.server_loads[job.server_id].current_jobs = max(
+                        0, self.server_loads[job.server_id].current_jobs - 1
+                    )
+            
+            if job in self.queue:
+                self.queue.remove(job)
+            
+            logger.info(f"Job {job_id} cancelled")
+
+    async def delete_job(self, job_id: str):
+        """Delete a job from the queue"""
+        async with self._processing_lock:
+            if job_id in self.processing_jobs:
+                job = self.processing_jobs[job_id]
+                
+                if job.server_id and job.server_id in self.server_loads:
+                    self.server_loads[job.server_id].current_jobs = max(
+                        0, self.server_loads[job.server_id].current_jobs - 1
+                    )
+                
+                del self.processing_jobs[job_id]
+                logger.info(f"Deleted job {job_id} from processing")
+                return
+            
+            for i, job in enumerate(self.queue):
+                if job.id == job_id:
+                    self.queue.pop(i)
+                    logger.info(f"Deleted job {job_id} from queue")
+                    return
+            
+            raise ValueError(f"Job {job_id} not found")
+
+    async def clear_jobs(self, status: Optional[str] = None) -> int:
+        """Clear jobs from the queue with optional status filter"""
+        async with self._processing_lock:
+            deleted_count = 0
+            
+            if status:
+                jobs_to_delete = [job for job in self.queue if job.status == status]
+                for job in jobs_to_delete:
+                    self.queue.remove(job)
+                    deleted_count += 1
+                
+                processing_jobs_to_delete = [
+                    job_id for job_id, job in self.processing_jobs.items() 
+                    if job.status == status
+                ]
+                for job_id in processing_jobs_to_delete:
+                    job = self.processing_jobs[job_id]
+                    
+                    if job.server_id and job.server_id in self.server_loads:
+                        self.server_loads[job.server_id].current_jobs = max(
+                            0, self.server_loads[job.server_id].current_jobs - 1
+                        )
+                    
+                    del self.processing_jobs[job_id]
+                    deleted_count += 1
+            else:
+                deleted_count = len(self.queue) + len(self.processing_jobs)
+                self.queue.clear()
+                
+                for job in self.processing_jobs.values():
+                    if job.server_id and job.server_id in self.server_loads:
+                        self.server_loads[job.server_id].current_jobs = 0
+                
+                self.processing_jobs.clear()
+            
+            logger.info(f"Cleared {deleted_count} job(s) with status filter: {status}")
+            return deleted_count
+
     def _job_to_dict(self, job: QueuedJob) -> Dict[str, Any]:
         """Convert job to dictionary"""
         return {

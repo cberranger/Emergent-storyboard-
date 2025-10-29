@@ -87,3 +87,47 @@ async def complete_job(
     """Mark a job as completed"""
     await service.complete_job(job_id, success, result_url, error)
     return {"message": "Job status updated"}
+
+
+@router.post("/jobs/{job_id}/retry")
+async def retry_job(
+    job_id: str,
+    service: GenerationService = Depends(get_generation_service)
+):
+    """Retry a failed or cancelled job"""
+    await service.retry_job(job_id)
+    return {"message": "Job retry initiated", "job_id": job_id}
+
+
+@router.post("/jobs/{job_id}/cancel")
+async def cancel_job(
+    job_id: str,
+    service: GenerationService = Depends(get_generation_service)
+):
+    """Cancel a pending or processing job"""
+    await service.cancel_job(job_id)
+    return {"message": "Job cancelled", "job_id": job_id}
+
+
+@router.delete("/jobs/{job_id}")
+async def delete_job(
+    job_id: str,
+    service: GenerationService = Depends(get_generation_service)
+):
+    """Delete a job from the queue"""
+    await service.delete_job(job_id)
+    return {"message": "Job deleted", "job_id": job_id}
+
+
+@router.delete("/clear")
+async def clear_jobs(
+    status: str = None,
+    service: GenerationService = Depends(get_generation_service)
+):
+    """Clear jobs from the queue with optional status filter"""
+    deleted_count = await service.clear_jobs(status)
+    return {
+        "message": f"Cleared {deleted_count} job(s)",
+        "deleted_count": deleted_count,
+        "status_filter": status
+    }

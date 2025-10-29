@@ -63,9 +63,10 @@ const QueueDashboard = () => {
         params.status = statusFilter;
       }
 
-      const response = await axios.get(`${API}/queue/jobs`, { params });
-      setJobs(response.data);
-      calculateStats(response.data);
+      const response = await axios.get(`${API}/v1/queue/jobs`, { params });
+      const jobData = Array.isArray(response.data) ? response.data : (response.data.jobs || []);
+      setJobs(jobData);
+      calculateStats(jobData);
     } catch (error) {
       console.error('Error fetching queue jobs:', error);
       toast.error('Failed to fetch queue jobs');
@@ -85,11 +86,12 @@ const QueueDashboard = () => {
     };
 
     jobList.forEach(job => {
-      if (job.status === 'pending') stats.pending++;
-      else if (job.status === 'processing') stats.processing++;
-      else if (job.status === 'completed') stats.completed++;
-      else if (job.status === 'failed') stats.failed++;
-      else if (job.status === 'cancelled') stats.cancelled++;
+      const status = job.status?.toLowerCase();
+      if (status === 'pending' || status === 'queued') stats.pending++;
+      else if (status === 'processing') stats.processing++;
+      else if (status === 'completed') stats.completed++;
+      else if (status === 'failed') stats.failed++;
+      else if (status === 'cancelled') stats.cancelled++;
     });
 
     setStats(stats);
@@ -97,7 +99,7 @@ const QueueDashboard = () => {
 
   const handleRetryJob = async (jobId) => {
     try {
-      await axios.post(`${API}/queue/jobs/${jobId}/retry`);
+      await axios.post(`${API}/v1/queue/jobs/${jobId}/retry`);
       toast.success('Job retry initiated');
       fetchJobs();
     } catch (error) {
@@ -108,7 +110,7 @@ const QueueDashboard = () => {
 
   const handleCancelJob = async (jobId) => {
     try {
-      await axios.post(`${API}/queue/jobs/${jobId}/cancel`);
+      await axios.post(`${API}/v1/queue/jobs/${jobId}/cancel`);
       toast.success('Job cancelled');
       fetchJobs();
     } catch (error) {
@@ -121,7 +123,7 @@ const QueueDashboard = () => {
     if (!window.confirm('Are you sure you want to delete this job?')) return;
 
     try {
-      await axios.delete(`${API}/queue/jobs/${jobId}`);
+      await axios.delete(`${API}/v1/queue/jobs/${jobId}`);
       toast.success('Job deleted');
       fetchJobs();
     } catch (error) {
@@ -134,7 +136,7 @@ const QueueDashboard = () => {
     if (!window.confirm('Clear all completed jobs?')) return;
 
     try {
-      await axios.delete(`${API}/queue/clear`, {
+      await axios.delete(`${API}/v1/queue/clear`, {
         params: { status: 'completed' }
       });
       toast.success('Completed jobs cleared');
@@ -149,7 +151,7 @@ const QueueDashboard = () => {
     if (!window.confirm('Clear all failed jobs?')) return;
 
     try {
-      await axios.delete(`${API}/queue/clear`, {
+      await axios.delete(`${API}/v1/queue/clear`, {
         params: { status: 'failed' }
       });
       toast.success('Failed jobs cleared');

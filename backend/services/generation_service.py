@@ -299,32 +299,33 @@ class GenerationService:
             "server_id": job.server_id if hasattr(job, 'server_id') else None,
         }
 
-    async def get_all_jobs(self, status: str = None) -> Dict:
+    async def get_all_jobs(self, status: str = None) -> List[Dict]:
         """Get all queued jobs with optional status filter"""
         from services.queue_manager import queue_manager
         
-        all_jobs = await queue_manager.get_all_jobs()
+        all_jobs = queue_manager.get_all_jobs()
         
-        # Filter by status if provided
         if status and status != 'all':
             all_jobs = [j for j in all_jobs if j.status == status]
         
-        return {
-            "total_jobs": len(all_jobs),
-            "jobs": [
-                {
-                    "job_id": j.id,
-                    "clip_id": j.clip_id,
-                    "status": j.status,
-                    "generation_type": j.generation_type,
-                    "created_at": j.created_at,
-                    "result_url": j.result_url if hasattr(j, 'result_url') else None,
-                    "error": j.error if hasattr(j, 'error') else None,
-                    "server_id": j.server_id if hasattr(j, 'server_id') else None,
-                }
-                for j in all_jobs
-            ],
-        }
+        return [
+            {
+                "id": j.id,
+                "clip_id": j.clip_id,
+                "project_id": j.project_id,
+                "status": j.status,
+                "generation_type": j.generation_type,
+                "priority": j.priority,
+                "created_at": j.created_at.isoformat() if hasattr(j.created_at, 'isoformat') else j.created_at,
+                "started_at": j.started_at.isoformat() if j.started_at and hasattr(j.started_at, 'isoformat') else j.started_at,
+                "completed_at": j.completed_at.isoformat() if j.completed_at and hasattr(j.completed_at, 'isoformat') else j.completed_at,
+                "result_url": j.result_url,
+                "error": j.error,
+                "server_id": j.server_id,
+                "retry_count": j.retry_count,
+            }
+            for j in all_jobs
+        ]
 
     async def get_project_jobs(self, project_id: str) -> Dict:
         """Get all queued jobs for a project"""
@@ -399,6 +400,30 @@ class GenerationService:
         await queue_manager.complete_job(
             job_id=job_id, success=success, result_url=result_url, error=error
         )
+
+    async def retry_job(self, job_id: str) -> None:
+        """Retry a failed or cancelled job"""
+        from services.queue_manager import queue_manager
+        
+        await queue_manager.retry_job(job_id)
+
+    async def cancel_job(self, job_id: str) -> None:
+        """Cancel a pending or processing job"""
+        from services.queue_manager import queue_manager
+        
+        await queue_manager.cancel_job(job_id)
+
+    async def delete_job(self, job_id: str) -> None:
+        """Delete a job from the queue"""
+        from services.queue_manager import queue_manager
+        
+        await queue_manager.delete_job(job_id)
+
+    async def clear_jobs(self, status: Optional[str] = None) -> int:
+        """Clear jobs from the queue with optional status filter"""
+        from services.queue_manager import queue_manager
+        
+        return await queue_manager.clear_jobs(status)
 
     # -------------------------------------------------------------------------
     # Batch Generation Tracking
