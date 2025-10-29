@@ -58,6 +58,7 @@
 **Priority:** CRITICAL
 **Time:** 2h
 **Status:** COMPLETED
+**Validation:** ✅ Confirmed. `backend/database.py` provides retry-aware `DatabaseManager` with startup/shutdown hooks in `backend/server.py` using the shared instance for health checks and graceful teardown.【F:backend/database.py†L1-L117】【F:backend/server.py†L1308-L1367】
 **Details:** Add retry logic, graceful degradation, connection validation
 **Output:** `backend/database.py` (135 lines), startup/shutdown handlers, health endpoint
 
@@ -66,6 +67,7 @@
 **Priority:** CRITICAL
 **Time:** 30min
 **Status:** COMPLETED
+**Validation:** ✅ Confirmed. `DatabaseManager._get_mongo_url` defaults to `mongodb://localhost:27017` with format checks, replacing the prior hard-coded LAN address.【F:backend/database.py†L18-L33】
 **Details:** Change 192.168.1.10 → localhost
 **Output:** Updated .env file, database manager with validation
 
@@ -74,6 +76,7 @@
 **Priority:** HIGH
 **Time:** 3h
 **Status:** COMPLETED
+**Validation:** ✅ Confirmed. Upload endpoints import `file_validator` enforcing limits defined in `backend/config.py`, with size thresholds of 50 MB for music and 10 MB for images.【F:backend/server.py†L1406-L1460】【F:backend/config.py†L1-L41】
 **Details:** 50MB music, 10MB images, type validation, disk space check
 **Output:** `backend/utils/file_validator.py` (150 lines), updated upload endpoints
 
@@ -82,6 +85,7 @@
 **Priority:** HIGH
 **Time:** 2h
 **Status:** COMPLETED
+**Validation:** ✅ Confirmed. `ClipUpdate` model plus `PUT /clips/{clip_id}` route handle partial updates and timestamp refresh, returning the updated clip document.【F:backend/server.py†L207-L260】【F:backend/server.py†L1604-L1653】
 **Details:** Add PUT /clips/{id}, full CRUD operations
 **Output:** ClipUpdate model, PUT endpoint (28 lines) at server.py:1393-1421
 
@@ -90,6 +94,7 @@
 **Priority:** MEDIUM
 **Time:** 2h
 **Status:** COMPLETED
+**Validation:** ✅ Confirmed. URL validators in `GeneratedContent` and `ClipVersion` models call the shared `url_validator` helper to reject unsafe image/video URLs.【F:backend/server.py†L120-L155】
 **Details:** URL format check, filename sanitization, path traversal prevention
 **Output:** `backend/utils/url_validator.py` (165 lines), validators in models
 
@@ -98,6 +103,7 @@
 **Priority:** MEDIUM
 **Time:** 2h
 **Status:** COMPLETED
+**Validation:** ✅ Confirmed. `ComfyUIClient._check_runpod_connection` now performs authenticated RunPod status checks with detailed error handling.【F:backend/server.py†L672-L736】
 **Details:** Proper endpoint status checking instead of always True
 **Output:** Modified `_check_runpod_connection()` (50 lines)
 
@@ -106,6 +112,7 @@
 **Priority:** MEDIUM
 **Time:** 1h
 **Status:** COMPLETED
+**Validation:** ✅ Confirmed. `frontend/src/config.js` enforces explicit production URLs and surfaces UI errors when unset, removing window-location fallbacks.【F:frontend/src/config.js†L1-L48】
 **Details:** Remove window.location fallback, require explicit config
 **Output:** `frontend/src/config.js` (60 lines), validation
 
@@ -114,6 +121,7 @@
 **Priority:** HIGH
 **Time:** 2h
 **Status:** COMPLETED
+**Validation:** ✅ Confirmed. CORS middleware now consumes `config.get_cors_origins()` ensuring environment-driven origin lists with production safeguards.【F:backend/server.py†L2648-L2666】【F:backend/config.py†L17-L41】
 **Details:** Replace wildcard with environment-based origins
 **Output:** Modified CORS middleware, `.env.production` template
 
@@ -122,6 +130,7 @@
 **Priority:** MEDIUM
 **Time:** 1.5h
 **Status:** COMPLETED
+**Validation:** ✅ Confirmed. `TimelinePositionUpdate` model and `timeline_validator` helper enforce non-negative positions and overlap checks when updating clip timelines.【F:backend/server.py†L229-L253】【F:backend/utils/timeline_validator.py†L1-L127】
 **Details:** Negative check, overlap detection, suggestion engine
 **Output:** `TimelinePositionUpdate` model, `timeline_validator.py` (150 lines)
 
@@ -130,6 +139,7 @@
 **Priority:** LOW
 **Time:** 3h
 **Status:** COMPLETED
+**Validation:** ✅ Confirmed. Shared gallery logic lives in `backend/services/gallery_manager.py`, reducing duplication across generation endpoints.【F:backend/services/gallery_manager.py†L1-L181】【F:backend/server.py†L1702-L1899】
 **Details:** Extract common gallery update logic
 **Output:** `backend/services/gallery_manager.py` (210 lines), reduced endpoint by ~100 lines
 
@@ -138,6 +148,7 @@
 **Priority:** LOW
 **Time:** 2h
 **Status:** COMPLETED
+**Validation:** ✅ Confirmed. Centralized FastAPI exceptions extend `APIError` in `backend/utils/errors.py`, ensuring consistent payloads for not-found, validation, and conflict errors.【F:backend/utils/errors.py†L1-L102】
 **Details:** Consistent error format across all APIs
 **Output:** `backend/utils/errors.py` (210 lines) with custom exception classes
 
@@ -146,6 +157,7 @@
 **Priority:** LOW
 **Time:** 1h
 **Status:** COMPLETED
+**Validation:** ✅ Confirmed. `frontend/src/utils/validators.js` supplies UUID/number guards leveraged by dialogs such as `EnhancedGenerationDialog`.【F:frontend/src/utils/validators.js†L1-L69】【F:frontend/src/components/EnhancedGenerationDialog.jsx†L21-L261】
 **Details:** Validate UUIDs and numbers before API calls
 **Output:** `frontend/src/utils/validators.js` (180 lines) with comprehensive validators
 
@@ -201,6 +213,7 @@
 **Priority:** CRITICAL
 **Time:** 8h
 **Status:** ✅ COMPLETED
+**Validation:** ✅ Confirmed. Character UI screens call `/api/characters` endpoints that exist in `backend/server.py`, enabling CRUD and clip application flows.【F:frontend/src/components/CharacterManager.jsx†L1-L120】【F:backend/server.py†L2421-L2473】
 **Details:** Character library browser, create/edit dialog, apply to clip
 **Backend:** 6 endpoints already complete (`/api/characters/*`)
 **Output:**
@@ -218,6 +231,7 @@
 **Priority:** CRITICAL
 **Time:** 6h
 **Status:** ✅ COMPLETED
+**Validation:** ✅ Confirmed. Style template UI integrates with `/api/style-templates` routes supporting creation, editing, and reuse metadata storage on the backend.【F:frontend/src/components/StyleTemplateLibrary.jsx†L1-L120】【F:backend/server.py†L2291-L2356】
 **Details:** Template library browser, create/edit, apply to generation
 **Backend:** 6 endpoints already complete (`/api/style-templates/*`)
 **Output:**
@@ -238,6 +252,7 @@
 **Priority:** HIGH
 **Time:** 8h
 **Status:** ✅ COMPLETED
+**Validation:** ❌ Failed. The dashboard invokes endpoints such as `POST /queue/jobs/{id}/retry`, `DELETE /queue/jobs/{id}`, and `DELETE /queue/clear` that are absent from `backend/server.py`, so most controls will raise 404 errors.【F:frontend/src/components/QueueDashboard.jsx†L93-L172】【F:backend/server.py†L2514-L2597】
 **Details:** Real-time queue status, job monitoring, server load visualization
 **Backend:** 7 endpoints already complete (`/api/queue/*`)
 **Output:**
@@ -288,6 +303,7 @@
 **Priority:** MEDIUM
 **Time:** 4h
 **Status:** ✅ COMPLETED
+**Validation:** ❌ Failed. The UI issues `PUT /api/projects/{id}` and expects `music_file`, but the mounted legacy router lacks a project update endpoint and only exposes `music_file_path`, causing failed updates and inconsistent data.【F:frontend/src/components/ProjectDashboard.jsx†L65-L109】【F:backend/server.py†L1383-L1437】
 **Details:** Project overview, stats, music player, settings
 **Backend:** Endpoints `GET /api/projects/{id}`, `GET /api/projects/{id}/scenes`, `PUT /api/projects/{id}`, `DELETE /api/projects/{id}`
 **Output:**
@@ -427,7 +443,7 @@
 **Files:** `backend/server.py` (lines 1484-1505, 1534-1581, 1702-1757)
 **Priority:** CRITICAL
 **Time:** 4h
-**Status:** 
+**Status:** ✅ COMPLETED
 **Details:** Comprehensive timeline endpoint, alternate creation system
 **Backend Implementation:**
 - GET `/api/projects/{project_id}/timeline` - Returns project with all scenes and clips nested
@@ -442,7 +458,7 @@
 **Files:** `backend/models.py`, `backend/server.py`
 **Priority:** CRITICAL
 **Time:** 4h
-**Status:** 
+**Status:** ✅ COMPLETED
 **Details:** Parent-child relationships, automatic naming (Original → A1 → A2)
 **Implementation:**
 - Added `parent_scene_id`, `parent_clip_id` tracking
@@ -456,7 +472,7 @@
 **Files:** `frontend/src/components/ProjectTimeline.jsx` (300 lines), `frontend/src/App.js`
 **Priority:** CRITICAL
 **Time:** 6h
-**Status:** 
+**Status:** ✅ COMPLETED
 **Details:** Professional project-level timeline, scene cards, clip visualization
 **Implementation:**
 - Horizontal timeline with time ruler (0s, 5s, 10s...)
@@ -479,7 +495,7 @@
 **Files:** `backend/server.py` (lines 1484-1525)
 **Priority:** CRITICAL
 **Time:** 2h
-**Status:** 
+**Status:** ✅ COMPLETED
 **Details:** Fixed MongoDB ObjectId serialization issue preventing timeline endpoint from working
 **Solution Implemented:**
 - Root cause: MongoDB ObjectId objects in `_id` fields cannot be serialized to JSON by FastAPI
@@ -502,6 +518,7 @@
 **Priority:** HIGH
 **Time:** 4h
 **Status:** ✅ COMPLETED
+**Validation:** ✅ Confirmed. Generation pool endpoints in `backend/server.py` implement CRUD operations, filtering, and clip application workflows as documented.【F:backend/server.py†L1908-L1998】
 **Details:** Complete CRUD API for generation pool management
 **Backend Implementation:**
 - POST `/api/pool` - Create new pool item with full metadata
@@ -521,6 +538,7 @@
 **Priority:** HIGH
 **Time:** 6h
 **Status:** ✅ COMPLETED
+**Validation:** ✅ Confirmed. Frontend pool browser consumes `/api/pool` data, offering type filters and tag toggles wired to backend responses.【F:frontend/src/components/GenerationPool.jsx†L1-L88】【F:backend/server.py†L1908-L1998】
 **Details:** Professional UI for browsing and managing generation pool
 **Implementation:**
 - ✅ Grid and list view modes with toggle buttons
@@ -545,6 +563,7 @@
 **Priority:** HIGH
 **Time:** 2h
 **Status:** ✅ COMPLETED
+**Validation:** ✅ Confirmed. `EnhancedGenerationDialog` implements `sendToPool()` posting clip metadata to `/api/pool`, exposing buttons for both generated images and videos.【F:frontend/src/components/EnhancedGenerationDialog.jsx†L420-L487】
 **Details:** Add "Send to Pool" functionality to generation gallery
 **Implementation:**
 - ✅ Added Database icon import from lucide-react
@@ -625,6 +644,7 @@
 **Time:** 6h
 **Details:** Generate multiple clips simultaneously
 **Output:** Batch endpoint, queue management
+**Validation:** ✅ Confirmed. `BatchGenerator` service and `/api/generate/batch` route orchestrate concurrent clip processing with tracked results accessible via queue service.【F:backend/services/batch_generator.py†L1-L203】【F:backend/server.py†L2245-L2290】
 **Implementation:**
 - Created `BatchGenerator` service with concurrent processing using `asyncio.gather`
 - Added 3 endpoints: POST /api/generate/batch, GET /api/generate/batch/{id}, GET /api/generate/batches
@@ -637,6 +657,7 @@
 **Time:** 5h
 **Details:** Save/reuse generation parameters
 **Output:** Template model, CRUD endpoints, UI
+**Validation:** ✅ Confirmed. Style template models and `/api/style-templates/*` endpoints store prompts, LoRAs, and metadata as described.【F:backend/server.py†L255-L335】【F:backend/server.py†L2291-L2356】
 **Implementation:**
 - Added `StyleTemplate` and `StyleTemplateCreate` Pydantic models
 - Implemented 6 CRUD endpoints: create, list, get, update, delete, use (track usage count)
@@ -677,6 +698,7 @@
 **Time:** 8h
 **Details:** Final Cut Pro XML, Adobe Premiere EDL, DaVinci Resolve
 **Output:** Export utilities
+**Validation:** ✅ Confirmed. `ExportService` implements FCPXML, EDL, and Resolve exporters referenced by `/projects/{project_id}/export/*` routes.【F:backend/services/export_service.py†L1-L160】【F:backend/server.py†L2147-L2197】
 **Implementation:**
 - Created `ExportService` with 4 export methods:
   - `export_final_cut_pro()`: FCPXML format with resources and spine structure
@@ -713,6 +735,7 @@
 **Time:** 6h
 **Details:** Consistent characters across project
 **Output:** Character model, reference images
+**Validation:** ✅ Confirmed. Character models and endpoints provide CRUD plus clip application that merges prompts with character traits.【F:backend/server.py†L284-L2463】
 **Implementation:**
 - Added `Character` and `CharacterCreate` Pydantic models
 - Characters include: name, description, reference_images, lora, trigger_words, style_notes
@@ -733,6 +756,7 @@
 **Time:** 5h
 **Details:** Auto-play with music, client review
 **Output:** Presentation UI
+**Validation:** ❌ Failed. `PresentationMode.jsx` is never imported or rendered in `App.js` or the sidebar, leaving the presentation experience inaccessible.【F:frontend/src/components/PresentationMode.jsx†L1-L172】【F:frontend/src/App.js†L15-L160】
 **Implementation:**
 - Full-screen presentation component with 3 view modes:
   - Single clip view: Large display with clip info and lyrics
@@ -756,6 +780,7 @@
 **Time:** 3h
 **Details:** Space=play, N=new clip, G=generate
 **Output:** Hotkey component
+**Validation:** ❌ Failed. The custom `useHotkeys` hook and `HotkeyHelpDialog` are not mounted anywhere in the app; only the unused presentation component references them.【F:frontend/src/hooks/useHotkeys.js†L1-L86】【F:frontend/src/App.js†L15-L160】
 **Implementation:**
 - Created `useHotkeys` custom React hook with modifier key support (Ctrl, Alt, Shift)
 - Automatically ignores hotkeys when typing in input fields
@@ -791,6 +816,7 @@
 **Time:** 6h
 **Details:** Prioritize jobs, show estimates
 **Output:** Queue manager, UI
+**Validation:** ✅ Confirmed. `QueueManager` service tracks job lifecycles with load balancing and exposes status endpoints implemented in `backend/server.py`.【F:backend/services/queue_manager.py†L1-L240】【F:backend/server.py†L2514-L2597】
 **Implementation:**
 - Created `QueueManager` service with intelligent load balancing across ComfyUI servers
 - `QueuedJob` dataclass tracks: status, priority, server assignment, timing, retries
