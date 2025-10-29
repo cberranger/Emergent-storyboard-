@@ -20,6 +20,7 @@ from services.project_service import ProjectService
 from services.queue_manager import queue_manager
 from services.gallery_manager import gallery_manager
 from services.batch_generator import batch_generator
+from services.openai_video_service import openai_video_service
 from utils.errors import (
     ClipNotFoundError,
     GenerationError,
@@ -50,6 +51,51 @@ class GenerationService:
         if not clip:
             raise ClipNotFoundError(payload.clip_id)
 
+        # Normalize parameters and provider detection
+        params = payload.params.model_dump() if payload.params else {}
+        generation_params = params or get_model_defaults(payload.model or "unknown")
+        provider = (params.get("provider") or "").lower()
+        model_lower = (payload.model or "unknown").lower()
+
+        # OpenAI/Sora path: bypass ComfyUI server lookup
+        if payload.generation_type == "video" and (provider == "openai" or model_lower.startswith("sora")):
+            result_url = await openai_video_service.generate_video_to_local(
+                model=payload.model or "sora-2",
+                prompt=payload.prompt,
+                params=generation_params,
+            )
+
+            if not result_url:
+                raise GenerationError(payload.generation_type, "No result URL returned from OpenAI")
+
+            model_type = detect_model_type(payload.model or "sora-2")
+            new_content = gallery_manager.create_generated_content(
+                content_type="video",
+                url=result_url,
+                prompt=payload.prompt,
+                negative_prompt=payload.negative_prompt or "",
+                server_id="openai",
+                server_name="OpenAI Sora",
+                model_name=payload.model or "sora-2",
+                model_type=model_type,
+                generation_params=generation_params,
+            )
+
+            response_data = await gallery_manager.add_generated_content(
+                db=db,
+                clip_id=payload.clip_id,
+                new_content=new_content,
+                content_type="video",
+            )
+
+            return GenerationResponseDTO(
+                message=response_data["message"],
+                content=GeneratedContentDTO(**response_data["content"]),
+                total_images=response_data.get("total_images"),
+                total_videos=response_data.get("total_videos"),
+            )
+
+        # Default ComfyUI path (existing behavior)
         server_data = await db.comfyui_servers.find_one({"id": payload.server_id})
         if not server_data:
             raise ServerNotFoundError(payload.server_id)
@@ -60,9 +106,6 @@ class GenerationService:
 
         if not await client.check_connection():
             raise ServiceUnavailableError("ComfyUI", "Server is offline")
-
-        params = payload.params.model_dump() if payload.params else {}
-        generation_params = params or get_model_defaults(payload.model or "unknown")
 
         result_url = None
         if payload.generation_type == "image":
@@ -254,6 +297,33 @@ class GenerationService:
             "result_url": job.result_url if hasattr(job, 'result_url') else None,
             "error": job.error if hasattr(job, 'error') else None,
             "server_id": job.server_id if hasattr(job, 'server_id') else None,
+        }
+
+    async def get_all_jobs(self, status: str = None) -> Dict:
+        """Get all queued jobs with optional status filter"""
+        from services.queue_manager import queue_manager
+        
+        all_jobs = await queue_manager.get_all_jobs()
+        
+        # Filter by status if provided
+        if status and status != 'all':
+            all_jobs = [j for j in all_jobs if j.status == status]
+        
+        return {
+            "total_jobs": len(all_jobs),
+            "jobs": [
+                {
+                    "job_id": j.id,
+                    "clip_id": j.clip_id,
+                    "status": j.status,
+                    "generation_type": j.generation_type,
+                    "created_at": j.created_at,
+                    "result_url": j.result_url if hasattr(j, 'result_url') else None,
+                    "error": j.error if hasattr(j, 'error') else None,
+                    "server_id": j.server_id if hasattr(j, 'server_id') else None,
+                }
+                for j in all_jobs
+            ],
         }
 
     async def get_project_jobs(self, project_id: str) -> Dict:

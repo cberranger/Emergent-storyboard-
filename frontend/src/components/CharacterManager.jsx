@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API } from '@/config';
 import { toast } from 'sonner';
-import { Users, Plus, Edit, Trash2, Image as ImageIcon, Sparkles, X, Upload } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Image as ImageIcon, Sparkles, X, Upload, Play, Server } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +17,9 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AdvancedCharacterCreator from './AdvancedCharacterCreator';
+import FaceFusionProcessor from './FaceFusionProcessor';
 
 const CharacterManager = ({ activeProject }) => {
   const [characters, setCharacters] = useState([]);
@@ -30,15 +33,38 @@ const CharacterManager = ({ activeProject }) => {
     reference_images: [],
     lora: '',
     trigger_words: '',
-    style_notes: ''
+    style_notes: '',
+    generation_method: 'ip_adapter',
+    face_image: '',
+    generation_params: {}
   });
   const [imageUrls, setImageUrls] = useState(''); // Comma-separated URLs
+  const [selectedMethod, setSelectedMethod] = useState('ip_adapter');
+  const [faceImageFile, setFaceImageFile] = useState(null);
+  const [generatingSamples, setGeneratingSamples] = useState(false);
+  const [characterSamples, setCharacterSamples] = useState([]);
+  const [showSamplesDialog, setShowSamplesDialog] = useState(false);
+  const [selectedServer, setSelectedServer] = useState('');
+  const [comfyUIServers, setComfyUIServers] = useState([]);
 
   useEffect(() => {
     if (activeProject) {
       fetchCharacters();
+      fetchComfyUIServers();
     }
   }, [activeProject]);
+
+  const fetchComfyUIServers = async () => {
+    try {
+      const response = await axios.get(`${API}/comfyui/servers`);
+      setComfyUIServers(response.data);
+      if (response.data.length > 0 && !selectedServer) {
+        setSelectedServer(response.data[0].id);
+      }
+    } catch (error) {
+      console.error('Error fetching ComfyUI servers:', error);
+    }
+  };
 
   const fetchCharacters = async () => {
     try {
@@ -63,9 +89,14 @@ const CharacterManager = ({ activeProject }) => {
       reference_images: [],
       lora: '',
       trigger_words: '',
-      style_notes: ''
+      style_notes: '',
+      generation_method: 'ip_adapter',
+      face_image: '',
+      generation_params: {}
     });
     setImageUrls('');
+    setSelectedMethod('ip_adapter');
+    setFaceImageFile(null);
     setIsDialogOpen(true);
   };
 
@@ -136,6 +167,52 @@ const CharacterManager = ({ activeProject }) => {
     }
   };
 
+  const handleGenerateCharacterSamples = async (character) => {
+    if (!selectedServer) {
+      toast.error('Please select a ComfyUI server');
+      return;
+    }
+
+    try {
+      setGeneratingSamples(true);
+      const response = await axios.post(`${API}/characters/${character.id}/generate`, {
+        server_id: selectedServer,
+        prompt: '',
+        samples: 4,
+        model: null
+      });
+
+      setCharacterSamples(response.data.samples);
+      setShowSamplesDialog(true);
+      toast.success(`Generated ${response.data.total_generated} samples for ${character.name}`);
+    } catch (error) {
+      console.error('Error generating character samples:', error);
+      toast.error('Failed to generate character samples');
+    } finally {
+      setGeneratingSamples(false);
+    }
+  };
+
+  const handleFaceImageUpload = async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await axios.post(`${API}/upload-face-image`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      const faceImageUrl = `${API}${response.data.file_url}`;
+      setFormData(prev => ({ ...prev, face_image: faceImageUrl }));
+      toast.success('Face image uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading face image:', error);
+      toast.error('Failed to upload face image');
+    }
+  };
+
   const handleViewCharacter = (character) => {
     setSelectedCharacter(character);
     setFormData({
@@ -167,7 +244,7 @@ const CharacterManager = ({ activeProject }) => {
     <div className="h-full flex flex-col bg-background">
       {/* Header */}
       <div className="border-b border-panel p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
               <Users className="w-6 h-6" />
@@ -177,10 +254,40 @@ const CharacterManager = ({ activeProject }) => {
               Create and manage characters for consistent generation
             </p>
           </div>
-          <Button onClick={handleCreateCharacter} className="gap-2">
-            <Plus className="w-4 h-4" />
-            New Character
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleCreateCharacter} variant="outline" className="gap-2">
+              <Plus className="w-4 h-4" />
+              Quick Character
+            </Button>
+            <AdvancedCharacterCreator 
+              activeProject={activeProject} 
+              onCharacterCreated={(character) => {
+                setCharacters(prev => [...prev, character]);
+                toast.success('Advanced character created successfully');
+              }}
+              comfyUIServers={comfyUIServers}
+            />
+          </div>
+        </div>
+        
+        {/* Server Selection */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Server className="w-4 h-4 text-secondary" />
+            <Label className="text-sm text-secondary">Generation Server:</Label>
+          </div>
+          <Select value={selectedServer} onValueChange={setSelectedServer}>
+            <SelectTrigger className="w-64">
+              <SelectValue placeholder="Select ComfyUI server" />
+            </SelectTrigger>
+            <SelectContent>
+              {comfyUIServers.map((server) => (
+                <SelectItem key={server.id} value={server.id}>
+                  {server.name} ({server.server_type})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -288,6 +395,32 @@ const CharacterManager = ({ activeProject }) => {
                     </div>
                   )}
 
+                  {/* Generation Method */}
+                  <div>
+                    <Label className="text-xs text-secondary mb-1 block">Generation Method</Label>
+                    <Badge variant="outline" className="text-xs">
+                      {character.generation_method || 'ip_adapter'}
+                    </Badge>
+                  </div>
+
+                  {/* Face Image */}
+                  {character.face_image && (
+                    <div>
+                      <Label className="text-xs text-secondary mb-1 block">Face Image</Label>
+                      <div className="w-16 h-16 rounded border border-panel bg-panel-dark flex items-center justify-center overflow-hidden">
+                        <img
+                          src={character.face_image}
+                          alt={`${character.name} face`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.parentElement.innerHTML = '<ImageIcon class="w-6 h-6 text-secondary" />';
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   {/* Style Notes */}
                   {character.style_notes && (
                     <div>
@@ -296,15 +429,35 @@ const CharacterManager = ({ activeProject }) => {
                     </div>
                   )}
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full mt-2 gap-2"
-                    onClick={() => handleViewCharacter(character)}
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    View Details
-                  </Button>
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 gap-2"
+                        onClick={() => handleViewCharacter(character)}
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        View
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1 gap-2"
+                        onClick={() => handleGenerateCharacterSamples(character)}
+                        disabled={generatingSamples}
+                      >
+                        <Play className="w-4 h-4" />
+                        Generate
+                      </Button>
+                    </div>
+                    <FaceFusionProcessor
+                      character={character}
+                      onProcessComplete={(processedImageUrl) => {
+                        // Update character with processed image if needed
+                        toast.success('FaceFusion processing completed');
+                      }}
+                    />
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -363,6 +516,70 @@ const CharacterManager = ({ activeProject }) => {
               </p>
             </div>
 
+            {/* Generation Method */}
+            <div className="space-y-2">
+              <Label htmlFor="method">Generation Method</Label>
+              <Select value={selectedMethod} onValueChange={(value) => {
+                setSelectedMethod(value);
+                setFormData({ ...formData, generation_method: value });
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select generation method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ip_adapter">
+                    IP-Adapter (Best for consistency)
+                  </SelectItem>
+                  <SelectItem value="reactor">
+                    Reactor Face Swap
+                  </SelectItem>
+                  <SelectItem value="instantid">
+                    InstantID (Pose-guided)
+                  </SelectItem>
+                  <SelectItem value="lora">
+                    Custom LoRA (Coming soon)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-secondary">
+                Choose the workflow for consistent character generation
+              </p>
+            </div>
+
+            {/* Face Image Upload */}
+            {(selectedMethod === 'reactor' || selectedMethod === 'instantid') && (
+              <div className="space-y-2">
+                <Label htmlFor="faceImage">Face Image</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="faceImage"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        setFaceImageFile(file);
+                        handleFaceImageUpload(file);
+                      }
+                    }}
+                    className="flex-1"
+                  />
+                  {formData.face_image && (
+                    <div className="w-12 h-12 rounded border border-panel bg-panel-dark flex items-center justify-center overflow-hidden">
+                      <img
+                        src={formData.face_image}
+                        alt="Face preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-secondary">
+                  Upload a clear front-facing photo for best results
+                </p>
+              </div>
+            )}
+
             {/* LoRA */}
             <div className="space-y-2">
               <Label htmlFor="lora">LoRA Model</Label>
@@ -410,6 +627,43 @@ const CharacterManager = ({ activeProject }) => {
             </Button>
             <Button onClick={handleSaveCharacter}>
               {isEditing ? 'Update' : 'Create'} Character
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Character Samples Dialog */}
+      <Dialog open={showSamplesDialog} onOpenChange={setShowSamplesDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Character Generation Samples</DialogTitle>
+            <DialogDescription>
+              Generated samples using the selected method and server
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-2 gap-4">
+            {characterSamples.map((sample, index) => (
+              <div key={index} className="space-y-2">
+                <div className="aspect-square rounded-lg border border-panel bg-panel-dark overflow-hidden">
+                  <img
+                    src={sample.url}
+                    alt={`Character sample ${index + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Sample {index + 1}</p>
+                  <p className="text-xs text-secondary">{sample.method}</p>
+                  <p className="text-xs text-secondary truncate">{sample.prompt}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button onClick={() => setShowSamplesDialog(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

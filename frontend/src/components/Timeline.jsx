@@ -150,7 +150,7 @@ const Timeline = ({ project, comfyUIServers }) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [musicFile, setMusicFile] = useState(null);
   const [editingScene, setEditingScene] = useState(false);
-  const [sceneEditData, setSceneEditData] = useState({ description: '', lyrics: '' });
+  const [sceneEditData, setSceneEditData] = useState({ description: '', lyrics: '', duration: 0, timeline_start: 0 });
   const [timelineAnalysis, setTimelineAnalysis] = useState(null);
   const audioRef = useRef(null);
 
@@ -309,7 +309,9 @@ const Timeline = ({ project, comfyUIServers }) => {
   const startEditingScene = () => {
     setSceneEditData({
       description: activeScene?.description || '',
-      lyrics: activeScene?.lyrics || ''
+      lyrics: activeScene?.lyrics || '',
+      duration: activeScene?.duration || 0,
+      timeline_start: activeScene?.timeline_start || 0
     });
     setEditingScene(true);
   };
@@ -493,6 +495,52 @@ const Timeline = ({ project, comfyUIServers }) => {
                 
                 {editingScene ? (
                   <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-secondary mb-2 block">
+                          Scene Duration (seconds)
+                        </Label>
+                        <Input
+                          className="form-input"
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          placeholder="0.0"
+                          value={sceneEditData.duration}
+                          onChange={(e) => setSceneEditData({
+                            ...sceneEditData,
+                            duration: parseFloat(e.target.value) || 0
+                          })}
+                          data-testid="scene-duration-input"
+                        />
+                        <p className="text-xs text-secondary mt-1">
+                          Calculated from clips: {activeScene?.duration || 0}s
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-sm font-medium text-secondary mb-2 block">
+                          Timeline Start (seconds)
+                        </Label>
+                        <Input
+                          className="form-input"
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          placeholder="0.0"
+                          value={sceneEditData.timeline_start}
+                          onChange={(e) => setSceneEditData({
+                            ...sceneEditData,
+                            timeline_start: parseFloat(e.target.value) || 0
+                          })}
+                          data-testid="scene-timeline-start-input"
+                        />
+                        <p className="text-xs text-secondary mt-1">
+                          Position on project timeline
+                        </p>
+                      </div>
+                    </div>
+                    
                     <div>
                       <Label className="text-sm font-medium text-secondary mb-2 block">
                         Scene Description
@@ -545,6 +593,22 @@ const Timeline = ({ project, comfyUIServers }) => {
                   </div>
                 ) : (
                   <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-xs text-secondary">Duration</Label>
+                        <p className="text-sm text-primary mt-1">
+                          {activeScene.duration || 0}s
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs text-secondary">Timeline Start</Label>
+                        <p className="text-sm text-primary mt-1">
+                          {activeScene.timeline_start || 0}s
+                        </p>
+                      </div>
+                    </div>
+                    
                     <div>
                       <Label className="text-xs text-secondary">Description</Label>
                       <p className="text-sm text-primary mt-1">

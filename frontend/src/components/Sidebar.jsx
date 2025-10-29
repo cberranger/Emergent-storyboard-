@@ -1,5 +1,5 @@
 import React from 'react';
-import { Film, Server, FolderOpen, Clock, Settings, Users, Palette, Activity, Database, BarChart3 } from 'lucide-react';
+import { Film, Server, FolderOpen, Clock, Settings, Users, Palette, Activity, Database, BarChart3, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const Sidebar = ({ currentView, onViewChange, activeProject, onProjectSelect }) => {
@@ -22,6 +22,13 @@ const Sidebar = ({ currentView, onViewChange, activeProject, onProjectSelect }) 
       label: 'Timeline',
       icon: Clock,
       description: 'Edit clips and sequences',
+      disabled: !activeProject
+    },
+    {
+      id: 'generation',
+      label: 'Generation Studio',
+      icon: Wand2,
+      description: 'AI image and video generation',
       disabled: !activeProject
     },
     {

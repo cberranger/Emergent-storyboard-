@@ -58,6 +58,15 @@ async def update_project(
     return await service.update_project(project_id, project_data)
 
 
+@router.get("/{project_id}/clips")
+async def get_project_clips(
+    project_id: str,
+    service: ProjectService = Depends(get_project_service)
+):
+    """Get all clips for a project"""
+    return await service.list_clips_by_project(project_id)
+
+
 @router.delete("/{project_id}")
 async def delete_project(
     project_id: str,

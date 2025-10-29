@@ -19,6 +19,7 @@ import {
   Download,
   ExternalLink
 } from 'lucide-react';
+import { TimelineMetadata } from './MetadataItem';
 import { formatDistanceToNow } from 'date-fns';
 
 const QueueJobCard = ({ job, onRetry, onCancel, onDelete }) => {
@@ -126,23 +127,11 @@ const QueueJobCard = ({ job, onRetry, onCancel, onDelete }) => {
             )}
 
             {/* Metadata */}
-            <div className="flex items-center space-x-4 text-xs text-secondary">
-              <div className="flex items-center space-x-1">
-                <Clock className="w-3 h-3" />
-                <span>Created {formatTimestamp(job.created_at)}</span>
-              </div>
-              {job.completed_at && (
-                <div className="flex items-center space-x-1">
-                  <CheckCircle2 className="w-3 h-3" />
-                  <span>Completed {formatTimestamp(job.completed_at)}</span>
-                </div>
-              )}
-              {job.priority && (
-                <Badge variant="outline" className="text-xs">
-                  Priority: {job.priority}
-                </Badge>
-              )}
-            </div>
+            <TimelineMetadata
+              createdAt={job.created_at}
+              completedAt={job.completed_at}
+              priority={job.priority}
+            />
 
             {/* Expandable Details */}
             {expanded && (

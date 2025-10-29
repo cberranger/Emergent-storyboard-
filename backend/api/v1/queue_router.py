@@ -23,6 +23,15 @@ async def add_to_queue(
     return await service.add_to_queue(job_request)
 
 
+@router.get("/jobs")
+async def get_all_jobs(
+    status: str = None,
+    service: GenerationService = Depends(get_generation_service)
+):
+    """Get all queued jobs with optional status filter"""
+    return await service.get_all_jobs(status)
+
+
 @router.get("/status", response_model=QueueStatusDTO)
 async def get_queue_status(service: GenerationService = Depends(get_generation_service)):
     """Get overall queue status"""

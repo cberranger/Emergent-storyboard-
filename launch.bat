@@ -20,6 +20,9 @@ if not "!USER_FRONTEND!"=="" set "FRONTEND_HOST=!USER_FRONTEND!"
 set /p "USER_BACKEND=Backend host:port [%BACKEND_HOST%]: "
 if not "!USER_BACKEND!"=="" set "BACKEND_HOST=!USER_BACKEND!"
 
+echo.
+set /p "OPENAI_API_KEY_INPUT=OpenAI API key (leave blank to skip): "
+
 :: Parse hosts and ports
 for /f "tokens=1,2 delims=:" %%a in ("%BACKEND_HOST%") do (
     set "BACKEND_IP=%%a"
@@ -48,14 +51,22 @@ echo Creating backend configuration...
 (
 echo # Database Configuration
 echo MONGO_URL=mongodb://192.168.1.10:27017
-echo DB_NAME=Storyboard
+echo DB_NAME=storyboard
 echo.
 echo # CORS Configuration
 echo CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://0.0.0.0:3000
 echo.
-echo # Server Configuration  
+echo # Server Configuration
 echo PORT=%BACKEND_PORT%
 ) > backend\.env
+
+:: Optionally append OpenAI API key for Sora integration
+if defined OPENAI_API_KEY_INPUT (
+    echo OPENAI_API_KEY=%OPENAI_API_KEY_INPUT%>> backend\.env
+    echo 🔑 Added OpenAI API key to backend\.env
+) else (
+    echo ⚠️  OPENAI_API_KEY not provided. Sora generation will be unavailable until set.
+)
 
 :: Create frontend .env file  
 echo 🔧 Creating frontend configuration...

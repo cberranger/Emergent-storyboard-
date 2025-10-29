@@ -1,6 +1,8 @@
 # 🐛 Critical Bugs - Detailed Task List
 ## Phase 1: Essential Fixes (Tasks 1-12)
 
+> Update 2025-10-27: Harmonized with the v1 API refactor. Removed stale server.py line ranges and the CORS debug endpoint step which was not implemented.
+
 **Purpose:** Fix critical issues preventing production deployment  
 **Priority:** HIGHEST  
 **Estimated Total Time:** 24 hours
@@ -36,14 +38,14 @@
 - Added multiple verification methods: status endpoint check and info endpoint fallback
 - Implemented proper error handling for timeout, network errors, 401 (invalid key), and 404 (endpoint not found)
 - Added detailed logging for all connection states
-- Modified `_check_runpod_connection()` at server.py:522-575
+- Modified `_check_runpod_connection()` at server.py
 
 ### Intentionality
 The RunPod health check currently always returns `True`, providing false confidence about server availability. This can lead to failed generation attempts and poor user experience when the endpoint is actually down.
 
 ### Current State (Lines to Modify)
 ```python
-# backend/server.py:522-536
+# backend/server.py
 async def _check_runpod_connection(self) -> bool:
     if not self.server.api_key:
         return False
@@ -180,7 +182,7 @@ async def get_server_info(server_id: str, db = Depends(get_database)):
 ```
 
 ### Outputs Created
-- Modified: `backend/server.py` - `_check_runpod_connection()` method (50 lines)
+- Modified: `backend/server.py` - `_check_runpod_connection()` method
 - Modified: `ComfyUIServerInfo` model to include metadata field
 - Modified: `get_server_info()` endpoint to return RunPod metadata
 - Modified: `ComfyUIManager.jsx` to display RunPod badge
@@ -217,7 +219,7 @@ async def test_runpod_connection_without_key():
 ```
 
 ### Validation Subtask
-1. ✓ Verify `_check_runpod_connection` method exists at line 522
+1. ✓ Verify `_check_runpod_connection` method exists
 2. ✓ Check aiohttp session is already imported
 3. ✓ Verify endpoint_id is extracted correctly in `__init__`
 4. ✓ Test with invalid API key (should return False)
@@ -448,7 +450,7 @@ test('config requires explicit URL in production', () => {
 - Added proper security headers: specific methods, headers, and credentials control
 - Updated `backend/.env` to include CORS_ORIGINS and ENVIRONMENT variables
 - Created `backend/.env.production` template for production deployments
-- Modified CORS middleware at server.py:1675-1692 to use config-based origins
+- Modified CORS middleware at server.py to use config-based origins
 - Production now requires explicit CORS_ORIGINS configuration or will fail to start
 
 ### Intentionality
@@ -456,7 +458,7 @@ The current wildcard CORS (`allow_origins=["*"]`) is a security vulnerability th
 
 ### Current State (Lines to Modify)
 ```python
-# backend/server.py:1637-1643
+# backend/server.py
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -576,26 +578,12 @@ PORT=$($BackendHost.Split(':')[1])
 "@
 ```
 
-**Step 5:** Add CORS validation endpoint for debugging
-```python
-# backend/server.py (ADD debug endpoint)
-@api_router.get("/debug/cors")
-async def debug_cors():
-    """Debug endpoint to check CORS configuration"""
-    return {
-        "allowed_origins": config.get_cors_origins(),
-        "environment": os.environ.get('ENVIRONMENT', 'not set'),
-        "allow_credentials": config.CORS_ALLOW_CREDENTIALS
-    }
-```
-
 ### Outputs Created
 - Modified: `backend/config.py` (add CORS configuration class)
 - Modified: `backend/server.py` (update CORS middleware with proper config)
 - New file: `backend/.env.production` (production template)
 - Modified: `launch.ps1` (include CORS_ORIGINS)
 - Modified: `launch.sh` (include CORS_ORIGINS)
-- Added: Debug endpoint `/api/debug/cors`
 
 ### Testing Validation
 ```python

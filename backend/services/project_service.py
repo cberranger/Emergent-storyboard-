@@ -203,6 +203,11 @@ class ProjectService:
         clips = await self._clips.list_by_scene(scene_id)
         return [ClipResponseDTO(**(_cleanup_document(clip) or {})) for clip in clips]
 
+    async def list_clips_by_project(self, project_id: str) -> List[ClipResponseDTO]:
+        await self._ensure_project_exists(project_id)
+        clips = await self._clips.list_by_project(project_id)
+        return [ClipResponseDTO(**(_cleanup_document(clip) or {})) for clip in clips]
+
     async def get_clip(self, clip_id: str) -> ClipResponseDTO:
         clip = await self._clips.find_by_id(clip_id)
         clip = _cleanup_document(clip)

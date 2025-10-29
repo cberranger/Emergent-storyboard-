@@ -29,6 +29,16 @@ The Emergent Storyboard (StoryCanvas) is a well-architected full-stack applicati
 
 ---
 
+## ✅ Resolved Since Audit
+
+- Fixed MongoDB default URL and added resilient DB handling (retries, health checks) in `backend/database.py`; env-based config in `.env`/`config.py`.
+- Replaced wildcard CORS with environment-driven allowed origins using `backend/config.py` and updated middleware.
+- Implemented timeline position validation with `TimelinePositionUpdate` and `backend/utils/timeline_validator.py`.
+- Enforced file upload size/type limits via `backend/config.py` and `backend/utils/file_validator.py`.
+- Completed clip update endpoint with validation (PUT `/clips/{id}`) and model validators.
+- Extracted duplicate generation code into `backend/services/gallery_manager.py` to DRY endpoints.
+- Implemented Phase 2 refactor: services, repositories, DTOs; created and mounted versioned routers under `/api/v1` while keeping legacy `/api`.
+
 ## 🐛 Critical Errors & Bugs Identified
 
 ### 🔴 HIGH PRIORITY

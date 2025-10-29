@@ -1,16 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Play, Pause, ZoomIn, ZoomOut, Plus, Settings, Music, Eye,
-  ChevronDown, ChevronRight, Copy, Trash2, Wand2, Image as ImageIcon
+  ChevronDown, ChevronRight, Copy, Trash2, Wand2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { API } from '@/config';
 import EnhancedGenerationDialog from './EnhancedGenerationDialog';
+import TimelineClipCard from './TimelineClipCard';
 
 const UnifiedTimeline = ({ project, comfyUIServers }) => {
   const [timelineData, setTimelineData] = useState(null);
@@ -24,6 +29,16 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
   const [loading, setLoading] = useState(true);
   const [showGenDialog, setShowGenDialog] = useState(false);
   const [genClip, setGenClip] = useState(null);
+  const [showCreateClipDialog, setShowCreateClipDialog] = useState(false);
+  const [createClipSceneId, setCreateClipSceneId] = useState(null);
+  const [newClipData, setNewClipData] = useState({
+    name: '',
+    lyrics: '',
+    length: 5,
+    timeline_position: 0,
+    image_prompt: '',
+    video_prompt: ''
+  });
   const timelineRef = useRef(null);
 
   useEffect(() => {
@@ -115,6 +130,47 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
     setShowGenDialog(true);
   };
 
+  const handleCreateClip = async () => {
+    if (!newClipData.name.trim() || !createClipSceneId) {
+      toast.error('Clip name is required');
+      return;
+    }
+
+    try {
+      const response = await axios.post(`${API}/clips`, {
+        scene_id: createClipSceneId,
+        name: newClipData.name.trim(),
+        lyrics: newClipData.lyrics.trim(),
+        length: parseFloat(newClipData.length),
+        timeline_position: parseFloat(newClipData.timeline_position),
+        image_prompt: newClipData.image_prompt.trim(),
+        video_prompt: newClipData.video_prompt.trim(),
+        order: 0 // Will be recalculated on backend
+      });
+
+      toast.success('Clip created successfully');
+      setShowCreateClipDialog(false);
+      setCreateClipSceneId(null);
+      setNewClipData({
+        name: '',
+        lyrics: '',
+        length: 5,
+        timeline_position: 0,
+        image_prompt: '',
+        video_prompt: ''
+      });
+      fetchTimelineData();
+    } catch (error) {
+      console.error('Error creating clip:', error);
+      toast.error('Failed to create clip');
+    }
+  };
+
+  const openCreateClipDialog = (sceneId) => {
+    setCreateClipSceneId(sceneId);
+    setShowCreateClipDialog(true);
+  };
+
   const calculateSceneDuration = (scene) => {
     if (!scene.clips || scene.clips.length === 0) return scene.duration || 10;
     const maxEnd = Math.max(...scene.clips.map(c => (c.timeline_position || 0) + (c.length || 5)));
@@ -131,18 +187,18 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
 
   const getSceneColor = (scene) => {
     if (scene.is_alternate) {
-      const colors = ['bg-slate-700', 'bg-slate-600', 'bg-slate-500'];
+      const colors = ['bg-slate-200', 'bg-slate-100', 'bg-gray-100'];
       return colors[scene.alternate_number % colors.length];
     }
-    return 'bg-slate-800';
+    return 'bg-slate-300';
   };
 
   const getClipColor = (clip) => {
     if (clip.is_alternate) {
-      const colors = ['bg-gray-600', 'bg-gray-500', 'bg-gray-400'];
+      const colors = ['bg-slate-400', 'bg-slate-300', 'bg-slate-200'];
       return colors[clip.alternate_number % colors.length];
     }
-    return 'bg-gray-700';
+    return 'bg-slate-500';
   };
 
   const groupByParent = (items) => {
@@ -174,13 +230,13 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
   const sceneGroups = groupByParent(scenes);
 
   return (
-    <div className="h-full flex bg-gray-900">
+    <div className="h-full flex bg-slate-50">
       {/* Main Timeline Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header Controls */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-gray-950">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 bg-white">
           <div className="flex items-center space-x-4">
-            <h2 className="text-sm font-semibold text-gray-200">{project.name}</h2>
+            <h2 className="text-sm font-semibold text-slate-800">{project.name}</h2>
             <Badge variant="outline" className="text-xs">
               {scenes.length} scenes
             </Badge>
@@ -217,16 +273,16 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
               <ZoomIn className="w-4 h-4" />
             </Button>
 
-            <span className="text-xs text-gray-400 ml-2">{zoom.toFixed(0)}px/s</span>
+            <span className="text-xs text-slate-500 ml-2">{zoom.toFixed(0)}px/s</span>
           </div>
         </div>
 
         {/* Three-Tier Timeline */}
         <div className="flex-1 overflow-auto" ref={timelineRef}>
           {/* Tier 1: Scene Preview Row */}
-          <div className="border-b border-gray-800 bg-gray-950 p-4">
+          <div className="border-b border-slate-200 bg-white p-4">
             <div className="flex items-center space-x-2 mb-2">
-              <span className="text-xs text-gray-400 font-medium">SCENES</span>
+              <span className="text-xs text-slate-500 font-medium">SCENES</span>
               <span className="text-xs text-gray-500">({sceneGroups.length})</span>
             </div>
             <div className="flex items-center space-x-3 overflow-x-auto pb-2">
@@ -242,23 +298,23 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
                     className={`flex-shrink-0 cursor-pointer transition-all ${
                       isSelected
                         ? 'ring-2 ring-indigo-500 bg-indigo-500/10 border-indigo-500'
-                        : 'bg-gray-800 border-gray-700 hover:border-gray-600'
+                        : 'bg-slate-100 border-slate-300 hover:border-slate-400'
                     }`}
                     style={{ width: '160px' }}
                     onClick={() => handleSceneSelect(activeScene)}
                   >
                     <CardContent className="p-3">
                       {/* Thumbnail Placeholder */}
-                      <div className="aspect-video bg-gray-900 rounded mb-2 flex items-center justify-center">
+                      <div className="aspect-video bg-slate-100 rounded mb-2 flex items-center justify-center">
                         <Play className="w-6 h-6 text-gray-600" />
                       </div>
 
                       {/* Scene Info */}
                       <div className="space-y-1">
-                        <h4 className="text-xs font-medium text-gray-200 truncate">
+                        <h4 className="text-xs font-medium text-slate-800 truncate">
                           {activeScene.name}
                         </h4>
-                        <div className="flex items-center justify-between text-[10px] text-gray-400">
+                        <div className="flex items-center justify-between text-[10px] text-slate-500">
                           <span>{clipCount} clips</span>
                           <span>{sceneDuration.toFixed(1)}s</span>
                         </div>
@@ -277,7 +333,7 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
               <Button
                 variant="outline"
                 size="sm"
-                className="flex-shrink-0 h-32 w-32 border-dashed border-gray-700 hover:border-gray-600"
+                className="flex-shrink-0 h-32 w-32 border-dashed border-slate-300 hover:border-slate-400"
               >
                 <div className="flex flex-col items-center">
                   <Plus className="w-6 h-6 mb-1" />
@@ -318,14 +374,14 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
                       </Button>
 
                       <div
-                        className={`flex-1 h-10 rounded ${getSceneColor(scene)} border border-gray-700 px-3 flex items-center justify-between cursor-pointer hover:border-gray-600 transition-colors`}
+                        className={`flex-1 h-10 rounded ${getSceneColor(scene)} border border-slate-300 px-3 flex items-center justify-between cursor-pointer hover:border-slate-400 transition-colors`}
                         style={{
                           marginLeft: `${sceneIndex * 4}px`
                         }}
                         onClick={() => handleSceneSelect(scene)}
                       >
                         <div className="flex items-center space-x-2 min-w-0 flex-1">
-                          <span className="text-sm font-medium text-gray-200 truncate">
+                          <span className="text-sm font-medium text-slate-800 truncate">
                             {scene.name}
                           </span>
                           {scene.is_alternate && (
@@ -333,12 +389,25 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
                               A{scene.alternate_number}
                             </Badge>
                           )}
-                          <span className="text-xs text-gray-400">
+                          <span className="text-xs text-slate-500">
                             ({scene.clips?.length || 0} clips, {sceneDuration.toFixed(1)}s)
                           </span>
                         </div>
 
                         <div className="flex items-center space-x-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openCreateClipDialog(scene.id);
+                            }}
+                            className="h-6 px-2 text-xs"
+                            title="Add new clip"
+                          >
+                            <Plus className="w-3 h-3 mr-1" />
+                            Clip
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -358,7 +427,7 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
                     {isExpanded && (
                       <div className="ml-8 space-y-1 relative">
                         {/* Time Ruler for this scene */}
-                        <div className="h-6 border-b border-gray-800 relative">
+                        <div className="h-6 border-b border-slate-200 relative">
                           {Array.from({ length: Math.ceil(sceneDuration / 5) + 1 }).map((_, i) => {
                             const time = i * 5;
                             return (
@@ -383,63 +452,18 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
                               const isSelected = selectedClip?.id === clip.id;
 
                               return (
-                                <div
+                                <TimelineClipCard
                                   key={clip.id}
-                                  className={`absolute h-12 rounded ${getClipColor(clip)} border ${
-                                    isSelected ? 'border-indigo-500 ring-2 ring-indigo-500' : 'border-gray-600'
-                                  } hover:border-gray-500 flex flex-col justify-between p-2 cursor-pointer transition-all`}
-                                  style={{
-                                    left: `${clipStart}px`,
-                                    width: `${clipWidth}px`,
-                                    top: `${trackY + clipIndex * 2}px`,
-                                    minWidth: '60px'
-                                  }}
-                                  onClick={() => handleClipSelect(clip)}
-                                >
-                                  <div className="flex items-start justify-between min-w-0">
-                                    <span className="text-[11px] font-medium text-gray-200 truncate flex-1">
-                                      {clip.name}
-                                    </span>
-                                    {clip.is_alternate && (
-                                      <Badge variant="secondary" className="text-[8px] h-3 px-1 ml-1">
-                                        A{clip.alternate_number}
-                                      </Badge>
-                                    )}
-                                  </div>
-
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[10px] text-gray-400">
-                                      {clip.length}s
-                                    </span>
-                                    <div className="flex items-center space-x-1">
-                                      {clip.generated_images?.length > 0 && (
-                                        <ImageIcon className="w-3 h-3 text-green-400" />
-                                      )}
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleGenerateClip(clip);
-                                        }}
-                                        className="h-4 w-4 p-0 hover:bg-gray-600"
-                                      >
-                                        <Wand2 className="w-3 h-3" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleCreateClipAlternate(clip.id);
-                                        }}
-                                        className="h-4 w-4 p-0 hover:bg-gray-600"
-                                      >
-                                        <Copy className="w-3 h-3" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
+                                  clip={clip}
+                                  isSelected={selectedClip?.id === clip.id}
+                                  zoom={zoom}
+                                  trackY={trackY}
+                                  clipIndex={clipIndex}
+                                  onSelect={handleClipSelect}
+                                  onGenerate={handleGenerateClip}
+                                  onCreateAlternate={handleCreateClipAlternate}
+                                  getClipColor={getClipColor}
+                                />
                               );
                             });
                           })}
@@ -458,8 +482,8 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
       </div>
 
       {/* Right Sidebar - Current Selection */}
-      <div className="w-80 border-l border-gray-800 bg-gray-950 flex flex-col">
-        <div className="p-4 border-b border-gray-800">
+      <div className="w-80 border-l border-slate-200 bg-white flex flex-col">
+        <div className="p-4 border-b border-slate-200">
           <h3 className="text-sm font-semibold text-gray-200">Current Selection</h3>
         </div>
 
@@ -467,7 +491,7 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
           {selectedClip ? (
             <div className="space-y-4">
               {/* Clip Preview */}
-              <div className="aspect-video bg-gray-900 rounded flex items-center justify-center">
+              <div className="aspect-video bg-slate-100 rounded flex items-center justify-center">
                 {selectedClip.generated_images?.length > 0 ? (
                   <img
                     src={selectedClip.generated_images[0].url}
@@ -522,7 +546,7 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
             </div>
           ) : selectedScene ? (
             <div className="space-y-4">
-              <div className="aspect-video bg-gray-900 rounded flex items-center justify-center">
+              <div className="aspect-video bg-slate-100 rounded flex items-center justify-center">
                 <Play className="w-12 h-12 text-gray-600" />
               </div>
 
@@ -564,6 +588,93 @@ const UnifiedTimeline = ({ project, comfyUIServers }) => {
           servers={comfyUIServers}
           onGenerated={fetchTimelineData}
         />
+      )}
+
+      {/* Create Clip Dialog */}
+      {showCreateClipDialog && (
+        <Dialog open={showCreateClipDialog} onOpenChange={setShowCreateClipDialog}>
+          <DialogContent className="bg-panel border-panel max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-primary">Create New Clip</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="clip-name">Clip Name *</Label>
+                  <Input
+                    id="clip-name"
+                    value={newClipData.name}
+                    onChange={(e) => setNewClipData({ ...newClipData, name: e.target.value })}
+                    placeholder="Enter clip name"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label htmlFor="clip-length">Length (s)</Label>
+                    <Input
+                      id="clip-length"
+                      type="number"
+                      min="1"
+                      max="300"
+                      step="0.1"
+                      value={newClipData.length}
+                      onChange={(e) => setNewClipData({ ...newClipData, length: parseFloat(e.target.value) || 5 })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="clip-position">Position (s)</Label>
+                    <Input
+                      id="clip-position"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={newClipData.timeline_position}
+                      onChange={(e) => setNewClipData({ ...newClipData, timeline_position: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="clip-lyrics">Lyrics/Script</Label>
+                <Textarea
+                  id="clip-lyrics"
+                  value={newClipData.lyrics}
+                  onChange={(e) => setNewClipData({ ...newClipData, lyrics: e.target.value })}
+                  placeholder="Enter lyrics or script for this clip"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <Label htmlFor="clip-image-prompt">Image Prompt</Label>
+                <Textarea
+                  id="clip-image-prompt"
+                  value={newClipData.image_prompt}
+                  onChange={(e) => setNewClipData({ ...newClipData, image_prompt: e.target.value })}
+                  placeholder="Describe the image to generate"
+                  rows={2}
+                />
+              </div>
+              <div>
+                <Label htmlFor="clip-video-prompt">Video Prompt</Label>
+                <Textarea
+                  id="clip-video-prompt"
+                  value={newClipData.video_prompt}
+                  onChange={(e) => setNewClipData({ ...newClipData, video_prompt: e.target.value })}
+                  placeholder="Describe the video to generate"
+                  rows={2}
+                />
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setShowCreateClipDialog(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateClip}>
+                  Create Clip
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

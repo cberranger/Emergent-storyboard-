@@ -96,13 +96,79 @@ npm start  # or yarn start
 
 ## 🎯 Features
 
+### Core Functionality
 - **Project Management**: Create and organize storyboard projects
 - **Scene & Clip System**: Hierarchical structure for complex storyboards
-- **Timeline Editor**: Professional drag-and-drop timeline interface
+- **Timeline Editor**: Professional drag-and-drop timeline with alternates support
 - **ComfyUI Integration**: Support for standard ComfyUI and RunPod serverless
 - **Multi-Server Support**: Connect multiple ComfyUI instances
 - **Music Upload**: Upload audio for music video projects
 - **Version Control**: Multiple versions per clip with comparison
+
+### Advanced Features
+- **Character Management**: Create and apply consistent characters across clips
+- **Style Templates**: Save and reuse generation parameters
+- **Queue Management**: Smart queue with load balancing across servers
+- **Batch Generation**: Generate multiple clips simultaneously
+- **Export Formats**: Final Cut Pro XML, Adobe Premiere EDL, DaVinci Resolve
+- **Generation Pool**: Shared library for reusing generated content
+- **Presentation Mode**: Full-screen storyboard presentations
+- **Hotkey System**: 40+ keyboard shortcuts for power users
+- **Civitai Integration**: Sync models with Civitai database
+- **Model Presets**: Default presets for all major model types
+
+### Model Support
+- **SDXL**: Full support with custom presets
+- **Flux**: Flux Dev, Flux Schnell, Flux Pro variants
+- **Pony Diffusion**: Optimized presets
+- **Illustrious**: Professional anime presets
+- **Wan 2.1/2.2**: Video generation presets
+- **LTX-Video**: Lightning-fast video generation
+- **Hunyuan Video**: Tencent's video model
+- **Qwen Image**: Alibaba's image models
+- **And more**: Extensible preset system for new models
+
+## 🏗️ Architecture
+
+### Backend (FastAPI)
+- **Service Layer**: Clean separation of business logic
+- **Repository Pattern**: Abstracted database operations
+- **API Versioning**: `/api/v1` endpoints with backward compatibility
+- **Dependency Injection**: Proper service management
+- **Error Handling**: Consistent error responses
+- **Queue Management**: Smart load balancing across servers
+
+### Frontend (React)
+- **Component Architecture**: Modular, reusable components
+- **State Management**: Efficient state handling
+- **Real-time Updates**: Live queue status and progress
+- **Professional UI**: Dark theme with modern design
+- **Accessibility**: Proper ARIA labels and keyboard navigation
+
+## 📊 Current Status
+
+### Completed Features ✅
+- Phase 1: Critical bug fixes and stability improvements
+- Phase 2: Architecture refactoring with service layer
+- Phase 2.5: Frontend-backend integration (Character Manager, Style Templates, Queue Dashboard)
+- Phase 2.6: Timeline system with alternates support
+- Phase 2.7: Generation pool for content reuse
+- All major backend APIs implemented
+- ComfyUI integration with multi-server support
+- Export functionality for professional editors
+
+### In Progress 🔄
+- Enhanced model presets system
+- Civitai integration improvements
+- Performance optimizations
+
+### Planned 📋
+- Phase 3: Security & Authentication
+- Phase 4: Advanced content features
+- Phase 5: Frontend improvements (state management)
+- Phase 6: Data management features
+- Phase 7: Monitoring & analytics
+- Phase 8: Testing & CI/CD
 
 ## 🐛 Troubleshooting
 
@@ -130,14 +196,24 @@ npm start  # or yarn start
 storycanvas/
 ├── backend/           # FastAPI backend
 │   ├── server.py      # Main API server
+│   ├── services/      # Business logic layer
+│   ├── repositories/  # Data access layer
+│   ├── models/        # Pydantic models
+│   ├── utils/         # Utilities and helpers
 │   ├── requirements.txt
 │   └── .env           # Created by launch script
 ├── frontend/          # React frontend  
 │   ├── src/
 │   │   ├── components/
+│   │   ├── services/   # API service layer
+│   │   ├── hooks/      # Custom React hooks
 │   │   └── App.js
 │   ├── package.json
 │   └── .env           # Created by launch script
+├── docs/              # Documentation
+│   ├── archive/       # Completed phase docs
+│   ├── CHARACTER_CREATION_BEST_PRACTICES.md
+│   └── FACEFUSION_INTEGRATION.md
 ├── launch.ps1         # PowerShell launcher
 ├── launch.bat         # Batch launcher
 └── README.md
@@ -145,9 +221,10 @@ storycanvas/
 
 ## 🔧 Development
 
-- Backend: FastAPI + MongoDB + aiohttp
-- Frontend: React + Shadcn UI + React DnD
-- ComfyUI: Direct API integration + RunPod serverless support
+- **Backend**: FastAPI + MongoDB + aiohttp
+- **Frontend**: React + Shadcn UI + React DnD
+- **ComfyUI**: Direct API integration + RunPod serverless support
+- **Architecture**: Service layer + Repository pattern + DTOs
 
 ## 📸 Screenshots
 
@@ -157,6 +234,21 @@ The app features a professional dark theme with:
 - Timeline editor with drag-and-drop clips
 - ComfyUI server management
 - Generation dialogs with parameter controls
+- Character and template libraries
+- Queue management dashboard
+- Export functionality
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ---
 

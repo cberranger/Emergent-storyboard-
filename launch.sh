@@ -52,7 +52,7 @@ echo "🔧 Creating backend configuration..."
 cat > backend/.env << EOF
 # Database Configuration
 MONGO_URL=mongodb://localhost:27017/storycanvas
-DB_NAME=storycanvas
+DB_NAME=storyboard
 
 # CORS Configuration  
 CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://0.0.0.0:3000

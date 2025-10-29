@@ -18,6 +18,7 @@ import StyleTemplateLibrary from "@/components/StyleTemplateLibrary";
 import QueueDashboard from "@/components/QueueDashboard";
 import GenerationPool from "@/components/GenerationPool";
 import ProjectDashboard from "@/components/ProjectDashboard";
+import GenerationStudio from "@/components/GenerationStudio";
 
 function App() {
   const [projects, setProjects] = useState([]);
@@ -52,6 +53,7 @@ function App() {
       setComfyUIServers(response.data);
     } catch (error) {
       console.error('Error fetching ComfyUI servers:', error);
+      toast.error('Failed to fetch ComfyUI servers');
     }
   };
 
@@ -131,6 +133,15 @@ function App() {
         ) : (
           <Navigate to="/projects" />
         );
+      case 'generation':
+        return activeProject ? (
+          <GenerationStudio
+            project={activeProject}
+            comfyUIServers={comfyUIServers}
+          />
+        ) : (
+          <Navigate to="/projects" />
+        );
       case 'characters':
         return <CharacterManager activeProject={activeProject} />;
       case 'templates':
@@ -145,6 +156,7 @@ function App() {
             servers={comfyUIServers}
             onAddServer={addComfyUIServer}
             onRefresh={fetchComfyUIServers}
+            onDeleteServer={fetchComfyUIServers}
           />
         );
       default:
@@ -154,7 +166,7 @@ function App() {
 
   return (
     <BrowserRouter>
-      <div className="App flex h-screen bg-gray-900 text-white">
+      <div className="App flex h-screen bg-slate-100 text-slate-900">
         <Sidebar
           currentView={currentView}
           onViewChange={setCurrentView}
@@ -171,7 +183,7 @@ function App() {
           </Routes>
         </main>
         
-        <Toaster theme="dark" />
+        <Toaster theme="light" />
       </div>
     </BrowserRouter>
   );

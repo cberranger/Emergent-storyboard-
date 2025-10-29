@@ -347,6 +347,15 @@ class QueueManager:
             }
         }
 
+    def get_all_jobs(self) -> List[QueuedJob]:
+        """Get all jobs (queue + processing)"""
+        return self.queue + list(self.processing_jobs.values())
+
+    def get_jobs_by_status(self, status: str) -> List[QueuedJob]:
+        """Get all jobs with specific status"""
+        all_jobs = self.get_all_jobs()
+        return [job for job in all_jobs if job.status == status]
+
     def get_project_jobs(self, project_id: str) -> List[Dict[str, Any]]:
         """Get all jobs for a specific project"""
         jobs = []

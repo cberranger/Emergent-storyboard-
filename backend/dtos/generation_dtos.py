@@ -21,6 +21,10 @@ class GenerationParamsDTO(BaseModel):
     motion_bucket_id: Optional[int] = Field(default=None, ge=0)
     use_custom_workflow: Optional[bool] = False
     workflow_json: Optional[str] = None
+    provider: Optional[str] = Field(default=None, description="Generation provider. Use 'openai' to route to OpenAI Sora")
+    input_reference_url: Optional[str] = Field(default=None, description="URL (preferably /uploads/...) to reference image for Sora first frame")
+    input_reference_path: Optional[str] = Field(default=None, description="Local server path to reference image for Sora first frame")
+    input_reference_mime: Optional[str] = Field(default=None, description="MIME for input_reference (image/jpeg, image/png, image/webp)")
 
     @validator("workflow_json")
     def validate_workflow_json(cls, value: Optional[str], values: Dict[str, Any]) -> Optional[str]:

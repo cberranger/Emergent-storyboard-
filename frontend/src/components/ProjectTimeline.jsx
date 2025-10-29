@@ -3,9 +3,15 @@ import { Play, Pause, ZoomIn, ZoomOut, Plus, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { API } from '@/config';
+import TimelineClipSimple from './TimelineClipSimple';
+import SceneActionButtons from './SceneActionButtons';
 
 const ProjectTimeline = ({ project, onSceneClick, onClipClick }) => {
   const [timelineData, setTimelineData] = useState(null);
@@ -13,6 +19,16 @@ const ProjectTimeline = ({ project, onSceneClick, onClipClick }) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isNewSceneDialogOpen, setIsNewSceneDialogOpen] = useState(false);
+  const [newSceneName, setNewSceneName] = useState('');
+  const [newSceneDescription, setNewSceneDescription] = useState('');
+  const [newSceneLyrics, setNewSceneLyrics] = useState('');
+  const [isNewClipDialogOpen, setIsNewClipDialogOpen] = useState(false);
+  const [newClipSceneId, setNewClipSceneId] = useState(null);
+  const [newClipName, setNewClipName] = useState('');
+  const [newClipLyrics, setNewClipLyrics] = useState('');
+  const [newClipLength, setNewClipLength] = useState(5.0);
+  const [newClipTimelinePosition, setNewClipTimelinePosition] = useState(0.0);
   const timelineRef = useRef(null);
   const playheadRef = useRef(null);
 
@@ -63,6 +79,77 @@ const ProjectTimeline = ({ project, onSceneClick, onClipClick }) => {
     }
   };
 
+  const handleCreateScene = async () => {
+    if (!newSceneName.trim()) {
+      toast.error('Scene name is required');
+      return;
+    }
+
+    try {
+      const order = timelineData?.scenes?.length || 0;
+      await axios.post(`${API}/scenes`, {
+        project_id: project.id,
+        name: newSceneName.trim(),
+        description: newSceneDescription.trim(),
+        lyrics: newSceneLyrics.trim(),
+        order: order
+      });
+      toast.success('Scene created successfully');
+      setIsNewSceneDialogOpen(false);
+      setNewSceneName('');
+      setNewSceneDescription('');
+      setNewSceneLyrics('');
+      fetchTimelineData();
+    } catch (error) {
+      console.error('Error creating scene:', error);
+      toast.error('Failed to create scene');
+    }
+  };
+
+  const handleCreateClip = async () => {
+    if (!newClipName.trim()) {
+      toast.error('Clip name is required');
+      return;
+    }
+
+    if (!newClipSceneId) {
+      toast.error('No scene selected');
+      return;
+    }
+
+    try {
+      // Find existing clips in the scene to determine order
+      const scene = timelineData?.scenes?.find(s => s.id === newClipSceneId);
+      const existingClips = scene?.clips || [];
+      const order = existingClips.length;
+
+      await axios.post(`${API}/clips`, {
+        scene_id: newClipSceneId,
+        name: newClipName.trim(),
+        lyrics: newClipLyrics.trim(),
+        length: newClipLength,
+        timeline_position: newClipTimelinePosition,
+        order: order
+      });
+      toast.success('Clip created successfully');
+      setIsNewClipDialogOpen(false);
+      setNewClipSceneId(null);
+      setNewClipName('');
+      setNewClipLyrics('');
+      setNewClipLength(5.0);
+      setNewClipTimelinePosition(0.0);
+      fetchTimelineData();
+    } catch (error) {
+      console.error('Error creating clip:', error);
+      toast.error('Failed to create clip');
+    }
+  };
+
+  const openNewClipDialog = (sceneId) => {
+    setNewClipSceneId(sceneId);
+    setIsNewClipDialogOpen(true);
+  };
+
   const groupScenesByParent = (scenes) => {
     const groups = {};
     scenes.forEach(scene => {
@@ -77,10 +164,10 @@ const ProjectTimeline = ({ project, onSceneClick, onClipClick }) => {
 
   const getSceneColor = (scene) => {
     if (scene.is_alternate) {
-      const colors = ['bg-slate-700', 'bg-slate-600', 'bg-slate-500'];
+      const colors = ['bg-slate-200', 'bg-slate-100', 'bg-gray-100'];
       return colors[scene.alternate_number % colors.length];
     }
-    return 'bg-slate-800';
+    return 'bg-slate-300';
   };
 
   if (loading) {
@@ -96,17 +183,136 @@ const ProjectTimeline = ({ project, onSceneClick, onClipClick }) => {
   let currentPosition = 0;
 
   return (
-    <div className="h-full flex flex-col bg-gray-900">
+    <div className="h-full flex flex-col bg-slate-50">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-gray-950">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 bg-white">
         <div className="flex items-center space-x-4">
-          <h2 className="text-sm font-semibold text-gray-200">{project.name} - Timeline</h2>
+          <h2 className="text-sm font-semibold text-slate-800">{project.name} - Timeline</h2>
           <Badge variant="outline" className="text-xs">
             {timelineData?.scenes?.length || 0} scenes
           </Badge>
         </div>
 
         <div className="flex items-center space-x-2">
+          <Dialog open={isNewSceneDialogOpen} onOpenChange={setIsNewSceneDialogOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                New Scene
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Scene</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="scene-name">Scene Name *</Label>
+                  <Input
+                    id="scene-name"
+                    value={newSceneName}
+                    onChange={(e) => setNewSceneName(e.target.value)}
+                    placeholder="Enter scene name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="scene-description">Description</Label>
+                  <Textarea
+                    id="scene-description"
+                    value={newSceneDescription}
+                    onChange={(e) => setNewSceneDescription(e.target.value)}
+                    placeholder="Enter scene description"
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="scene-lyrics">Lyrics</Label>
+                  <Textarea
+                    id="scene-lyrics"
+                    value={newSceneLyrics}
+                    onChange={(e) => setNewSceneLyrics(e.target.value)}
+                    placeholder="Enter scene lyrics"
+                    rows={4}
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={() => setIsNewSceneDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleCreateScene}>
+                    Create Scene
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isNewClipDialogOpen} onOpenChange={setIsNewClipDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Clip</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="clip-name">Clip Name *</Label>
+                  <Input
+                    id="clip-name"
+                    value={newClipName}
+                    onChange={(e) => setNewClipName(e.target.value)}
+                    placeholder="Enter clip name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="clip-lyrics">Lyrics</Label>
+                  <Textarea
+                    id="clip-lyrics"
+                    value={newClipLyrics}
+                    onChange={(e) => setNewClipLyrics(e.target.value)}
+                    placeholder="Enter clip lyrics"
+                    rows={3}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="clip-length">Length (seconds)</Label>
+                    <Input
+                      id="clip-length"
+                      type="number"
+                      min="1"
+                      max="300"
+                      step="0.1"
+                      value={newClipLength}
+                      onChange={(e) => setNewClipLength(parseFloat(e.target.value) || 5.0)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="clip-position">Timeline Position (seconds)</Label>
+                    <Input
+                      id="clip-position"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={newClipTimelinePosition}
+                      onChange={(e) => setNewClipTimelinePosition(parseFloat(e.target.value) || 0.0)}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={() => setIsNewClipDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleCreateClip}>
+                    Create Clip
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <Button
             variant="ghost"
             size="sm"
@@ -116,7 +322,7 @@ const ProjectTimeline = ({ project, onSceneClick, onClipClick }) => {
             {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
           </Button>
 
-          <div className="h-4 w-px bg-gray-700" />
+          <div className="h-4 w-px bg-slate-300" />
 
           <Button
             variant="ghost"
@@ -147,7 +353,7 @@ const ProjectTimeline = ({ project, onSceneClick, onClipClick }) => {
             <ZoomIn className="w-4 h-4" />
           </Button>
 
-          <span className="text-xs text-gray-400 ml-2">{zoom.toFixed(0)}px/s</span>
+          <span className="text-xs text-slate-500 ml-2">{zoom.toFixed(0)}px/s</span>
         </div>
       </div>
 
@@ -155,13 +361,13 @@ const ProjectTimeline = ({ project, onSceneClick, onClipClick }) => {
       <div className="flex-1 overflow-auto">
         <div ref={timelineRef} className="relative min-h-full">
           {/* Time Ruler */}
-          <div className="sticky top-0 z-10 h-8 bg-gray-950 border-b border-gray-800 flex items-center">
+          <div className="sticky top-0 z-10 h-8 bg-white border-b border-slate-200 flex items-center">
             {Array.from({ length: Math.ceil(totalDuration / 5) + 1 }).map((_, i) => {
               const time = i * 5;
               return (
                 <div
                   key={i}
-                  className="absolute text-xs text-gray-500 font-mono"
+                  className="absolute text-xs text-slate-500 font-mono"
                   style={{ left: `${time * zoom + 8}px` }}
                 >
                   {time}s
@@ -197,7 +403,7 @@ const ProjectTimeline = ({ project, onSceneClick, onClipClick }) => {
                     return (
                       <div
                         key={scene.id}
-                        className={`absolute ${getSceneColor(scene)} rounded border border-gray-700 hover:border-gray-600 transition-colors cursor-pointer overflow-hidden`}
+                        className={`absolute ${getSceneColor(scene)} rounded border border-slate-300 hover:border-slate-400 transition-colors cursor-pointer overflow-hidden`}
                         style={{
                           left: `${sceneStartPosition * zoom}px`,
                           width: `${sceneDuration * zoom}px`,
@@ -211,9 +417,9 @@ const ProjectTimeline = ({ project, onSceneClick, onClipClick }) => {
                         }}
                       >
                         {/* Scene Header */}
-                        <div className="px-2 py-1 bg-black/30 border-b border-gray-700 flex items-center justify-between">
+                        <div className="px-2 py-1 bg-slate-900/10 border-b border-slate-300 flex items-center justify-between">
                           <div className="flex items-center space-x-2 min-w-0 flex-1">
-                            <span className="text-xs font-medium text-gray-200 truncate">
+                            <span className="text-xs font-medium text-slate-800 truncate">
                               {scene.name}
                             </span>
                             {scene.is_alternate && (
@@ -222,17 +428,12 @@ const ProjectTimeline = ({ project, onSceneClick, onClipClick }) => {
                               </Badge>
                             )}
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCreateAlternate(scene.id);
-                            }}
-                            className="h-5 w-5 p-0 hover:bg-white/10"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </Button>
+                          <div className="flex items-center space-x-1">
+                            <SceneActionButtons
+                              onAddClip={() => openNewClipDialog(scene.id)}
+                              onCreateAlternate={() => handleCreateAlternate(scene.id)}
+                            />
+                          </div>
                         </div>
 
                         {/* Clips */}
@@ -244,32 +445,21 @@ const ProjectTimeline = ({ project, onSceneClick, onClipClick }) => {
                               const trackY = cgIndex * 20;
 
                               return (
-                                <div
+                                <TimelineClipSimple
                                   key={clip.id}
-                                  className="absolute h-4 bg-gray-600 hover:bg-gray-500 rounded border border-gray-700 flex items-center px-1 cursor-pointer transition-colors"
-                                  style={{
-                                    left: `${clipStart}px`,
-                                    width: `${clipWidth}px`,
-                                    top: `${trackY + clipIndex}px`
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (onClipClick) onClipClick(clip);
-                                  }}
-                                >
-                                  <span className="text-[10px] text-gray-200 truncate">
-                                    {clip.name}
-                                  </span>
-                                  {clip.is_alternate && (
-                                    <Badge variant="secondary" className="text-[8px] h-3 px-0.5 ml-1">
-                                      A{clip.alternate_number}
-                                    </Badge>
-                                  )}
-                                </div>
+                                  clip={clip}
+                                  zoom={zoom}
+                                  trackY={trackY}
+                                  clipIndex={clipIndex}
+                                  onClick={onClipClick}
+                                />
                               );
                             });
                           })}
                         </div>
+
+                        {/* Spacer for clips */}
+                        <div style={{ height: `${Math.max(clipGroups.length * 20 + 20, 40)}px` }} />
                       </div>
                     );
                   })}

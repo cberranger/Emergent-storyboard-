@@ -14,11 +14,21 @@ import asyncio
 from fastapi.staticfiles import StaticFiles
 import shutil
 
+import sys
+# Ensure 'backend' directory is on sys.path for absolute-style imports (services, repositories, database)
+BACKEND_DIR = Path(__file__).parent
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # Import database manager
 from database import db_manager, get_database
+
+# Import active models service
+from active_models_service import ActiveModelsService
+from models import BackendModelInfo, BackendInfo, ModelType
 
 # Import v1 API router
 from api.v1 import api_v1_router
@@ -33,6 +43,83 @@ from utils.errors import (
 
 # For backward compatibility - global db reference
 db = None  # Will be initialized during startup
+active_models_service = None  # Will be initialized during startup
+
+# Database dependency for endpoints
+def get_database():
+    """Get database connection, raising error if not available"""
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    return db
+
+# FaceFusion integration
+class FaceFusionClient:
+    def __init__(self, base_url: str = "http://localhost:7870"):
+        self.base_url = base_url.rstrip('/')
+    
+    async def enhance_face(self, image_path: str, enhancement_model: str = "gfpgan_1.4") -> Optional[str]:
+        """Enhance face quality using FaceFusion"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Create enhancement job
+                job_data = {
+                    "source_path": image_path,
+                    "face_enhancer_model": enhancement_model,
+                    "face_enhancer_blend": 1.0
+                }
+                
+                async with session.post(f"{self.base_url}/api/v1/enhance-face", json=job_data) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        return result.get("output_path")
+        except Exception as e:
+            logging.error(f"Error enhancing face with FaceFusion: {e}")
+        return None
+    
+    async def adjust_face_age(self, image_path: str, target_age: int) -> Optional[str]:
+        """Adjust face age using FaceFusion"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                job_data = {
+                    "source_path": image_path,
+                    "face_editor_age": target_age,
+                    "face_editor_blend": 1.0
+                }
+                
+                async with session.post(f"{self.base_url}/api/v1/adjust-face", json=job_data) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        return result.get("output_path")
+        except Exception as e:
+            logging.error(f"Error adjusting face age with FaceFusion: {e}")
+        return None
+    
+    async def swap_face(self, source_face_path: str, target_image_path: str) -> Optional[str]:
+        """Swap face using FaceFusion"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                job_data = {
+                    "source_face_path": source_face_path,
+                    "target_image_path": target_image_path,
+                    "face_swapper_model": "inswapper_128"
+                }
+                
+                async with session.post(f"{self.base_url}/api/v1/swap-face", json=job_data) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        return result.get("output_path")
+        except Exception as e:
+            logging.error(f"Error swapping face with FaceFusion: {e}")
+        return None
+    
+    async def check_connection(self) -> bool:
+        """Check if FaceFusion server is accessible"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{self.base_url}/api/v1/status") as response:
+                    return response.status == 200
+        except Exception:
+            return False
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -65,6 +152,91 @@ class ComfyUIServerCreate(BaseModel):
 class Model(BaseModel):
     name: str
     type: str  # checkpoint, lora, vae, etc.
+
+# Enhanced Model Management System
+class CivitaiModelInfo(BaseModel):
+    modelId: str
+    name: Optional[str] = None
+    description: Optional[str] = None
+    type: Optional[str] = None
+    tags: Optional[List[str]] = []
+    trainedWords: Optional[List[str]] = []
+    baseModel: Optional[str] = None
+    baseModelType: Optional[str] = None
+    modelVersions: Optional[List[Dict[str, Any]]] = []
+    images: Optional[List[Dict[str, Any]]] = []
+    # Additional fields for enhanced display
+    allowDerivatives: Optional[bool] = None
+    sfwOnly: Optional[bool] = None
+    nsfw: Optional[bool] = None
+    nsfwLevel: Optional[int] = None
+    cosmetic: Optional[Dict[str, Any]] = None
+    stats: Optional[Dict[str, Any]] = {}
+    allowNoCredit: Optional[bool] = None
+    allowCommercialUse: Optional[List[str]] = []
+    availability: Optional[str] = None
+    supportsGeneration: Optional[bool] = None
+    downloadUrl: Optional[str] = None
+
+class ModelConfigurationPreset(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: Optional[str] = ""
+    model_id: Optional[str] = None  # Specific model this preset belongs to
+    base_model: Optional[str] = None  # Base model type (e.g., "sdxl", "flux_dev", "pony")
+    is_global: Optional[bool] = False  # If true, preset applies to all models of this base_model type
+    cfg_scale: Optional[float] = 7.0
+    steps: Optional[int] = 20
+    sampler: Optional[str] = "euler"
+    scheduler: Optional[str] = "normal"
+    clip_skip: Optional[int] = -1
+    resolution_width: Optional[int] = 512
+    resolution_height: Optional[int] = 512
+    batch_size: Optional[int] = 1
+    seed: Optional[int] = -1
+    additional_params: Optional[Dict[str, Any]] = {}
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class DatabaseModel(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    type: str  # checkpoint, lora, vae, etc.
+    filename: Optional[str] = None
+    filepath: Optional[str] = None
+    hash: Optional[str] = None
+    server_source: Optional[str] = None  # Server ID where this was discovered
+    civitai_info: Optional[CivitaiModelInfo] = None
+    configuration_presets: List[ModelConfigurationPreset] = []
+    metadata: Optional[Dict[str, Any]] = {}
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_synced_at: Optional[datetime] = None
+
+class DatabaseModelCreate(BaseModel):
+    name: str
+    type: str
+    filename: Optional[str] = None
+    filepath: Optional[str] = None
+    hash: Optional[str] = None
+    server_source: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = {}
+
+class DatabaseModelUpdate(BaseModel):
+    name: Optional[str] = None
+    filename: Optional[str] = None
+    filepath: Optional[str] = None
+    hash: Optional[str] = None
+    civitai_info: Optional[CivitaiModelInfo] = None
+    metadata: Optional[Dict[str, Any]] = None
+    is_active: Optional[bool] = None
+
+class CivitaiLinkRequest(BaseModel):
+    civitai_model_id: str
+
+class CivitaiSearchRequest(BaseModel):
+    search_query: Optional[str] = None
 
 class ComfyUIServerInfo(BaseModel):
     server: ComfyUIServer
@@ -291,6 +463,9 @@ class Character(BaseModel):
     lora: Optional[str] = None  # LoRA for this character
     trigger_words: Optional[str] = ""  # Words to trigger character in prompts
     style_notes: Optional[str] = ""  # Style guidance
+    generation_method: Optional[str] = "ip_adapter"  # ip_adapter, reactor, instantid, lora
+    face_image: Optional[str] = None  # For Reactor/InstantID workflows
+    generation_params: Optional[Dict[str, Any]] = {}
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -303,6 +478,9 @@ class CharacterCreate(BaseModel):
     lora: Optional[str] = None
     trigger_words: Optional[str] = ""
     style_notes: Optional[str] = ""
+    generation_method: Optional[str] = "ip_adapter"  # ip_adapter, reactor, instantid, lora
+    face_image: Optional[str] = None  # For Reactor/InstantID workflows
+    generation_params: Optional[Dict[str, Any]] = {}
 
 class GenerationPool(BaseModel):
     """Generation Pool - shared library of generated content"""
@@ -605,6 +783,214 @@ MODEL_DEFAULTS = {
             "video_fps": 12,
             "video_frames": 25,
             "specializes_in": "image_editing"
+        }
+    },
+    "illustrious": {
+        "fast": {
+            "steps": 12,
+            "cfg": 6.0,
+            "width": 1024,
+            "height": 1024,
+            "sampler": "euler_a",
+            "scheduler": "normal",
+            "supports_lora": True,
+            "supports_refiner": False,
+            "max_loras": 4,
+            "negative_prompt_default": "low quality, blurry, distorted",
+            "video_fps": 12,
+            "video_frames": 14
+        },
+        "quality": {
+            "steps": 25,
+            "cfg": 7.0,
+            "width": 1024,
+            "height": 1024,
+            "sampler": "dpmpp_2m",
+            "scheduler": "karras",
+            "supports_lora": True,
+            "supports_refiner": False,
+            "max_loras": 4,
+            "negative_prompt_default": "low quality, blurry, distorted",
+            "video_fps": 12,
+            "video_frames": 25
+        }
+    },
+    "ltx_video": {
+        "fast": {
+            "steps": 10,
+            "cfg": 2.5,
+            "width": 768,
+            "height": 768,
+            "sampler": "euler",
+            "scheduler": "simple",
+            "supports_lora": False,
+            "supports_refiner": False,
+            "max_loras": 0,
+            "video_fps": 24,
+            "video_frames": 41,
+            "specializes_in": "video_generation"
+        },
+        "quality": {
+            "steps": 20,
+            "cfg": 3.0,
+            "width": 768,
+            "height": 768,
+            "sampler": "dpmpp_2m",
+            "scheduler": "karras",
+            "supports_lora": False,
+            "supports_refiner": False,
+            "max_loras": 0,
+            "video_fps": 24,
+            "video_frames": 81,
+            "specializes_in": "video_generation"
+        }
+    },
+    "hunyuan_video": {
+        "fast": {
+            "steps": 15,
+            "cfg": 6.0,
+            "width": 512,
+            "height": 512,
+            "sampler": "euler",
+            "scheduler": "simple",
+            "supports_lora": True,
+            "supports_refiner": False,
+            "max_loras": 2,
+            "video_fps": 24,
+            "video_frames": 16,
+            "specializes_in": "video_generation"
+        },
+        "quality": {
+            "steps": 30,
+            "cfg": 7.5,
+            "width": 512,
+            "height": 512,
+            "sampler": "dpmpp_2m",
+            "scheduler": "karras",
+            "supports_lora": True,
+            "supports_refiner": False,
+            "max_loras": 2,
+            "video_fps": 24,
+            "video_frames": 32,
+            "specializes_in": "video_generation"
+        }
+    },
+    "flux1_pro_dev": {
+        "fast": {
+            "steps": 8,
+            "cfg": 2.5,
+            "width": 1024,
+            "height": 1024,
+            "sampler": "euler",
+            "scheduler": "simple",
+            "supports_lora": True,
+            "supports_refiner": False,
+            "max_loras": 3,
+            "video_fps": 24,
+            "video_frames": 14
+        },
+        "quality": {
+            "steps": 25,
+            "cfg": 4.0,
+            "width": 1024,
+            "height": 1024,
+            "sampler": "dpmpp_2m",
+            "scheduler": "karras",
+            "supports_lora": True,
+            "supports_refiner": False,
+            "max_loras": 3,
+            "video_fps": 24,
+            "video_frames": 25
+        }
+    },
+    "flux1_pro_schnell": {
+        "fast": {
+            "steps": 4,
+            "cfg": 1.5,
+            "width": 1024,
+            "height": 1024,
+            "sampler": "euler",
+            "scheduler": "simple",
+            "supports_lora": True,
+            "supports_refiner": False,
+            "max_loras": 2,
+            "video_fps": 24,
+            "video_frames": 14
+        },
+        "quality": {
+            "steps": 8,
+            "cfg": 2.0,
+            "width": 1024,
+            "height": 1024,
+            "sampler": "dpmpp_2m",
+            "scheduler": "karras",
+            "supports_lora": True,
+            "supports_refiner": False,
+            "max_loras": 2,
+            "video_fps": 24,
+            "video_frames": 25
+        }
+    },
+    "flux_kontext": {
+        "fast": {
+            "steps": 6,
+            "cfg": 2.0,
+            "width": 1024,
+            "height": 1024,
+            "sampler": "euler",
+            "scheduler": "simple",
+            "supports_lora": True,
+            "supports_refiner": False,
+            "max_loras": 2,
+            "video_fps": 24,
+            "video_frames": 14,
+            "specializes_in": "context_aware"
+        },
+        "quality": {
+            "steps": 15,
+            "cfg": 3.5,
+            "width": 1024,
+            "height": 1024,
+            "sampler": "dpmpp_2m",
+            "scheduler": "karras",
+            "supports_lora": True,
+            "supports_refiner": False,
+            "max_loras": 2,
+            "video_fps": 24,
+            "video_frames": 25,
+            "specializes_in": "context_aware"
+        }
+    },
+    "qwen_edit_2509": {
+        "fast": {
+            "steps": 8,
+            "cfg": 4.5,
+            "width": 1024,
+            "height": 1024,
+            "sampler": "euler",
+            "scheduler": "simple",
+            "supports_lora": False,
+            "supports_refiner": False,
+            "max_loras": 0,
+            "video_fps": 12,
+            "video_frames": 14,
+            "specializes_in": "image_editing",
+            "version": "2509"
+        },
+        "quality": {
+            "steps": 15,
+            "cfg": 6.0,
+            "width": 1024,
+            "height": 1024,
+            "sampler": "dpmpp_2m",
+            "scheduler": "karras",
+            "supports_lora": False,
+            "supports_refiner": False,
+            "max_loras": 0,
+            "video_fps": 12,
+            "video_frames": 25,
+            "specializes_in": "image_editing",
+            "version": "2509"
         }
     }
 }
@@ -1306,6 +1692,508 @@ class ComfyUIClient:
         
         return workflow
 
+    # Character Generation Methods
+    
+    async def generate_character_with_ip_adapter(self, prompt: str, character_image: str, model: str = None, params: Dict = None) -> Optional[str]:
+        """Generate consistent character using IP-Adapter"""
+        try:
+            if self.server_type == "runpod":
+                return await self._generate_ip_adapter_runpod(prompt, character_image, model, params)
+            else:
+                return await self._generate_ip_adapter_standard(prompt, character_image, model, params)
+        except Exception as e:
+            logging.error(f"Error generating character with IP-Adapter: {e}")
+        return None
+    
+    async def generate_character_with_reactor(self, prompt: str, face_image: str, target_image: str = None, model: str = None, params: Dict = None) -> Optional[str]:
+        """Generate character using Reactor face swap"""
+        try:
+            if self.server_type == "runpod":
+                return await self._generate_reactor_runpod(prompt, face_image, target_image, model, params)
+            else:
+                return await self._generate_reactor_standard(prompt, face_image, target_image, model, params)
+        except Exception as e:
+            logging.error(f"Error generating character with Reactor: {e}")
+        return None
+    
+    async def generate_character_with_instantid(self, prompt: str, face_image: str, pose_image: str = None, model: str = None, params: Dict = None) -> Optional[str]:
+        """Generate character using InstantID with pose control"""
+        try:
+            if self.server_type == "runpod":
+                return await self._generate_instantid_runpod(prompt, face_image, pose_image, model, params)
+            else:
+                return await self._generate_instantid_standard(prompt, face_image, pose_image, model, params)
+        except Exception as e:
+            logging.error(f"Error generating character with InstantID: {e}")
+        return None
+    
+    async def _generate_ip_adapter_standard(self, prompt: str, character_image: str, model: str = None, params: Dict = None) -> Optional[str]:
+        """IP-Adapter workflow for standard ComfyUI"""
+        workflow = {
+            "1": {
+                "inputs": {
+                    "ckpt_name": model or "sd_xl_base_1.0.safetensors"
+                },
+                "class_type": "CheckpointLoaderSimple"
+            },
+            "2": {
+                "inputs": {
+                    "text": prompt,
+                    "clip": ["1", 1]
+                },
+                "class_type": "CLIPTextEncode"
+            },
+            "3": {
+                "inputs": {
+                    "text": "low quality, blurry, bad anatomy",
+                    "clip": ["1", 1]
+                },
+                "class_type": "CLIPTextEncode"
+            },
+            "4": {
+                "inputs": {
+                    "image": character_image,
+                    "model": ["1", 0]
+                },
+                "class_type": "IPAdapterModelLoader"
+            },
+            "5": {
+                "inputs": {
+                    "weight": 0.7,
+                    "image": character_image,
+                    "ipadapter": ["4", 0],
+                    "clip_vision": ["6", 0],
+                    "model": ["1", 0],
+                    "positive": ["2", 0],
+                    "negative": ["3", 0]
+                },
+                "class_type": "IPAdapterApply"
+            },
+            "6": {
+                "inputs": {
+                    "ckpt_name": "clip_vision.safetensors"
+                },
+                "class_type": "CLIPVisionLoader"
+            },
+            "7": {
+                "inputs": {
+                    "width": params.get("width", 1024) if params else 1024,
+                    "height": params.get("height", 1024) if params else 1024,
+                    "batch_size": 1
+                },
+                "class_type": "EmptyLatentImage"
+            },
+            "8": {
+                "inputs": {
+                    "seed": params.get("seed", 42) if params else 42,
+                    "steps": params.get("steps", 20) if params else 20,
+                    "cfg": params.get("cfg", 7.5) if params else 7.5,
+                    "sampler_name": params.get("sampler", "euler") if params else "euler",
+                    "scheduler": params.get("scheduler", "normal") if params else "normal",
+                    "denoise": 1.0,
+                    "model": ["5", 0],
+                    "positive": ["2", 0],
+                    "negative": ["3", 0],
+                    "latent_image": ["7", 0]
+                },
+                "class_type": "KSampler"
+            },
+            "9": {
+                "inputs": {
+                    "samples": ["8", 0],
+                    "vae": ["1", 2]
+                },
+                "class_type": "VAEDecode"
+            },
+            "10": {
+                "inputs": {
+                    "filename_prefix": "character_ip_adapter",
+                    "images": ["9", 0]
+                },
+                "class_type": "SaveImage"
+            }
+        }
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Queue the prompt
+                async with session.post(f"{self.base_url}/prompt", json={"prompt": workflow}) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        prompt_id = result.get("prompt_id")
+                        
+                        # Wait for completion and get result
+                        while True:
+                            async with session.get(f"{self.base_url}/history/{prompt_id}") as history_response:
+                                if history_response.status == 200:
+                                    history = await history_response.json()
+                                    if prompt_id in history:
+                                        # Get the filename from the history
+                                        images = history[prompt_id].get("outputs", {}).get("10", {}).get("images", [])
+                                        if images:
+                                            filename = images[0].get("filename")
+                                            return f"{self.base_url}/view?filename={filename}"
+                            await asyncio.sleep(1)
+        except Exception as e:
+            logging.error(f"Error in IP-Adapter workflow: {e}")
+        return None
+    
+    async def _generate_reactor_standard(self, prompt: str, face_image: str, target_image: str = None, model: str = None, params: Dict = None) -> Optional[str]:
+        """Reactor face swap workflow for standard ComfyUI"""
+        workflow = {
+            "1": {
+                "inputs": {
+                    "ckpt_name": model or "sd_xl_base_1.0.safetensors"
+                },
+                "class_type": "CheckpointLoaderSimple"
+            },
+            "2": {
+                "inputs": {
+                    "text": prompt,
+                    "clip": ["1", 1]
+                },
+                "class_type": "CLIPTextEncode"
+            },
+            "3": {
+                "inputs": {
+                    "text": "low quality, blurry, bad anatomy",
+                    "clip": ["1", 1]
+                },
+                "class_type": "CLIPTextEncode"
+            },
+            "4": {
+                "inputs": {
+                    "image": face_image
+                },
+                "class_type": "LoadImageMask"
+            },
+            "5": {
+                "inputs": {
+                    "image": target_image or face_image,
+                    "model": ["1", 0],
+                    "face_image": ["4", 0],
+                    "blend_ratio": 0.8
+                },
+                "class_type": "ReactorFaceSwap"
+            },
+            "6": {
+                "inputs": {
+                    "seed": params.get("seed", 42) if params else 42,
+                    "steps": params.get("steps", 20) if params else 20,
+                    "cfg": params.get("cfg", 7.5) if params else 7.5,
+                    "sampler_name": params.get("sampler", "euler") if params else "euler",
+                    "scheduler": params.get("scheduler", "normal") if params else "normal",
+                    "denoise": 0.75,
+                    "model": ["5", 0],
+                    "positive": ["2", 0],
+                    "negative": ["3", 0]
+                },
+                "class_type": "KSampler"
+            },
+            "7": {
+                "inputs": {
+                    "samples": ["6", 0],
+                    "vae": ["1", 2]
+                },
+                "class_type": "VAEDecode"
+            },
+            "8": {
+                "inputs": {
+                    "filename_prefix": "character_reactor",
+                    "images": ["7", 0]
+                },
+                "class_type": "SaveImage"
+            }
+        }
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Queue the prompt
+                async with session.post(f"{self.base_url}/prompt", json={"prompt": workflow}) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        prompt_id = result.get("prompt_id")
+                        
+                        # Wait for completion and get result
+                        while True:
+                            async with session.get(f"{self.base_url}/history/{prompt_id}") as history_response:
+                                if history_response.status == 200:
+                                    history = await history_response.json()
+                                    if prompt_id in history:
+                                        # Get the filename from the history
+                                        images = history[prompt_id].get("outputs", {}).get("8", {}).get("images", [])
+                                        if images:
+                                            filename = images[0].get("filename")
+                                            return f"{self.base_url}/view?filename={filename}"
+                            await asyncio.sleep(1)
+        except Exception as e:
+            logging.error(f"Error in Reactor workflow: {e}")
+        return None
+    
+    # RunPod methods (simplified for now)
+    async def _generate_ip_adapter_runpod(self, prompt: str, character_image: str, model: str = None, params: Dict = None) -> Optional[str]:
+        """IP-Adapter for RunPod (simplified)"""
+        # For now, fall back to standard generation
+        return await self.generate_image(prompt, "low quality, blurry", model, params, [])
+    
+    async def _generate_reactor_runpod(self, prompt: str, face_image: str, target_image: str = None, model: str = None, params: Dict = None) -> Optional[str]:
+        """Reactor for RunPod (simplified)"""
+        # For now, fall back to standard generation
+        return await self.generate_image(prompt, "low quality, blurry", model, params, [])
+    
+    async def _generate_instantid_runpod(self, prompt: str, face_image: str, pose_image: str = None, model: str = None, params: Dict = None) -> Optional[str]:
+        """InstantID for RunPod (simplified)"""
+        # For now, fall back to standard generation
+        return await self.generate_image(prompt, "low quality, blurry", model, params, [])
+    
+    async def _generate_instantid_standard(self, prompt: str, face_image: str, pose_image: str = None, model: str = None, params: Dict = None) -> Optional[str]:
+        """InstantID workflow (placeholder for future implementation)"""
+        # For now, fall back to IP-Adapter
+        return await self._generate_ip_adapter_standard(prompt, face_image, model, params)
+    
+    async def generate_with_openpose(self, prompt: str, reference_image: str, negative_prompt: str = "", model: str = None, params: Dict = None) -> Optional[str]:
+        """Generate using OpenPose ControlNet for consistent posing"""
+        try:
+            if self.server_type == "runpod":
+                return await self._generate_openpose_runpod(prompt, reference_image, negative_prompt, model, params)
+            else:
+                return await self._generate_openpose_standard(prompt, reference_image, negative_prompt, model, params)
+        except Exception as e:
+            logging.error(f"Error generating with OpenPose: {e}")
+        return None
+    
+    async def generate_with_depth(self, prompt: str, reference_image: str, negative_prompt: str = "", model: str = None, params: Dict = None) -> Optional[str]:
+        """Generate using Depth ControlNet for 3D consistency"""
+        try:
+            if self.server_type == "runpod":
+                return await self._generate_depth_runpod(prompt, reference_image, negative_prompt, model, params)
+            else:
+                return await self._generate_depth_standard(prompt, reference_image, negative_prompt, model, params)
+        except Exception as e:
+            logging.error(f"Error generating with Depth ControlNet: {e}")
+        return None
+    
+    async def _generate_openpose_standard(self, prompt: str, reference_image: str, negative_prompt: str = "", model: str = None, params: Dict = None) -> Optional[str]:
+        """OpenPose workflow for standard ComfyUI"""
+        workflow = {
+            "1": {
+                "inputs": {
+                    "ckpt_name": model or "sd_xl_base_1.0.safetensors"
+                },
+                "class_type": "CheckpointLoaderSimple"
+            },
+            "2": {
+                "inputs": {
+                    "text": prompt,
+                    "clip": ["1", 1]
+                },
+                "class_type": "CLIPTextEncode"
+            },
+            "3": {
+                "inputs": {
+                    "text": negative_prompt or "low quality, blurry, bad anatomy, distorted",
+                    "clip": ["1", 1]
+                },
+                "class_type": "CLIPTextEncode"
+            },
+            "4": {
+                "inputs": {
+                    "image": reference_image
+                },
+                "class_type": "LoadImage"
+            },
+            "5": {
+                "inputs": {
+                    "preprocessor": "dw_openpose_full",
+                    "model": "control_v11p_sd15_openpose.pth",
+                    "image": ["4", 0]
+                },
+                "class_type": "ControlNetLoader"
+            },
+            "6": {
+                "inputs": {
+                    "strength": 0.8,
+                    "conditioning": ["2", 0],
+                    "control_net": ["5", 0],
+                    "image": ["4", 0]
+                },
+                "class_type": "ControlNetApply"
+            },
+            "7": {
+                "inputs": {
+                    "seed": params.get("seed", 42) if params else 42,
+                    "steps": params.get("steps", 20) if params else 20,
+                    "cfg": params.get("cfg", 7.5) if params else 7.5,
+                    "sampler_name": params.get("sampler", "euler") if params else "euler",
+                    "scheduler": params.get("scheduler", "normal") if params else "normal",
+                    "denoise": 0.75,
+                    "model": ["6", 0],
+                    "positive": ["2", 0],
+                    "negative": ["3", 0],
+                    "latent_image": ["8", 0]
+                },
+                "class_type": "KSampler"
+            },
+            "8": {
+                "inputs": {
+                    "width": params.get("width", 1024) if params else 1024,
+                    "height": params.get("height", 1024) if params else 1024,
+                    "batch_size": 1
+                },
+                "class_type": "EmptyLatentImage"
+            },
+            "9": {
+                "inputs": {
+                    "samples": ["7", 0],
+                    "vae": ["1", 2]
+                },
+                "class_type": "VAEDecode"
+            },
+            "10": {
+                "inputs": {
+                    "filename_prefix": "character_openpose",
+                    "images": ["9", 0]
+                },
+                "class_type": "SaveImage"
+            }
+        }
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(f"{self.base_url}/prompt", json={"prompt": workflow}) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        prompt_id = result.get("prompt_id")
+                        
+                        while True:
+                            async with session.get(f"{self.base_url}/history/{prompt_id}") as history_response:
+                                if history_response.status == 200:
+                                    history = await history_response.json()
+                                    if prompt_id in history:
+                                        images = history[prompt_id].get("outputs", {}).get("10", {}).get("images", [])
+                                        if images:
+                                            filename = images[0].get("filename")
+                                            return f"{self.base_url}/view?filename={filename}"
+                            await asyncio.sleep(1)
+        except Exception as e:
+            logging.error(f"Error in OpenPose workflow: {e}")
+        return None
+    
+    async def _generate_depth_standard(self, prompt: str, reference_image: str, negative_prompt: str = "", model: str = None, params: Dict = None) -> Optional[str]:
+        """Depth ControlNet workflow for standard ComfyUI"""
+        workflow = {
+            "1": {
+                "inputs": {
+                    "ckpt_name": model or "sd_xl_base_1.0.safetensors"
+                },
+                "class_type": "CheckpointLoaderSimple"
+            },
+            "2": {
+                "inputs": {
+                    "text": prompt,
+                    "clip": ["1", 1]
+                },
+                "class_type": "CLIPTextEncode"
+            },
+            "3": {
+                "inputs": {
+                    "text": negative_prompt or "low quality, blurry, bad anatomy, distorted",
+                    "clip": ["1", 1]
+                },
+                "class_type": "CLIPTextEncode"
+            },
+            "4": {
+                "inputs": {
+                    "image": reference_image
+                },
+                "class_type": "LoadImage"
+            },
+            "5": {
+                "inputs": {
+                    "preprocessor": "depth_midas",
+                    "model": "control_v11f1p_sd15_depth.pth",
+                    "image": ["4", 0]
+                },
+                "class_type": "ControlNetLoader"
+            },
+            "6": {
+                "inputs": {
+                    "strength": 0.7,
+                    "conditioning": ["2", 0],
+                    "control_net": ["5", 0],
+                    "image": ["4", 0]
+                },
+                "class_type": "ControlNetApply"
+            },
+            "7": {
+                "inputs": {
+                    "seed": params.get("seed", 42) if params else 42,
+                    "steps": params.get("steps", 20) if params else 20,
+                    "cfg": params.get("cfg", 7.5) if params else 7.5,
+                    "sampler_name": params.get("sampler", "euler") if params else "euler",
+                    "scheduler": params.get("scheduler", "normal") if params else "normal",
+                    "denoise": 0.75,
+                    "model": ["6", 0],
+                    "positive": ["2", 0],
+                    "negative": ["3", 0],
+                    "latent_image": ["8", 0]
+                },
+                "class_type": "KSampler"
+            },
+            "8": {
+                "inputs": {
+                    "width": params.get("width", 1024) if params else 1024,
+                    "height": params.get("height", 1024) if params else 1024,
+                    "batch_size": 1
+                },
+                "class_type": "EmptyLatentImage"
+            },
+            "9": {
+                "inputs": {
+                    "samples": ["7", 0],
+                    "vae": ["1", 2]
+                },
+                "class_type": "VAEDecode"
+            },
+            "10": {
+                "inputs": {
+                    "filename_prefix": "character_depth",
+                    "images": ["9", 0]
+                },
+                "class_type": "SaveImage"
+            }
+        }
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(f"{self.base_url}/prompt", json={"prompt": workflow}) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        prompt_id = result.get("prompt_id")
+                        
+                        while True:
+                            async with session.get(f"{self.base_url}/history/{prompt_id}") as history_response:
+                                if history_response.status == 200:
+                                    history = await history_response.json()
+                                    if prompt_id in history:
+                                        images = history[prompt_id].get("outputs", {}).get("10", {}).get("images", [])
+                                        if images:
+                                            filename = images[0].get("filename")
+                                            return f"{self.base_url}/view?filename={filename}"
+                            await asyncio.sleep(1)
+        except Exception as e:
+            logging.error(f"Error in Depth workflow: {e}")
+        return None
+    
+    # RunPod fallback methods
+    async def _generate_openpose_runpod(self, prompt: str, reference_image: str, negative_prompt: str = "", model: str = None, params: Dict = None) -> Optional[str]:
+        """OpenPose for RunPod (simplified fallback)"""
+        return await self.generate_image(prompt, negative_prompt or "low quality, blurry", model, params, [])
+    
+    async def _generate_depth_runpod(self, prompt: str, reference_image: str, negative_prompt: str = "", model: str = None, params: Dict = None) -> Optional[str]:
+        """Depth for RunPod (simplified fallback)"""
+        return await self.generate_image(prompt, negative_prompt or "low quality, blurry", model, params, [])
+
 # API Routes
 
 @api_router.get("/")
@@ -1337,7 +2225,7 @@ async def health_check():
 
 # ComfyUI Server Management
 @api_router.post("/comfyui/servers", response_model=ComfyUIServer)
-async def add_comfyui_server(server_data: ComfyUIServerCreate):
+async def add_comfyui_server(server_data: ComfyUIServerCreate, db_conn = Depends(get_database)):
     server_dict = server_data.dict()
     
     # Auto-detect RunPod serverless
@@ -1349,17 +2237,26 @@ async def add_comfyui_server(server_data: ComfyUIServerCreate):
             server_dict["endpoint_id"] = endpoint_id
     
     server = ComfyUIServer(**server_dict)
-    await db.comfyui_servers.insert_one(server.dict())
+    await db_conn.comfyui_servers.insert_one(server.dict())
     return server
 
 @api_router.get("/comfyui/servers", response_model=List[ComfyUIServer])
-async def get_comfyui_servers():
-    servers = await db.comfyui_servers.find().to_list(100)
+async def get_comfyui_servers(db_conn = Depends(get_database)):
+    servers = await db_conn.comfyui_servers.find().to_list(100)
     return [ComfyUIServer(**server) for server in servers]
 
+@api_router.delete("/comfyui/servers/{server_id}")
+async def delete_comfyui_server(server_id: str, db_conn = Depends(get_database)):
+    server_data = await db_conn.comfyui_servers.find_one({"id": server_id})
+    if not server_data:
+        raise ServerNotFoundError(server_id)
+    
+    await db_conn.comfyui_servers.delete_one({"id": server_id})
+    return {"message": "Server deleted successfully"}
+
 @api_router.get("/comfyui/servers/{server_id}/info", response_model=ComfyUIServerInfo)
-async def get_server_info(server_id: str):
-    server_data = await db.comfyui_servers.find_one({"id": server_id})
+async def get_server_info(server_id: str, db_conn = Depends(get_database)):
+    server_data = await db_conn.comfyui_servers.find_one({"id": server_id})
     if not server_data:
         raise ServerNotFoundError(server_id)
     
@@ -1379,24 +2276,750 @@ async def get_server_info(server_id: str):
         is_online=is_online
     )
 
+# Enhanced Model Management System
+@api_router.get("/models", response_model=List[DatabaseModel])
+async def get_models(
+    type: Optional[str] = None,
+    server_source: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    db_conn = Depends(get_database)
+):
+    """Get all models with optional filtering"""
+    query = {}
+    if type:
+        query["type"] = type
+    if server_source:
+        query["server_source"] = server_source
+    if is_active is not None:
+        query["is_active"] = is_active
+    
+    models = await db_conn.database_models.find(query).to_list(1000)
+    return [DatabaseModel(**model) for model in models]
+
+@api_router.put("/models/{model_id}", response_model=DatabaseModel)
+async def update_model(model_id: str, model_update: DatabaseModelUpdate, db_conn = Depends(get_database)):
+    """Update a model"""
+    update_data = {k: v for k, v in model_update.dict().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc)
+    
+    result = await db_conn.database_models.update_one(
+        {"id": model_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Model not found")
+    
+    updated_model = await db_conn.database_models.find_one({"id": model_id})
+    return DatabaseModel(**updated_model)
+
+@api_router.delete("/models/{model_id}")
+async def delete_model(model_id: str, db_conn = Depends(get_database)):
+    """Delete a model"""
+    result = await db_conn.database_models.delete_one({"id": model_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Model not found")
+    return {"message": "Model deleted successfully"}
+
+@api_router.post("/models/{model_id}/sync-civitai")
+async def sync_model_civitai(model_id: str, db_conn = Depends(get_database)):
+    """Sync model with Civitai database and get available profiles"""
+    print(f"Sync request received for model: {model_id}")  # Debug
+    
+    # First check if this model is active on any backend
+    if active_models_service:
+        active_model = await active_models_service.get_active_models(backend_id=None, model_type=None)
+        is_active = any(model['model_id'] == model_id for model in active_model)
+        
+        if not is_active:
+            raise HTTPException(
+                status_code=403, 
+                detail="Model is not active on any backend server. Only active models can be synced with Civitai."
+            )
+    
+    model_data = await db_conn.database_models.find_one({"id": model_id})
+    if not model_data:
+        raise HTTPException(status_code=404, detail="Model not found")
+    
+    print(f"Model found: {model_data['name']}")  # Debug
+    
+    try:
+        # Search in Civitai database using MongoDB
+        best_match = await find_best_civitai_match_mongodb(model_data["name"], db_conn)
+        
+        if not best_match:
+            # Fallback: try to find any match with lower threshold
+            fallback_match = await find_best_civitai_match_mongodb(model_data["name"], db_conn, fallback=True)
+            if fallback_match:
+                best_match = fallback_match
+                match_quality = "low_confidence"
+            else:
+                raise HTTPException(status_code=404, detail="No matching model found in Civitai database")
+        else:
+            match_quality = "high_confidence"
+        
+        # Get available profiles for this model
+        available_profiles = await get_model_profiles(best_match, db_conn)
+        
+        # Get data from first model version
+        first_version = best_match.get("modelVersions", [{}])[0] if best_match.get("modelVersions") else {}
+        
+        # Create enhanced Civitai info
+        civitai_info = CivitaiModelInfo(
+            modelId=str(best_match.get("id")),
+            name=best_match.get("name"),
+            description=best_match.get("description"),
+            type=best_match.get("type"),
+            tags=best_match.get("tags", []),
+            trainedWords=first_version.get("trainedWords", []),
+            baseModel=first_version.get("baseModel"),
+            baseModelType=first_version.get("baseModelType"),
+            modelVersions=best_match.get("modelVersions", []),
+            images=first_version.get("images", []),
+            # Additional fields
+            allowDerivatives=best_match.get("allowDerivatives"),
+            sfwOnly=best_match.get("sfwOnly"),
+            nsfw=best_match.get("nsfw"),
+            nsfwLevel=best_match.get("nsfwLevel"),
+            cosmetic=best_match.get("cosmetic"),
+            stats=best_match.get("stats", {}),
+            allowNoCredit=best_match.get("allowNoCredit"),
+            allowCommercialUse=best_match.get("allowCommercialUse", []),
+            availability=best_match.get("availability"),
+            supportsGeneration=best_match.get("supportsGeneration"),
+            downloadUrl=first_version.get("files", [{}])[0].get("downloadUrl") if first_version.get("files") else None
+        )
+        
+        # Update model with Civitai info and available profiles
+        await db_conn.database_models.update_one(
+            {"id": model_id},
+            {"$set": {
+                "civitai_info": civitai_info.dict(), 
+                "available_profiles": available_profiles,
+                "updated_at": datetime.now(timezone.utc),
+                "civitai_match_quality": match_quality
+            }}
+        )
+        
+        # Also update active models tracking with Civitai info
+        if active_models_service:
+            await active_models_service.sync_model_with_civitai(
+                model_id=model_id,
+                civitai_info=civitai_info.dict(),
+                match_quality=match_quality
+            )
+        
+        return {
+            "model_id": model_id,
+            "civitai_info": civitai_info.dict(),
+            "available_profiles": available_profiles,
+            "match_quality": match_quality
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error during sync: {str(e)}")  # Debug
+        raise HTTPException(status_code=500, detail=f"Failed to sync from Civitai database: {str(e)}")
+
+@api_router.post("/models/{model_id}/search-civitai")
+async def search_civitai_matches(model_id: str, request: CivitaiSearchRequest, db_conn = Depends(get_database)):
+    """Search for potential Civitai matches using MongoDB"""
+    
+    # First check if this model is active on any backend
+    if active_models_service:
+        active_model = await active_models_service.get_active_models(backend_id=None, model_type=None)
+        is_active = any(model['model_id'] == model_id for model in active_model)
+        
+        if not is_active:
+            raise HTTPException(
+                status_code=403, 
+                detail="Model is not active on any backend server. Only active models can search Civitai matches."
+            )
+    
+    model_data = await db_conn.database_models.find_one({"id": model_id})
+    if not model_data:
+        raise HTTPException(status_code=404, detail="Model not found")
+    
+    try:
+        # Use custom search query or model name
+        query = request.search_query or model_data["name"]
+        
+        # Search in MongoDB using text search
+        matches = []
+        query_lower = query.lower()
+        
+        # First try exact name match
+        exact_match = await db_conn.database_models.find_one({
+            "source": "civitai_sdxl",
+            "name": {"$regex": query, "$options": "i"}
+        })
+        
+        if exact_match:
+            matches.append({
+                "civitai_model": exact_match["civitai_info"],
+                "match_score": 1.0,
+                "match_reason": "Exact name match in MongoDB"
+            })
+        
+        # Then try text search for more results
+        text_search_results = await db_conn.database_models.find({
+            "source": "civitai_sdxl",
+            "$or": [
+                {"name": {"$regex": query, "$options": "i"}},
+                {"civitai_info.description": {"$regex": query, "$options": "i"}},
+                {"civitai_info.tags": {"$in": [query]}}
+            ]
+        }).to_list(length=20)
+        
+        for doc in text_search_results:
+            # Skip if already added as exact match
+            if any(m["civitai_model"]["modelId"] == doc["civitai_info"]["modelId"] for m in matches):
+                continue
+            
+            # Calculate simple score
+            score = 0.0
+            name = doc["civitai_info"]["name"].lower()
+            description = doc["civitai_info"].get("description", "").lower()
+            tags = [tag.lower() for tag in doc["civitai_info"].get("tags", [])]
+            
+            # Name matching
+            if query_lower in name:
+                score += 0.8
+            if name in query_lower:
+                score += 0.6
+            
+            # Description matching
+            if query_lower in description:
+                score += 0.3
+            
+            # Tag matching
+            for tag in tags:
+                if query_lower in tag or tag in query_lower:
+                    score += 0.2
+                    break
+            
+            if score > 0.3:  # Include reasonable matches
+                matches.append({
+                    "civitai_model": doc["civitai_info"],
+                    "match_score": min(score, 1.0),
+                    "match_reason": "MongoDB text search match"
+                })
+        
+        # Sort by match score
+        matches.sort(key=lambda x: x["match_score"], reverse=True)
+        
+        return {
+            "server_model": model_data["name"],
+            "search_query": query,
+            "matches": matches[:20]  # Return top 20 matches
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to search Civitai database: {str(e)}")
+
+
+# Active Models Tracking Endpoints
+
+@api_router.get("/active-models", response_model=List[BackendModelInfo])
+async def get_active_models(backend_id: Optional[str] = None, 
+                           model_type: Optional[str] = None,
+                           db_conn = Depends(get_database)):
+    """Get list of active models on backends"""
+    if not active_models_service:
+        raise HTTPException(status_code=503, detail="Active models service not available")
+    
+    # Convert string to ModelType enum if provided
+    type_enum = None
+    if model_type:
+        try:
+            type_enum = ModelType(model_type.lower())
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid model type: {model_type}")
+    
+    models = await active_models_service.get_active_models(
+        backend_id=backend_id,
+        model_type=type_enum
+    )
+    
+    return models
+
+@api_router.get("/backends", response_model=List[BackendInfo])
+async def get_backends(online_only: bool = True, db_conn = Depends(get_database)):
+    """Get list of ComfyUI backends"""
+    if not active_models_service:
+        raise HTTPException(status_code=503, detail="Active models service not available")
+    
+    backends = await active_models_service.get_backends(online_only=online_only)
+    return backends
+
+@api_router.get("/backends/{backend_id}/models", response_model=List[BackendModelInfo])
+async def get_backend_models(backend_id: str, db_conn = Depends(get_database)):
+    """Get models for a specific backend"""
+    if not active_models_service:
+        raise HTTPException(status_code=503, detail="Active models service not available")
+    
+    models = await active_models_service.get_active_models(backend_id=backend_id)
+    return models
+
+@api_router.post("/models/{model_id}/link-civitai")
+async def link_civitai_model(model_id: str, request: CivitaiLinkRequest, db_conn = Depends(get_database)):
+    """Manually link a model to a specific Civitai model"""
+    model_data = await db_conn.database_models.find_one({"id": model_id})
+    if not model_data:
+        raise HTTPException(status_code=404, detail="Model not found")
+    
+    try:
+        civitai_api_key = os.getenv("CIVITAI_API_KEY")
+        if not civitai_api_key:
+            raise HTTPException(status_code=400, detail="Civitai API key not configured")
+        
+        # Get specific Civitai model
+        model_url = f"https://civitai.com/api/v1/models/{request.civitai_model_id}"
+        headers = {"Authorization": f"Bearer {civitai_api_key}"}
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(model_url, headers=headers) as response:
+                if response.status != 200:
+                    raise HTTPException(status_code=400, detail="Failed to fetch Civitai model")
+                
+                civitai_model = await response.json()
+                
+                civitai_info = CivitaiModelInfo(
+                    modelId=str(civitai_model.get("id")),
+                    name=civitai_model.get("name"),
+                    description=civitai_model.get("description"),
+                    type=civitai_model.get("type"),
+                    tags=civitai_model.get("tags", []),
+                    trainedWords=civitai_model.get("trainedWords", []),
+                    baseModel=civitai_model.get("baseModel"),
+                    baseModelType=civitai_model.get("baseModelType"),
+                    modelVersions=civitai_model.get("modelVersions", []),
+                    images=civitai_model.get("images", [])
+                )
+                
+                # Update model with Civitai info
+                await db_conn.database_models.update_one(
+                    {"id": model_id},
+                    {"$set": {
+                        "civitai_info": civitai_info.dict(), 
+                        "updated_at": datetime.now(timezone.utc),
+                        "civitai_match_quality": "manual"
+                    }}
+                )
+                
+                updated_model = await db_conn.database_models.find_one({"id": model_id})
+                return DatabaseModel(**updated_model)
+                
+    except aiohttp.ClientError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch from Civitai: {str(e)}")
+
+def calculate_match_score(server_name: str, civitai_item: dict) -> float:
+    """Calculate match score between server model name and Civitai item"""
+    from difflib import SequenceMatcher
+    
+    server_name_clean = server_name.lower().strip()
+    civitai_name = civitai_item.get("name", "").lower().strip()
+    
+    # Exact match
+    if civitai_name == server_name_clean:
+        return 1.0
+    
+    # Contains match
+    if server_name_clean in civitai_name or civitai_name in server_name_clean:
+        return 0.8
+    
+    # Check filenames
+    for version in civitai_item.get("modelVersions", []):
+        for file in version.get("files", []):
+            filename = file.get("name", "").lower().strip()
+            if filename == server_name_clean or server_name_clean in filename:
+                return 0.9
+    
+    # Fuzzy matching
+    similarity = SequenceMatcher(None, server_name_clean, civitai_name).ratio()
+    return similarity * 0.6
+
+def get_match_reason(server_name: str, civitai_item: dict) -> str:
+    """Get the reason for the match"""
+    server_name_clean = server_name.lower().strip()
+    civitai_name = civitai_item.get("name", "").lower().strip()
+    
+    if civitai_name == server_name_clean:
+        return "Exact name match"
+    elif server_name_clean in civitai_name or civitai_name in server_name_clean:
+        return "Partial name match"
+    else:
+        for version in civitai_item.get("modelVersions", []):
+            for file in version.get("files", []):
+                filename = file.get("name", "").lower().strip()
+                if filename == server_name_clean or server_name_clean in filename:
+                    return "Filename match"
+        
+        from difflib import SequenceMatcher
+        similarity = SequenceMatcher(None, server_name_clean, civitai_name).ratio()
+        return f"Fuzzy match ({similarity:.2f})"
+
+@api_router.post("/models/{model_id}/presets", response_model=ModelConfigurationPreset)
+async def create_model_preset(
+    model_id: str, 
+    preset_data: ModelConfigurationPreset, 
+    db_conn = Depends(get_database)
+):
+    """Create a configuration preset for a model"""
+    model_data = await db_conn.database_models.find_one({"id": model_id})
+    if not model_data:
+        raise HTTPException(status_code=404, detail="Model not found")
+    
+    # Detect base model type
+    base_model = detect_model_type(model_data["name"])
+    
+    # Update preset with references
+    preset_data.model_id = model_id
+    preset_data.base_model = base_model
+    
+    # Store preset in the model_presets collection
+    preset_dict = preset_data.dict()
+    preset_dict["created_at"] = datetime.now(timezone.utc)
+    preset_dict["updated_at"] = datetime.now(timezone.utc)
+    
+    await db_conn.model_presets.insert_one(preset_dict)
+    
+    return preset_data
+
+@api_router.post("/models/presets/global/{base_model}", response_model=ModelConfigurationPreset)
+async def create_global_preset(
+    base_model: str, 
+    preset_data: ModelConfigurationPreset, 
+    db_conn = Depends(get_database)
+):
+    """Create a global configuration preset for all models of a specific base type"""
+    # Validate base_model
+    if base_model not in MODEL_DEFAULTS:
+        raise HTTPException(status_code=400, detail=f"Invalid base model: {base_model}")
+    
+    # Update preset with base model info
+    preset_data.base_model = base_model
+    preset_data.is_global = True
+    preset_data.model_id = None
+    
+    # Store preset in the model_presets collection
+    preset_dict = preset_data.dict()
+    preset_dict["created_at"] = datetime.now(timezone.utc)
+    preset_dict["updated_at"] = datetime.now(timezone.utc)
+    
+    await db_conn.model_presets.insert_one(preset_dict)
+    
+    return preset_data
+
+@api_router.get("/models/presets/global/{base_model}", response_model=List[ModelConfigurationPreset])
+async def get_global_presets(base_model: str, db_conn = Depends(get_database)):
+    """Get all global presets for a specific base model type"""
+    # Validate base_model
+    if base_model not in MODEL_DEFAULTS:
+        raise HTTPException(status_code=400, detail=f"Invalid base model: {base_model}")
+    
+    # Get global presets for this base model type
+    global_presets = await db_conn.model_presets.find({
+        "base_model": base_model,
+        "is_global": True
+    }).to_list(100)
+    
+    return [ModelConfigurationPreset(**preset) for preset in global_presets]
+
+@api_router.put("/models/{model_id}/presets/{preset_id}", response_model=ModelConfigurationPreset)
+async def update_model_preset(
+    model_id: str,
+    preset_id: str,
+    preset_update: ModelConfigurationPreset,
+    db_conn = Depends(get_database)
+):
+    """Update a configuration preset"""
+    # Find the preset in the model_presets collection
+    existing_preset = await db_conn.model_presets.find_one({
+        "id": preset_id,
+        "$or": [
+            {"model_id": model_id},  # Model-specific preset
+            {"is_global": True}      # Global preset (can be updated by anyone)
+        ]
+    })
+    
+    if not existing_preset:
+        raise HTTPException(status_code=404, detail="Preset not found")
+    
+    # Update the preset
+    preset_update.updated_at = datetime.now(timezone.utc)
+    
+    await db_conn.model_presets.update_one(
+        {"id": preset_id},
+        {"$set": preset_update.dict(exclude_unset=True)}
+    )
+    
+    # Return updated preset
+    updated_preset = await db_conn.model_presets.find_one({"id": preset_id})
+    return ModelConfigurationPreset(**updated_preset)
+
+@api_router.delete("/models/{model_id}/presets/{preset_id}")
+async def delete_model_preset(
+    model_id: str,
+    preset_id: str,
+    db_conn = Depends(get_database)
+):
+    """Delete a configuration preset"""
+    # Find the preset in the model_presets collection
+    existing_preset = await db_conn.model_presets.find_one({
+        "id": preset_id,
+        "$or": [
+            {"model_id": model_id},  # Model-specific preset
+            {"is_global": True}      # Global preset (can be deleted by anyone)
+        ]
+    })
+    
+    if not existing_preset:
+        raise HTTPException(status_code=404, detail="Preset not found")
+    
+    # Don't allow deletion of default presets
+    if existing_preset.get("id", "").startswith("default_"):
+        raise HTTPException(status_code=403, detail="Cannot delete default presets")
+    
+    # Delete the preset
+    await db_conn.model_presets.delete_one({"id": preset_id})
+    
+    return {"message": "Preset deleted successfully"}
+
+@api_router.post("/servers/{server_id}/sync-models")
+async def sync_server_models(server_id: str, db_conn = Depends(get_database)):
+    """Sync models from a ComfyUI server to the database"""
+    server_data = await db_conn.comfyui_servers.find_one({"id": server_id})
+    if not server_data:
+        raise ServerNotFoundError(server_id)
+    
+    server = ComfyUIServer(**server_data)
+    client = ComfyUIClient(server)
+    
+    is_online = await client.check_connection()
+    if not is_online:
+        raise HTTPException(status_code=400, detail="Server is offline")
+    
+    models_data = await client.get_models()
+    
+    # Update active models tracking
+    all_models = []
+    
+    # Prepare checkpoint models
+    for checkpoint_name in models_data.get("checkpoints", []):
+        all_models.append({
+            "id": f"{server_id}_{checkpoint_name}",
+            "name": checkpoint_name,
+            "path": f"checkpoints/{checkpoint_name}",
+            "type": "checkpoint",
+            "size": None,  # Could be fetched if needed
+            "metadata": {"server_id": server_id, "model_type": "checkpoint"}
+        })
+        await sync_single_model(checkpoint_name, "checkpoint", server_id, db_conn)
+    
+    # Prepare LoRA models
+    for lora_name in models_data.get("loras", []):
+        all_models.append({
+            "id": f"{server_id}_{lora_name}",
+            "name": lora_name,
+            "path": f"loras/{lora_name}",
+            "type": "lora",
+            "size": None,
+            "metadata": {"server_id": server_id, "model_type": "lora"}
+        })
+        await sync_single_model(lora_name, "lora", server_id, db_conn)
+    
+    # Update active models in the tracking system
+    if active_models_service:
+        await active_models_service.update_backend_models(
+            backend_id=server_id,
+            backend_name=server.name,
+            backend_url=server.url,
+            models_data=all_models
+        )
+        print(f"Tracked {len(all_models)} active models for backend {server.name}")
+    
+    return {"message": f"Synced {len(all_models)} models from server"}
+
+async def sync_single_model(name: str, type: str, server_id: str, db_conn):
+    """Sync a single model to the database"""
+    existing = await db_conn.database_models.find_one({
+        "name": name,
+        "type": type
+    })
+    
+    if existing:
+        # Update server source and sync time
+        await db_conn.database_models.update_one(
+            {"id": existing["id"]},
+            {"$set": {"server_source": server_id, "last_synced_at": datetime.now(timezone.utc)}}
+        )
+    else:
+        # Create new model entry
+        model = DatabaseModel(
+            name=name,
+            type=type,
+            server_source=server_id,
+            last_synced_at=datetime.now(timezone.utc)
+        )
+        await db_conn.database_models.insert_one(model.dict())
+
+async def find_best_civitai_match_db(server_model_name: str, db_conn, fallback: bool = False) -> dict:
+    """
+    Enhanced matching algorithm using MongoDB database.
+    
+    Args:
+        server_model_name: Name of the model from the ComfyUI server
+        db_conn: Database connection
+        fallback: If True, use lower threshold for matching
+    
+    Returns:
+        Best matching dict or None if no match found
+    """
+    import re
+    
+    def clean_model_name(name: str) -> str:
+        """Clean model name by removing extensions and common prefixes"""
+        name = re.sub(r'\.(safetensors|ckpt|pth|pt)$', '', name, flags=re.IGNORECASE)
+        name = re.sub(r'^(sd|stable-diffusion|sd-|sdxl|sd_xl)_?', '', name, flags=re.IGNORECASE)
+        name = re.sub(r'_v\d+(-\d+)?(_lightning)?(_bakedvae)?', '', name, flags=re.IGNORECASE)
+        name = re.sub(r'(-\d+)+$', '', name)
+        name = re.sub(r'[-_]+', ' ', name)
+        name = re.sub(r'\s+', ' ', name)
+        return name.strip().lower()
+    
+    server_name_clean = clean_model_name(server_model_name)
+    server_name_original = server_model_name.lower().strip()
+    
+    print(f"Searching database for: '{server_name_clean}'")  # Debug
+    
+    # Strategy 1: Exact name match
+    exact_match = await db_conn.civitai_models.find_one({
+        "name": server_name_original
+    })
+    if exact_match:
+        print(f"Found exact match: {exact_match['name']}")  # Debug
+        return exact_match
+    
+    # Strategy 2: Text search with high relevance
+    text_search = await db_conn.civitai_models.find(
+        {"$text": {"$search": server_name_clean}},
+        {"score": {"$meta": "textScore"}}
+    ).sort([("score", {"$meta": "textScore"})]).limit(5).to_list(length=5)
+    
+    if text_search:
+        best_text_match = text_search[0]
+        score = best_text_match.get("score", 0)
+        print(f"Found text match: {best_text_match['name']} (score: {score})")  # Debug
+        
+        # Accept if score is reasonable
+        if score > (1.0 if not fallback else 0.5):
+            return best_text_match
+    
+    # Strategy 3: Regex matching for partial names
+    if "realvisxl" in server_name_clean:
+        regex_match = await db_conn.civitai_models.find_one({
+            "name": {"$regex": r"RealVisXL.*Lightning", "$options": "i"}
+        })
+        if regex_match:
+            print(f"Found regex match: {regex_match['name']}")  # Debug
+            return regex_match
+    
+    # Strategy 4: Fallback to any partial match
+    if fallback:
+        partial_match = await db_conn.civitai_models.find_one({
+            "name": {"$regex": server_name_clean.split()[0], "$options": "i"}
+        })
+        if partial_match:
+            print(f"Found partial match: {partial_match['name']}")  # Debug
+            return partial_match
+    
+    print("No matches found")  # Debug
+    return None
+
+async def get_model_profiles(civitai_model: dict, db_conn) -> list:
+    """
+    Get available profiles for a model based on direct links and base model.
+    
+    Args:
+        civitai_model: The matched Civitai model
+        db_conn: Database connection
+    
+    Returns:
+        List of available profiles with priority levels
+    """
+    model_id = str(civitai_model.get("id"))
+    base_model = civitai_model.get("baseModel")
+    model_name = civitai_model.get("name", "")
+    
+    profiles = []
+    
+    # Priority 1: Direct model ID matches
+    direct_profiles = await db_conn.model_profiles.find({
+        "linked_model_ids": model_id
+    }).to_list(length=10)
+    
+    for profile in direct_profiles:
+        profile["priority_level"] = "exact"
+        profile["priority_score"] = 100
+        profiles.append(profile)
+    
+    # Priority 2: Base model matches
+    if base_model:
+        base_profiles = await db_conn.model_profiles.find({
+            "linked_base_models": {"$regex": base_model, "$options": "i"}
+        }).to_list(length=10)
+        
+        for profile in base_profiles:
+            # Avoid duplicates
+            if not any(p["_id"] == profile["_id"] for p in profiles):
+                profile["priority_level"] = "base_model"
+                profile["priority_score"] = 75
+                profiles.append(profile)
+    
+    # Priority 3: Generic type-based matches
+    model_type = civitai_model.get("type", "").lower()
+    if model_type == "checkpoint":
+        generic_profiles = await db_conn.model_profiles.find({
+            "priority": "generic"
+        }).to_list(length=5)
+        
+        for profile in generic_profiles:
+            if not any(p["_id"] == profile["_id"] for p in profiles):
+                profile["priority_level"] = "generic"
+                profile["priority_score"] = 50
+                profiles.append(profile)
+    
+    # Sort by priority score
+    profiles.sort(key=lambda x: x["priority_score"], reverse=True)
+    
+    print(f"Found {len(profiles)} profiles for {model_name}")  # Debug
+    for profile in profiles:
+        print(f"  - {profile['name']} ({profile['priority_level']}, score: {profile['priority_score']})")  # Debug
+    
+    return profiles
+
 # Project Management
 @api_router.post("/projects", response_model=Project)
-async def create_project(project_data: ProjectCreate):
+async def create_project(project_data: ProjectCreate, db_conn = Depends(get_database)):
     project_dict = project_data.dict()
     project = Project(**project_dict)
-    await db.projects.insert_one(project.dict())
+    await db_conn.projects.insert_one(project.dict())
     return project
 
 @api_router.get("/projects", response_model=List[Project])
-async def get_projects():
-    projects = await db.projects.find().to_list(100)
+async def get_projects(db_conn = Depends(get_database)):
+    projects = await db_conn.projects.find().to_list(100)
     return [Project(**project) for project in projects]
 
 @api_router.get("/projects/{project_id}", response_model=Project)
-async def get_project(project_id: str):
+async def get_project(project_id: str, db_conn = Depends(get_database)):
     from utils.errors import ProjectNotFoundError
 
-    project_data = await db.projects.find_one({"id": project_id})
+    project_data = await db_conn.projects.find_one({"id": project_id})
     if not project_data:
         raise ProjectNotFoundError(project_id)
     return Project(**project_data)
@@ -1473,6 +3096,229 @@ async def upload_face_image(file: UploadFile = File(...)):
         "file_path": str(file_path)
     }
 
+@api_router.post("/upload-character-images")
+async def upload_character_images(
+    face_image: UploadFile = File(None),
+    full_body_image: UploadFile = File(None), 
+    reference_images: List[UploadFile] = File(None)
+):
+    """Upload comprehensive character images for advanced generation"""
+    from utils.file_validator import file_validator
+    from config import config as app_config
+    
+    # Create character images directory
+    character_dir = UPLOADS_DIR / "characters" / str(uuid.uuid4())
+    character_dir.mkdir(parents=True, exist_ok=True)
+    
+    uploaded_files = {}
+    
+    # Process face image
+    if face_image:
+        await file_validator.validate_image_file(face_image)
+        face_filename = f"face_{uuid.uuid4()}.jpg"
+        face_path = character_dir / face_filename
+        with open(face_path, "wb") as buffer:
+            shutil.copyfileobj(face_image.file, buffer)
+        uploaded_files["face_image"] = f"/uploads/characters/{character_dir.name}/{face_filename}"
+    
+    # Process full body image
+    if full_body_image:
+        await file_validator.validate_image_file(full_body_image)
+        body_filename = f"full_body_{uuid.uuid4()}.jpg"
+        body_path = character_dir / body_filename
+        with open(body_path, "wb") as buffer:
+            shutil.copyfileobj(full_body_image.file, buffer)
+        uploaded_files["full_body_image"] = f"/uploads/characters/{character_dir.name}/{body_filename}"
+    
+    # Process reference images
+    if reference_images:
+        reference_urls = []
+        for idx, ref_img in enumerate(reference_images):
+            if ref_img:
+                await file_validator.validate_image_file(ref_img)
+                ref_filename = f"reference_{idx}_{uuid.uuid4()}.jpg"
+                ref_path = character_dir / ref_filename
+                with open(ref_path, "wb") as buffer:
+                    shutil.copyfileobj(ref_img.file, buffer)
+                reference_urls.append(f"/uploads/characters/{character_dir.name}/{ref_filename}")
+        uploaded_files["reference_images"] = reference_urls
+    
+    return {
+        "message": "Character images uploaded successfully",
+        "files": uploaded_files,
+        "character_dir": f"/uploads/characters/{character_dir.name}"
+    }
+
+@api_router.post("/generate-character-profiles")
+async def generate_character_profiles(
+    character_id: str,
+    server_id: str,
+    profile_type: str = "comprehensive",  # comprehensive, headshots, poses, expressions
+    pose_style: str = "professional",     # professional, casual, action, formal
+    controlnet_type: str = "openpose",    # openpose, depth, canny, scribble
+    count: int = 4
+):
+    """Generate professional character profiles using advanced controlnets"""
+    # Ensure database is connected
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    # Get character
+    character_data = await db.characters.find_one({"id": character_id})
+    if not character_data:
+        raise ResourceNotFoundError("Character", character_id)
+    
+    character = Character(**character_data)
+    
+    # Get server
+    server_data = await db.comfyui_servers.find_one({"id": server_id})
+    if not server_data:
+        raise ServerNotFoundError(server_id)
+    
+    server = ComfyUIServer(**server_data)
+    client = ComfyUIClient(server)
+    
+    # Check if server is online
+    if not await client.check_connection():
+        raise ServiceUnavailableError("ComfyUI", "Server is offline")
+    
+    # Generate profiles based on type
+    profiles = []
+    prompts = get_profile_prompts(profile_type, pose_style, character)
+    
+    for i, prompt_data in enumerate(prompts[:count]):
+        try:
+            if controlnet_type == "openpose" and character.face_image:
+                # Use OpenPose for consistent posing
+                result_url = await client.generate_with_openpose(
+                    prompt_data["prompt"],
+                    character.face_image,
+                    prompt_data.get("negative_prompt", ""),
+                    prompt_data.get("model", "sd_xl_base_1.0.safetensors"),
+                    character.generation_params
+                )
+            elif controlnet_type == "depth" and character.face_image:
+                # Use Depth ControlNet for 3D consistency
+                result_url = await client.generate_with_depth(
+                    prompt_data["prompt"],
+                    character.face_image,
+                    prompt_data.get("negative_prompt", ""),
+                    prompt_data.get("model", "sd_xl_base_1.0.safetensors"),
+                    character.generation_params
+                )
+            elif character.generation_method == "ip_adapter" and character.reference_images:
+                # Use IP-Adapter for facial consistency
+                result_url = await client.generate_character_with_ip_adapter(
+                    prompt_data["prompt"],
+                    character.reference_images[0],
+                    prompt_data.get("model", "sd_xl_base_1.0.safetensors"),
+                    character.generation_params
+                )
+            else:
+                # Standard generation
+                result_url = await client.generate_image(
+                    prompt_data["prompt"],
+                    prompt_data.get("negative_prompt", ""),
+                    prompt_data.get("model", "sd_xl_base_1.0.safetensors"),
+                    character.generation_params,
+                    []
+                )
+            
+            if result_url:
+                profiles.append({
+                    "url": result_url,
+                    "prompt": prompt_data["prompt"],
+                    "type": prompt_data.get("type", "standard"),
+                    "description": prompt_data.get("description", "")
+                })
+                
+        except Exception as e:
+            logging.error(f"Error generating profile {i}: {e}")
+            continue
+    
+    return {
+        "character_id": character_id,
+        "character_name": character.name,
+        "profile_type": profile_type,
+        "controlnet_type": controlnet_type,
+        "profiles": profiles,
+        "total_generated": len(profiles)
+    }
+
+def get_profile_prompts(profile_type: str, pose_style: str, character: Character) -> List[Dict]:
+    """Get professional prompts for character profile generation"""
+    base_name = character.name
+    base_description = character.description or f"professional portrait of {base_name}"
+    trigger_words = character.trigger_words or ""
+    
+    prompts = []
+    
+    if profile_type == "comprehensive":
+        if pose_style == "professional":
+            prompts = [
+                {
+                    "prompt": f"professional headshot of {base_name}, {base_description}, business attire, studio lighting, high quality, detailed face, {trigger_words}",
+                    "type": "headshot",
+                    "description": "Professional Headshot"
+                },
+                {
+                    "prompt": f"three-quarter body shot of {base_name}, {base_description}, professional pose, office background, confident expression, {trigger_words}",
+                    "type": "three_quarter",
+                    "description": "Three-Quarter View"
+                },
+                {
+                    "prompt": f"full body portrait of {base_name}, {base_description}, standing pose, professional attire, neutral background, full height visible, {trigger_words}",
+                    "type": "full_body",
+                    "description": "Full Body Portrait"
+                },
+                {
+                    "prompt": f"action pose of {base_name}, {base_description}, dynamic movement, professional setting, engaged expression, {trigger_words}",
+                    "type": "action",
+                    "description": "Action Pose"
+                }
+            ]
+        elif pose_style == "casual":
+            prompts = [
+                {
+                    "prompt": f"casual headshot of {base_name}, {base_description}, relaxed expression, natural lighting, everyday attire, {trigger_words}",
+                    "type": "casual_headshot",
+                    "description": "Casual Headshot"
+                },
+                {
+                    "prompt": f"lifestyle pose of {base_name}, {base_description}, casual setting, relaxed stance, natural expression, {trigger_words}",
+                    "type": "lifestyle",
+                    "description": "Lifestyle Pose"
+                }
+            ]
+    elif profile_type == "headshots":
+        prompts = [
+            {
+                "prompt": f"front facing headshot of {base_name}, {base_description}, direct gaze, professional lighting, detailed features, {trigger_words}",
+                "type": "front_headshot",
+                "description": "Front View"
+            },
+            {
+                "prompt": f"profile view of {base_name}, {base_description}, side lighting, facial structure visible, {trigger_words}",
+                "type": "profile_headshot",
+                "description": "Profile View"
+            },
+            {
+                "prompt": f"three-quarter headshot of {base_name}, {base_description}, angled view, dimensional lighting, {trigger_words}",
+                "type": "three_quarter_headshot",
+                "description": "Three-Quarter View"
+            }
+        ]
+    elif profile_type == "expressions":
+        expressions = ["smiling", "serious", "thoughtful", "confident"]
+        for expr in expressions:
+            prompts.append({
+                "prompt": f"{expr} portrait of {base_name}, {base_description}, {expr} expression, emotional depth, {trigger_words}",
+                "type": f"expression_{expr}",
+                "description": expr.title()
+            })
+    
+    return prompts
+
 # Scene Management
 @api_router.post("/scenes", response_model=Scene)
 async def create_scene(scene_data: SceneCreate):
@@ -1528,6 +3374,11 @@ async def get_project_timeline(project_id: str):
 async def get_project_scenes(project_id: str):
     scenes = await db.scenes.find({"project_id": project_id}).sort("order").to_list(100)
     return [Scene(**scene) for scene in scenes]
+
+@api_router.get("/projects/{project_id}/clips", response_model=List[Clip])
+async def get_project_clips(project_id: str, db_conn = Depends(get_database)):
+    clips = await db_conn.clips.find({"project_id": project_id}).sort("order").to_list(100)
+    return [Clip(**clip) for clip in clips]
 
 @api_router.get("/scenes/{scene_id}", response_model=Scene)
 async def get_scene(scene_id: str):
@@ -2037,9 +3888,9 @@ async def get_model_defaults_api(model_name: str):
     }
 
 @api_router.get("/comfyui/servers/{server_id}/workflows")
-async def get_server_workflows(server_id: str):
+async def get_server_workflows(server_id: str, db_conn = Depends(get_database)):
     """Get available workflows from ComfyUI server"""
-    server_data = await db.comfyui_servers.find_one({"id": server_id})
+    server_data = await db_conn.comfyui_servers.find_one({"id": server_id})
     if not server_data:
         raise ServerNotFoundError(server_id)
     
@@ -2062,23 +3913,54 @@ async def get_server_workflows(server_id: str):
 
 # Model Presets API
 @api_router.get("/models/presets/{model_name}")
-async def get_model_presets(model_name: str):
-    """Get available presets for a specific model"""
-    model_type = detect_model_type(model_name)
-    model_config = MODEL_DEFAULTS.get(model_type)
+async def get_model_presets(model_name: str, db_conn = Depends(get_database)):
+    """Get all available presets for a model (model-specific + base model presets + defaults)"""
+    # Detect base model type
+    base_model = detect_model_type(model_name)
     
-    if not model_config:
-        raise ResourceNotFoundError("Model", model)
+    # First try to find the model in the database
+    model_data = await db_conn.database_models.find_one({"name": model_name})
     
     presets = {}
-    for preset_name, preset_config in model_config.items():
-        if isinstance(preset_config, dict):
-            presets[preset_name] = preset_config
+    
+    # Get default presets from MODEL_DEFAULTS
+    model_defaults = MODEL_DEFAULTS.get(base_model, MODEL_DEFAULTS.get("sdxl", {}))
+    for preset_name, preset_config in model_defaults.items():
+        if isinstance(preset_config, dict) and preset_name in ["fast", "quality"]:
+            presets[preset_name] = {
+                "id": f"default_{base_model}_{preset_name}",
+                "name": f"Default {preset_name.title()}",
+                "description": f"Default {preset_name} preset for {base_model} models",
+                "cfg_scale": preset_config.get("cfg", 7.0),
+                "steps": preset_config.get("steps", 20),
+                "sampler": preset_config.get("sampler", "euler"),
+                "scheduler": preset_config.get("scheduler", "normal"),
+                "resolution_width": preset_config.get("width", 512),
+                "resolution_height": preset_config.get("height", 512),
+                "additional_params": {k: v for k, v in preset_config.items() 
+                                  if k not in ["cfg", "steps", "sampler", "scheduler", "width", "height"]},
+                "is_default": True
+            }
+    
+    # If model exists in database, get custom presets
+    if model_data:
+        # Get model-specific presets
+        model_presets = await db_conn.model_presets.find({"model_id": model_data["id"]}).to_list(100)
+        for preset in model_presets:
+            presets[preset["id"]] = {**preset, "is_model_specific": True}
+        
+        # Get global presets for this base model type
+        global_presets = await db_conn.model_presets.find({
+            "base_model": base_model,
+            "is_global": True
+        }).to_list(100)
+        for preset in global_presets:
+            presets[preset["id"]] = {**preset, "is_global": True}
     
     return {
         "model_name": model_name,
-        "model_type": model_type,
-        "presets": presets
+        "base_model": base_model,
+        "presets": list(presets.values())
     }
 
 @api_router.get("/models/parameters/{model_name}")
@@ -2510,6 +4392,414 @@ async def apply_character_to_clip(character_id: str, clip_id: str):
         "video_prompt": updated_video_prompt
     }
 
+# Character Generation Endpoints
+
+@api_router.post("/characters/{character_id}/generate")
+async def generate_character_samples(
+    character_id: str,
+    server_id: str,
+    prompt: Optional[str] = "",
+    samples: int = 4,
+    model: Optional[str] = None
+):
+    """Generate sample images for a character using their configured method"""
+    # Ensure database is connected
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    # Get character
+    character_data = await db.characters.find_one({"id": character_id})
+    if not character_data:
+        raise ResourceNotFoundError("Character", character_id)
+    
+    character = Character(**character_data)
+    
+    # Get server
+    server_data = await db.comfyui_servers.find_one({"id": server_id})
+    if not server_data:
+        raise ServerNotFoundError(server_id)
+    
+    server = ComfyUIServer(**server_data)
+    client = ComfyUIClient(server)
+    
+    # Check if server is online
+    if not await client.check_connection():
+        raise ServiceUnavailableError("ComfyUI", "Server is offline")
+    
+    # Build character prompt
+    character_prompt = prompt
+    if character.trigger_words:
+        character_prompt += f" {character.trigger_words}"
+    if character.description:
+        character_prompt += f", {character.description}"
+    if not character_prompt.strip():
+        character_prompt = f"portrait of {character.name}, high quality, detailed"
+    
+    results = []
+    
+    # Generate samples based on character's method
+    if character.generation_method == "ip_adapter" and character.reference_images:
+        # Use IP-Adapter with reference images
+        reference_image = character.reference_images[0]
+        for i in range(samples):
+            sample_prompt = f"{character_prompt}, variation {i+1}"
+            result_url = await client.generate_character_with_ip_adapter(
+                sample_prompt, reference_image, model, character.generation_params
+            )
+            if result_url:
+                results.append({"url": result_url, "prompt": sample_prompt, "method": "ip_adapter"})
+    
+    elif character.generation_method == "reactor" and character.face_image:
+        # Use Reactor with face image
+        for i in range(samples):
+            sample_prompt = f"{character_prompt}, variation {i+1}"
+            result_url = await client.generate_character_with_reactor(
+                sample_prompt, character.face_image, None, model, character.generation_params
+            )
+            if result_url:
+                results.append({"url": result_url, "prompt": sample_prompt, "method": "reactor"})
+    
+    elif character.generation_method == "instantid" and character.face_image:
+        # Use InstantID with face image
+        for i in range(samples):
+            sample_prompt = f"{character_prompt}, variation {i+1}"
+            result_url = await client.generate_character_with_instantid(
+                sample_prompt, character.face_image, None, model, character.generation_params
+            )
+            if result_url:
+                results.append({"url": result_url, "prompt": sample_prompt, "method": "instantid"})
+    
+    else:
+        # Fall back to standard generation
+        for i in range(samples):
+            sample_prompt = f"{character_prompt}, variation {i+1}"
+            result_url = await client.generate_image(
+                sample_prompt, "low quality, blurry", model, character.generation_params, []
+            )
+            if result_url:
+                results.append({"url": result_url, "prompt": sample_prompt, "method": "standard"})
+    
+    return {
+        "character_id": character_id,
+        "character_name": character.name,
+        "method": character.generation_method,
+        "samples": results,
+        "total_generated": len(results)
+    }
+
+@api_router.post("/characters/train-lora")
+async def train_character_lora(
+    character_id: str,
+    training_images: List[str],
+    training_params: Optional[Dict[str, Any]] = None
+):
+    """Train a custom LoRA for a character (placeholder for future implementation)"""
+    # Ensure database is connected
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    # Get character
+    character_data = await db.characters.find_one({"id": character_id})
+    if not character_data:
+        raise ResourceNotFoundError("Character", character_id)
+    
+    # This is a placeholder for future LoRA training implementation
+    # For now, just return success with training info
+    return {
+        "message": "LoRA training feature coming soon",
+        "character_id": character_id,
+        "training_images_count": len(training_images),
+        "status": "planned",
+        "notes": "This will integrate with automatic LoRA training workflows"
+    }
+
+# FaceFusion Integration Endpoints
+
+@api_router.post("/facefusion/enhance-face")
+async def enhance_character_face(
+    character_id: str,
+    image_url: str,
+    enhancement_model: str = "gfpgan_1.4",
+    facefusion_url: str = "http://localhost:7870"
+):
+    """Enhance character face using FaceFusion"""
+    # Ensure database is connected
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    # Get character
+    character_data = await db.characters.find_one({"id": character_id})
+    if not character_data:
+        raise ResourceNotFoundError("Character", character_id)
+    
+    # Initialize FaceFusion client
+    client = FaceFusionClient(facefusion_url)
+    
+    # Check connection
+    if not await client.check_connection():
+        raise ServiceUnavailableError("FaceFusion", "FaceFusion server is not accessible")
+    
+    # Convert URL to local path
+    if image_url.startswith(f"{API}/"):
+        image_path = UPLOADS_DIR / image_url.replace(f"{API}/", "")
+    else:
+        raise ValueError("Invalid image URL")
+    
+    if not image_path.exists():
+        raise HTTPException(status_code=404, detail="Image file not found")
+    
+    # Enhance face
+    enhanced_path = await client.enhance_face(str(image_path), enhancement_model)
+    
+    if not enhanced_path:
+        raise HTTPException(status_code=500, detail="Face enhancement failed")
+    
+    # Return enhanced image URL
+    enhanced_url = f"{API}/uploads/{enhanced_path.split('uploads/')[-1]}"
+    
+    return {
+        "character_id": character_id,
+        "original_image": image_url,
+        "enhanced_image": enhanced_url,
+        "enhancement_model": enhancement_model,
+        "message": "Face enhanced successfully"
+    }
+
+@api_router.post("/facefusion/adjust-face-age")
+async def adjust_character_face_age(
+    character_id: str,
+    image_url: str,
+    target_age: int,
+    facefusion_url: str = "http://localhost:7870"
+):
+    """Adjust character face age using FaceFusion"""
+    # Ensure database is connected
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    # Validate age
+    if not (0 <= target_age <= 100):
+        raise HTTPException(status_code=400, detail="Age must be between 0 and 100")
+    
+    # Get character
+    character_data = await db.characters.find_one({"id": character_id})
+    if not character_data:
+        raise ResourceNotFoundError("Character", character_id)
+    
+    # Initialize FaceFusion client
+    client = FaceFusionClient(facefusion_url)
+    
+    # Check connection
+    if not await client.check_connection():
+        raise ServiceUnavailableError("FaceFusion", "FaceFusion server is not accessible")
+    
+    # Convert URL to local path
+    if image_url.startswith(f"{API}/"):
+        image_path = UPLOADS_DIR / image_url.replace(f"{API}/", "")
+    else:
+        raise ValueError("Invalid image URL")
+    
+    if not image_path.exists():
+        raise HTTPException(status_code=404, detail="Image file not found")
+    
+    # Adjust face age
+    adjusted_path = await client.adjust_face_age(str(image_path), target_age)
+    
+    if not adjusted_path:
+        raise HTTPException(status_code=500, detail="Face age adjustment failed")
+    
+    # Return adjusted image URL
+    adjusted_url = f"{API}/uploads/{adjusted_path.split('uploads/')[-1]}"
+    
+    return {
+        "character_id": character_id,
+        "original_image": image_url,
+        "adjusted_image": adjusted_url,
+        "target_age": target_age,
+        "message": "Face age adjusted successfully"
+    }
+
+@api_router.post("/facefusion/swap-face")
+async def swap_character_face(
+    character_id: str,
+    source_face_url: str,
+    target_image_url: str,
+    facefusion_url: str = "http://localhost:7870"
+):
+    """Swap character face using FaceFusion"""
+    # Ensure database is connected
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    # Get character
+    character_data = await db.characters.find_one({"id": character_id})
+    if not character_data:
+        raise ResourceNotFoundError("Character", character_id)
+    
+    # Initialize FaceFusion client
+    client = FaceFusionClient(facefusion_url)
+    
+    # Check connection
+    if not await client.check_connection():
+        raise ServiceUnavailableError("FaceFusion", "FaceFusion server is not accessible")
+    
+    # Convert URLs to local paths
+    def url_to_path(url: str) -> Path:
+        if url.startswith(f"{API}/"):
+            return UPLOADS_DIR / url.replace(f"{API}/", "")
+        else:
+            raise ValueError("Invalid image URL")
+    
+    source_path = url_to_path(source_face_url)
+    target_path = url_to_path(target_image_url)
+    
+    if not source_path.exists():
+        raise HTTPException(status_code=404, detail="Source face image not found")
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail="Target image not found")
+    
+    # Swap face
+    swapped_path = await client.swap_face(str(source_path), str(target_path))
+    
+    if not swapped_path:
+        raise HTTPException(status_code=500, detail="Face swap failed")
+    
+    # Return swapped image URL
+    swapped_url = f"{API}/uploads/{swapped_path.split('uploads/')[-1]}"
+    
+    return {
+        "character_id": character_id,
+        "source_face": source_face_url,
+        "target_image": target_image_url,
+        "swapped_image": swapped_url,
+        "message": "Face swapped successfully"
+    }
+
+@api_router.get("/facefusion/status")
+async def check_facefusion_status(facefusion_url: str = "http://localhost:7870"):
+    """Check FaceFusion server status"""
+    client = FaceFusionClient(facefusion_url)
+    is_online = await client.check_connection()
+    
+    return {
+        "facefusion_url": facefusion_url,
+        "is_online": is_online,
+        "status": "online" if is_online else "offline",
+        "message": "FaceFusion server is accessible" if is_online else "FaceFusion server is not accessible"
+    }
+
+@api_router.post("/facefusion/batch-process")
+async def batch_process_character_faces(
+    character_id: str,
+    operations: List[Dict[str, Any]],
+    facefusion_url: str = "http://localhost:7870"
+):
+    """Batch process character faces with multiple FaceFusion operations"""
+    # Ensure database is connected
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    # Get character
+    character_data = await db.characters.find_one({"id": character_id})
+    if not character_data:
+        raise ResourceNotFoundError("Character", character_id)
+    
+    # Initialize FaceFusion client
+    client = FaceFusionClient(facefusion_url)
+    
+    # Check connection
+    if not await client.check_connection():
+        raise ServiceUnavailableError("FaceFusion", "FaceFusion server is not accessible")
+    
+    results = []
+    
+    for operation in operations:
+        op_type = operation.get("type")
+        image_url = operation.get("image_url")
+        
+        if not image_url:
+            results.append({
+                "operation": operation,
+                "success": False,
+                "error": "Missing image_url"
+            })
+            continue
+        
+        # Convert URL to local path
+        if image_url.startswith(f"{API}/"):
+            image_path = UPLOADS_DIR / image_url.replace(f"{API}/", "")
+        else:
+            results.append({
+                "operation": operation,
+                "success": False,
+                "error": "Invalid image URL"
+            })
+            continue
+        
+        if not image_path.exists():
+            results.append({
+                "operation": operation,
+                "success": False,
+                "error": "Image file not found"
+            })
+            continue
+        
+        try:
+            if op_type == "enhance":
+                model = operation.get("enhancement_model", "gfpgan_1.4")
+                result_path = await client.enhance_face(str(image_path), model)
+                if result_path:
+                    result_url = f"{API}/uploads/{result_path.split('uploads/')[-1]}"
+                    results.append({
+                        "operation": operation,
+                        "success": True,
+                        "result_url": result_url
+                    })
+                else:
+                    results.append({
+                        "operation": operation,
+                        "success": False,
+                        "error": "Enhancement failed"
+                    })
+            
+            elif op_type == "age_adjust":
+                target_age = operation.get("target_age", 25)
+                result_path = await client.adjust_face_age(str(image_path), target_age)
+                if result_path:
+                    result_url = f"{API}/uploads/{result_path.split('uploads/')[-1]}"
+                    results.append({
+                        "operation": operation,
+                        "success": True,
+                        "result_url": result_url
+                    })
+                else:
+                    results.append({
+                        "operation": operation,
+                        "success": False,
+                        "error": "Age adjustment failed"
+                    })
+            
+            else:
+                results.append({
+                    "operation": operation,
+                    "success": False,
+                    "error": f"Unsupported operation type: {op_type}"
+                })
+        
+        except Exception as e:
+            results.append({
+                "operation": operation,
+                "success": False,
+                "error": str(e)
+            })
+    
+    return {
+        "character_id": character_id,
+        "total_operations": len(operations),
+        "successful_operations": sum(1 for r in results if r.get("success")),
+        "results": results
+    }
+
 # Queue Management Endpoints
 @api_router.post("/queue/jobs")
 async def add_to_queue(
@@ -2641,6 +4931,234 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Add CORS middleware with environment-based configuration BEFORE mounting routers
+from config import config as app_config
+
+# Configure CORS to allow requests from the frontend development server
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Specific origin
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],  # Specify allowed headers
+)
+
+async def find_best_civitai_match_mongodb(server_model_name: str, db_conn, fallback: bool = False) -> dict:
+    """
+    Find best matching Civitai model from MongoDB database.
+    
+    Args:
+        server_model_name: Name of the model from the ComfyUI server
+        db_conn: Database connection
+        fallback: If True, use lower threshold for matching
+    
+    Returns:
+        Best matching dict or None if no match found
+    """
+    import re
+    from difflib import SequenceMatcher
+    
+    def clean_model_name(name: str) -> str:
+        """Clean model name by removing extensions and common prefixes"""
+        name = re.sub(r'\.(safetensors|ckpt|pth|pt)$', '', name, flags=re.IGNORECASE)
+        name = re.sub(r'^(sd|stable-diffusion|sd-|sdxl|sd_xl)_?', '', name, flags=re.IGNORECASE)
+        name = re.sub(r'_v\d+(-\d+)?(_lightning)?(_bakedvae)?', '', name, flags=re.IGNORECASE)
+        name = re.sub(r'(-\d+)+$', '', name)
+        name = re.sub(r'[-_]+', ' ', name)
+        name = re.sub(r'\s+', ' ', name)
+        return name.strip().lower()
+    
+    server_name_clean = clean_model_name(server_model_name)
+    server_name_original = server_model_name.lower().strip()
+    
+    print(f"Searching MongoDB for: '{server_name_clean}' (original: '{server_model_name}')")  # Debug
+    
+    # Strategy 1: Exact name match
+    exact_match = await db_conn.database_models.find_one({
+        "source": "civitai_sdxl",
+        "name": {"$regex": f"^{re.escape(server_model_name)}$", "$options": "i"}
+    })
+    
+    if exact_match:
+        print(f"Found exact match in MongoDB: '{exact_match['name']}'")  # Debug
+        return exact_match["civitai_info"]
+    
+    # Strategy 2: Search for cleaned name match
+    cleaned_match = await db_conn.database_models.find_one({
+        "source": "civitai_sdxl",
+        "name": {"$regex": server_name_clean, "$options": "i"}
+    })
+    
+    if cleaned_match:
+        print(f"Found cleaned match in MongoDB: '{cleaned_match['name']}'")  # Debug
+        return cleaned_match["civitai_info"]
+    
+    # Strategy 3: Fuzzy search with multiple candidates
+    candidates = await db_conn.database_models.find({
+        "source": "civitai_sdxl",
+        "$or": [
+            {"name": {"$regex": server_name_clean, "$options": "i"}},
+            {"civitai_info.description": {"$regex": server_name_clean, "$options": "i"}},
+            {"civitai_info.tags": {"$in": [server_name_clean]}}
+        ]
+    }).to_list(length=20)
+    
+    best_match = None
+    best_score = 0.0
+    
+    # Define thresholds based on fallback mode
+    high_threshold = 0.85 if not fallback else 0.7
+    medium_threshold = 0.7 if not fallback else 0.5
+    
+    for doc in candidates:
+        civitai_info = doc["civitai_info"]
+        model_name = civitai_info.get("name", "")
+        model_name_clean = clean_model_name(model_name)
+        
+        # Calculate similarity score
+        similarity = SequenceMatcher(None, server_name_clean, model_name_clean).ratio()
+        
+        # Check for substring matches
+        if server_name_clean in model_name_clean:
+            similarity = max(similarity, 0.9)
+        elif model_name_clean in server_name_clean:
+            similarity = max(similarity, 0.8)
+        
+        # Update best match
+        if similarity > best_score:
+            best_score = similarity
+            best_match = civitai_info
+    
+    # Apply minimum threshold
+    min_threshold = medium_threshold if not fallback else 0.3
+    if best_score < min_threshold:
+        print(f"No match found above threshold {min_threshold}. Best score was {best_score}")  # Debug
+        return None
+    
+    if best_match:
+        print(f"Best match: '{best_match.get('name')}' with score {best_score:.3f}")  # Debug
+        return best_match
+    
+    return None
+
+
+def find_best_civitai_match_local(server_model_name: str, civitai_database: list, fallback: bool = False) -> dict:
+    """
+    Find best matching Civitai model from local JSON database.
+    
+    Args:
+        server_model_name: Name of the model from the ComfyUI server
+        civitai_database: List of models from the local JSON file
+        fallback: If True, use lower threshold for matching
+    
+    Returns:
+        Best matching dict or None if no match found
+    """
+    import re
+    from difflib import SequenceMatcher
+    
+    def clean_model_name(name: str) -> str:
+        """Clean model name by removing extensions and common prefixes"""
+        name = re.sub(r'\.(safetensors|ckpt|pth|pt)$', '', name, flags=re.IGNORECASE)
+        name = re.sub(r'^(sd|stable-diffusion|sd-|sdxl|sd_xl)_?', '', name, flags=re.IGNORECASE)
+        name = re.sub(r'_v\d+(-\d+)?(_lightning)?(_bakedvae)?', '', name, flags=re.IGNORECASE)
+        name = re.sub(r'(-\d+)+$', '', name)
+        name = re.sub(r'[-_]+', ' ', name)
+        name = re.sub(r'\s+', ' ', name)
+        return name.strip().lower()
+    
+    server_name_clean = clean_model_name(server_model_name)
+    server_name_original = server_model_name.lower().strip()
+    
+    print(f"Searching local database for: '{server_name_clean}' (original: '{server_model_name}')")  # Debug
+    
+    best_match = None
+    best_score = 0.0
+    match_details = []
+    
+    # Define thresholds based on fallback mode
+    exact_threshold = 1.0
+    high_threshold = 0.85 if not fallback else 0.7
+    medium_threshold = 0.7 if not fallback else 0.5
+    low_threshold = 0.5 if not fallback else 0.3
+    
+    for model in civitai_database:
+        model_name = model.get("name", "")
+        model_name_clean = clean_model_name(model_name)
+        model_name_lower = model_name.lower()
+        
+        score = 0.0
+        reason = ""
+        
+        # Strategy 1: Exact name match (highest priority)
+        if server_name_clean == model_name_clean or server_name_original == model_name_lower:
+            score = 1.0
+            reason = "exact_name_match"
+            print(f"Found exact match: '{model_name}'")  # Debug
+        
+        # Strategy 2: Check if model names are substrings
+        elif server_name_clean in model_name_clean:
+            score = 0.9
+            reason = "server_name_in_model_name"
+        elif model_name_clean in server_name_clean:
+            score = 0.8
+            reason = "model_name_in_server_name"
+        
+        # Strategy 3: Check for filename matches in model versions
+        if score < 0.8 and "modelVersions" in model:
+            for version in model["modelVersions"]:
+                if "files" in version:
+                    for file_info in version["files"]:
+                        filename = file_info.get("name", "")
+                        filename_clean = clean_model_name(filename)
+                        
+                        if server_name_clean == filename_clean or server_name_original == filename.lower():
+                            score = max(score, 0.95)
+                            reason = "filename_exact_match"
+                        elif server_name_clean in filename_clean:
+                            score = max(score, 0.85)
+                            reason = "server_name_in_filename"
+                        elif filename_clean in server_name_clean:
+                            score = max(score, 0.75)
+                            reason = "filename_in_server_name"
+        
+        # Strategy 4: Fuzzy matching using SequenceMatcher
+        if score < 0.7:
+            similarity = SequenceMatcher(None, server_name_clean, model_name_clean).ratio()
+            if similarity > high_threshold:
+                score = similarity
+                reason = "fuzzy_high"
+            elif similarity > medium_threshold:
+                score = similarity
+                reason = "fuzzy_medium"
+        
+        # Strategy 5: Contains matching (lower priority)
+        if score < 0.5:
+            if any(word in model_name_lower for word in server_name_clean.split() if len(word) > 2):
+                score = 0.4
+                reason = "contains_match"
+        
+        # Update best match if this score is better
+        if score > best_score:
+            best_score = score
+            best_match = model
+            match_details = [reason]
+        elif score == best_score and score > 0:
+            match_details.append(reason)
+    
+    # Apply minimum threshold
+    min_threshold = low_threshold if fallback else medium_threshold
+    if best_score < min_threshold:
+        print(f"No match found above threshold {min_threshold}. Best score was {best_score}")  # Debug
+        return None
+    
+    if best_match:
+        print(f"Best match: '{best_match.get('name')}' with score {best_score:.3f} ({match_details[0] if match_details else 'unknown'})")  # Debug
+        return best_match
+    
+    return None
+
+
 # Mount API routers
 # V1 API with versioned prefix
 app.include_router(api_v1_router, prefix="/api/v1")
@@ -2648,29 +5166,10 @@ app.include_router(api_v1_router, prefix="/api/v1")
 # Keep old API router for backward compatibility (will be removed after frontend migration)
 app.include_router(api_router, prefix="/api")
 
-# Add CORS middleware with environment-based configuration
-from config import config as app_config
-
-try:
-    allowed_origins = app_config.get_cors_origins()
-    logger.info(f"CORS allowed origins: {allowed_origins}")
-except ValueError as e:
-    logger.critical(f"CORS configuration error: {e}")
-    raise
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=app_config.CORS_ALLOW_CREDENTIALS,
-    allow_methods=app_config.CORS_ALLOW_METHODS,
-    allow_headers=app_config.CORS_ALLOW_HEADERS,
-    max_age=app_config.CORS_MAX_AGE,
-)
-
 @app.on_event("startup")
 async def startup_db_client():
     """Initialize database connection on startup"""
-    global db
+    global db, active_models_service
     logger.info("Starting application...")
 
     # Connect to database
@@ -2681,7 +5180,20 @@ async def startup_db_client():
         # raise RuntimeError("Database connection failed")
     else:
         db = db_manager.db
+        # Initialize active models service
+        active_models_service = ActiveModelsService(db_manager.client, db_manager.db_name)
+        logger.info("Active models service initialized")
         logger.info("Application started successfully")
+
+        # Validate OpenAI configuration (non-fatal - ComfyUI flows can still run)
+        app_config.validate_openai_config()
+
+        # Ensure local persistence directory for OpenAI videos exists
+        try:
+            sora_dir = Path("uploads") / "openai" / "videos"
+            sora_dir.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            logger.warning(f"Failed to ensure uploads directory for OpenAI videos: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

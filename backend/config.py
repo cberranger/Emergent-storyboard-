@@ -14,6 +14,21 @@ class Config:
     ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
     ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm", "video/quicktime"}
 
+    # OpenAI / Sora configuration
+    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+    OPENAI_DEFAULT_VIDEO_MODEL = os.environ.get("OPENAI_DEFAULT_VIDEO_MODEL", "sora-2")
+
+    @staticmethod
+    def validate_openai_config():
+        """Validate OpenAI configuration on startup"""
+        if not Config.OPENAI_API_KEY:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "OPENAI_API_KEY not configured. Sora video generation will be unavailable. "
+                "Set OPENAI_API_KEY environment variable to enable Sora integration."
+            )
+
     # CORS Configuration
     @staticmethod
     def get_cors_origins() -> List[str]:

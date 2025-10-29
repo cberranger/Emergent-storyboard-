@@ -16,9 +16,9 @@ class DatabaseManager:
         self.client: Optional[AsyncIOMotorClient] = None
         self.db = None
         self.mongo_url = self._get_mongo_url()
-        self.db_name = os.environ.get('DB_NAME', 'Storyboard')
-        self.max_retries = 3
-        self.retry_delay = 2  # seconds
+        self.db_name = os.environ.get('DB_NAME', 'storyboard')
+        self.max_retries = 5
+        self.retry_delay = 3  # seconds
 
     def _get_mongo_url(self) -> str:
         """Get MongoDB URL from environment with validation"""
@@ -38,6 +38,10 @@ class DatabaseManager:
         Returns:
             bool: True if connection successful, False otherwise
         """
+        # Refresh configuration in case environment variables changed
+        self.mongo_url = self._get_mongo_url()
+        self.db_name = os.environ.get('DB_NAME', 'storyboard')
+        
         for attempt in range(self.max_retries):
             try:
                 logger.info(f"Attempting to connect to MongoDB (attempt {attempt + 1}/{self.max_retries})")

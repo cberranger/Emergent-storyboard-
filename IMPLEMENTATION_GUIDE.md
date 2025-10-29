@@ -1,7 +1,7 @@
 # 🚀 Quick Implementation Guide
 ## Emergent Storyboard - Developer Reference
 
-**Last Updated:** 2025-10-10
+**Last Updated:** 2025-10-29
 
 ---
 
@@ -17,8 +17,8 @@
 # Windows PowerShell (Recommended)
 .\launch.ps1
 
-# Linux/Mac
-./launch.sh
+# Windows Batch
+launch.bat
 
 # Manual Backend
 cd backend && uvicorn server:app --reload
@@ -34,25 +34,55 @@ cd frontend && npm start
 ```
 emergent-storyboard/
 ├── backend/
-│   ├── server.py (1654 lines) - All API logic
+│   ├── server.py (5212 lines) - Main API server
+│   ├── services/ - Business logic layer
+│   │   ├── project_service.py
+│   │   ├── generation_service.py
+│   │   ├── comfyui_service.py
+│   │   └── media_service.py
+│   ├── repositories/ - Data access layer
+│   │   ├── base_repository.py
+│   │   ├── project_repository.py
+│   │   ├── scene_repository.py
+│   │   └── clip_repository.py
+│   ├── models/ - Pydantic models
+│   ├── utils/ - Utilities and helpers
 │   ├── requirements.txt - Python dependencies
 │   ├── .env - Configuration (auto-generated)
 │   └── uploads/ - User uploaded files
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── App.js - Main application
+│   │   ├── App.js - Main application router
 │   │   ├── components/
 │   │   │   ├── ProjectView.jsx - Project management
 │   │   │   ├── Timeline.jsx - Timeline editor
+│   │   │   ├── ProjectTimeline.jsx - Project-level timeline
 │   │   │   ├── SceneManager.jsx - Scene/clip management
 │   │   │   ├── EnhancedGenerationDialog.jsx - AI generation
 │   │   │   ├── ComfyUIManager.jsx - Server management
+│   │   │   ├── CharacterManager.jsx - Character library
+│   │   │   ├── StyleTemplateLibrary.jsx - Template library
+│   │   │   ├── QueueDashboard.jsx - Queue monitoring
+│   │   │   ├── ProjectDashboard.jsx - Project details
+│   │   │   ├── GenerationPool.jsx - Content reuse library
+│   │   │   ├── PresentationMode.jsx - Full-screen presentations
 │   │   │   └── ui/ - 56 Shadcn components
-│   │   └── hooks/ - Custom React hooks
-│   ├── package.json - Dependencies
-│   └── .env - Configuration (auto-generated)
+│   │   ├── services/ - API service layer
+│   │   ├── hooks/ - Custom React hooks
+│   │   └── utils/ - Frontend utilities
+│   ├── package.json - Node dependencies
+│   └── .env - Frontend configuration
 │
+├── docs/
+│   ├── archive/ - Completed phase documentation
+│   ├── CURRENT_STATUS.md - Current application state
+│   ├── CHARACTER_CREATION_BEST_PRACTICES.md
+│   └── FACEFUSION_INTEGRATION.md
+│
+├── launch.ps1 - PowerShell launcher
+├── launch.bat - Batch launcher
+└── README.md - Project documentation
 └── launch.ps1/sh/bat - Launch scripts
 ```
 
@@ -95,6 +125,12 @@ Project (1) ──> (N) Scene (1) ──> (N) Clip
 - `scenes` - Sections within projects
 - `clips` - Individual video segments
 - `comfyui_servers` - AI generation servers
+- `characters` - Character definitions
+- `style_templates` - Reusable generation settings
+- `generation_pool` - Shared content library
+- `model_presets` - Model-specific presets
+- `queue_jobs` - Generation queue
+- `database_models` - Synced model information
 
 ---
 
@@ -105,35 +141,103 @@ Project (1) ──> (N) Scene (1) ──> (N) Clip
 POST   /api/projects              # Create
 GET    /api/projects              # List all
 GET    /api/projects/{id}         # Get one
+PUT    /api/projects/{id}         # Update
+DELETE /api/projects/{id}         # Delete
 POST   /api/projects/{id}/upload-music  # Upload audio
+GET    /api/projects/{id}/export/fcpxml   # Export FCPXML
+GET    /api/projects/{id}/export/edl     # Export EDL
+GET    /api/projects/{id}/export/resolve # Export DaVinci
+GET    /api/projects/{id}/export/json    # Export JSON
 ```
 
 ### Scenes
 ```
 POST   /api/scenes                # Create
 GET    /api/projects/{id}/scenes  # List by project
+GET    /api/scenes/{id}           # Get one
 PUT    /api/scenes/{id}           # Update
+POST   /api/scenes/{id}/create-alternate # Create alternate
 ```
 
 ### Clips
 ```
 POST   /api/clips                 # Create
 GET    /api/scenes/{id}/clips     # List by scene
+GET    /api/clips/{id}            # Get one
+PUT    /api/clips/{id}            # Update
 PUT    /api/clips/{id}/timeline-position  # Move on timeline
+PUT    /api/clips/{id}/prompts    # Update prompts
 GET    /api/clips/{id}/gallery    # Get generated content
+PUT    /api/clips/{id}/select-content    # Select image/video
+POST   /api/clips/{id}/create-alternate  # Create alternate
 ```
 
 ### Generation
 ```
 POST   /api/generate              # Generate image/video
+POST   /api/generate/batch        # Batch generation
+GET    /api/generate/batch/{id}   # Get batch status
+GET    /api/generate/batches      # List batches
 POST   /api/upload-face-image     # Upload for face swap
 GET    /api/models/presets/{model}  # Get model presets
+GET    /api/models/parameters/{model}  # Get model parameters
+```
+
+### Characters
+```
+POST   /api/characters            # Create
+GET    /api/characters            # List (with project filter)
+GET    /api/characters/{id}       # Get one
+PUT    /api/characters/{id}       # Update
+DELETE /api/characters/{id}       # Delete
+POST   /api/characters/{id}/apply/{clip_id}  # Apply to clip
+```
+
+### Style Templates
+```
+POST   /api/style-templates       # Create
+GET    /api/style-templates       # List
+GET    /api/style-templates/{id}  # Get one
+PUT    /api/style-templates/{id}  # Update
+DELETE /api/style-templates/{id}  # Delete
+POST   /api/style-templates/{id}/use  # Increment use count
+```
+
+### Queue Management
+```
+POST   /api/queue/jobs             # Add job
+GET    /api/queue/status          # Queue status
+GET    /api/queue/jobs/{id}       # Job status
+GET    /api/queue/jobs            # All jobs
+GET    /api/queue/projects/{id}/jobs  # Project jobs
+POST   /api/queue/servers/{id}/register  # Register server
+GET    /api/queue/servers/{id}/next  # Get next job
+POST   /api/queue/jobs/{id}/complete  # Mark complete
+```
+
+### Generation Pool
+```
+POST   /api/pool                  # Create pool item
+GET    /api/pool/{project_id}     # List project pool
+GET    /api/pool/item/{id}        # Get pool item
+PUT    /api/pool/item/{id}        # Update pool item
+DELETE /api/pool/item/{id}        # Delete pool item
+POST   /api/pool/item/{id}/apply-to-clip/{clip_id}  # Apply to clip
 ```
 
 ### ComfyUI
 ```
 POST   /api/comfyui/servers       # Add server
+GET    /api/comfyui/servers       # List servers
 GET    /api/comfyui/servers/{id}/info  # Get server status
+DELETE /api/comfyui/servers/{id}  # Delete server
+POST   /api/servers/{id}/sync-models  # Sync models
+```
+
+### Health
+```
+GET    /api/health                # Health check
+GET    /api/v1/health             # Health check (v1)
 ```
 
 ---
@@ -207,19 +311,24 @@ if "newmodel" in model_name.lower():
 
 ---
 
-## 🐛 Critical Bugs to Fix
+## 🐛 Recently Fixed Issues (October 29, 2025)
 
-### Priority 1 (High Impact)
-1. **MongoDB URL:** Change default from `192.168.1.10` to `localhost` (Line 22)
-2. **CORS:** Remove wildcard `*` in production (Line 1640)
-3. **Database Connection:** Add error handling (Line 26)
-4. **File Upload Limits:** Add size validation (Line 1177)
-5. **Timeline Position:** Add Pydantic model validation (Line 1282)
+### ✅ Fixed Critical Bugs
+1. **MongoDB URL:** Changed default from `192.168.1.10` to `localhost`
+2. **CORS:** Configured proper environment-based origins
+3. **Database Connection:** Added retry logic and error handling
+4. **File Upload Limits:** Added size validation (50MB music, 10MB images)
+5. **Timeline Position:** Added Pydantic model validation with overlap detection
+6. **Clip Update:** Implemented complete PUT endpoint
+7. **RunPod Health Check:** Fixed endpoint status checking
+8. **Environment Variables:** Removed fallback, require explicit config
+9. **DialogContent Accessibility:** Added proper descriptions for dialogs
+10. **handleRefreshServer Error:** Fixed undefined function reference
 
-### Priority 2 (Medium Impact)
-6. **Clip Update:** Implement missing endpoint (SceneManager.jsx:101)
-7. **RunPod Health Check:** Fix false positives (Line 536)
-8. **Environment Fallback:** Require explicit production config (App.js:16)
+### Current Status
+- No critical bugs remaining
+- All major functionality operational
+- Frontend and backend stable
 
 ---
 

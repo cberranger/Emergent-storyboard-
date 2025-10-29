@@ -20,6 +20,12 @@ class ClipRepository(BaseRepository):
             sort=[("order", 1)],
         )
 
+    async def list_by_project(self, project_id: str) -> List[Dict[str, Any]]:
+        return await self.find_many(
+            {"project_id": project_id},
+            sort=[("order", 1)],
+        )
+
     async def update_gallery(
         self,
         clip_id: str,

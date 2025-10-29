@@ -23,13 +23,24 @@ import {
   validateGenerationParams,
   sanitizeInput
 } from '@/utils/validators';
+import {
+  saveGenerationSettings,
+  loadGenerationSettings,
+  getModelSettings,
+  saveModelSettings,
+  applyModelSettings
+} from '@/utils/generationSettings';
 
 const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerated }) => {
-  const [activeTab, setActiveTab] = useState('image');
-  const [selectedServer, setSelectedServer] = useState('');
+  // Load persistent settings on component mount
+  const savedSettings = loadGenerationSettings();
+  
+  const [activeTab, setActiveTab] = useState(savedSettings.activeTab);
+  const [selectedServer, setSelectedServer] = useState(savedSettings.selectedServer);
   const [serverInfo, setServerInfo] = useState(null);
-  const [selectedModel, setSelectedModel] = useState('');
-  const [selectedLora, setSelectedLora] = useState('none');
+  const [selectedModels, setSelectedModels] = useState(savedSettings.selectedModels || []); // For multiple model selection
+  const [useMultipleModels, setUseMultipleModels] = useState(savedSettings.useMultipleModels || false);
+  const [selectedModel, setSelectedModel] = useState(savedSettings.selectedModel);
   const [modelDefaults, setModelDefaults] = useState({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
@@ -42,14 +53,19 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
   // Model filtering and search
   const [modelSearchQuery, setModelSearchQuery] = useState('');
   const [filteredModels, setFilteredModels] = useState([]);
+  
+  // LoRA filtering and search
+  const [loraSearchQueries, setLoraSearchQueries] = useState([]); // Array of queries for each LoRA slot
 
   // Model presets support
   const [modelPresets, setModelPresets] = useState({});
-  const [selectedPreset, setSelectedPreset] = useState('fast');
+  const [selectedPreset, setSelectedPreset] = useState(savedSettings.selectedPreset || 'fast');
   const [availableParameters, setAvailableParameters] = useState({});
 
   // Multiple LoRAs support
-  const [loras, setLoras] = useState([{ name: 'none', weight: 1.0 }]);
+  const [loras, setLoras] = useState(savedSettings.loras || [{ name: 'none', weight: 1.0 }]);
+  const [provider, setProvider] = useState(savedSettings.provider || 'comfyui');
+  const [soraReferenceImageUrl, setSoraReferenceImageUrl] = useState("");
   
   const [prompts, setPrompts] = useState({
     image: '',
@@ -58,45 +74,10 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
     videoNegative: ''
   });
   
-  const [generationParams, setGenerationParams] = useState({
-    steps: 20,
-    cfg: 7.0,
-    width: 1024,
-    height: 1024,
-    seed: -1,
-    sampler: 'euler',
-    scheduler: 'normal',
-    // Video-specific parameters
-    video_fps: 24,
-    video_frames: 14,
-    motion_bucket_id: 127
-  });
-
+  const [generationParams, setGenerationParams] = useState(savedSettings.generationParams);
+  
   // Advanced parameters
-  const [advancedParams, setAdvancedParams] = useState({
-    // Refiner
-    use_refiner: false,
-    refiner_model: '',
-    refiner_switch: 0.8,
-    
-    // Face processing
-    use_reactor: false,
-    reactor_face_image: '',
-    use_faceswap: false,
-    
-    // Upscaling
-    use_upscale: false,
-    upscale_factor: 2.0,
-    upscale_model: 'RealESRGAN_x2plus',
-    
-    // Advanced settings
-    pag_scale: 0.0, // Perturbed-Attention Guidance Scale
-    clip_skip: 1,
-    
-    // ComfyUI workflow
-    use_custom_workflow: false,
-    workflow_json: ''
-  });
+  const [advancedParams, setAdvancedParams] = useState(savedSettings.advancedParams);
 
   // Available samplers and schedulers
   const samplers = [
@@ -130,11 +111,76 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
     }
   }, [selectedServer]);
 
+  // Save settings whenever they change
   useEffect(() => {
-    if (selectedModel) {
+    const currentSettings = {
+      activeTab,
+      selectedServer,
+      selectedModel,
+      selectedModels,
+      useMultipleModels,
+      selectedPreset,
+      provider,
+      generationParams,
+      advancedParams,
+      loras
+    };
+    saveGenerationSettings(currentSettings);
+  }, [
+    activeTab,
+    selectedServer,
+    selectedModel,
+    selectedModels,
+    useMultipleModels,
+    selectedPreset,
+    provider,
+    generationParams,
+    advancedParams,
+    loras
+  ]);
+  
+  // Apply model-specific settings when model changes
+  useEffect(() => {
+    if (selectedModel && provider === 'comfyui') {
+      const modelSettings = getModelSettings(selectedModel);
+      if (modelSettings) {
+        // Apply saved model-specific settings
+        if (modelSettings.generationParams) {
+          setGenerationParams(prev => ({ ...prev, ...modelSettings.generationParams }));
+        }
+        if (modelSettings.advancedParams) {
+          setAdvancedParams(prev => ({ ...prev, ...modelSettings.advancedParams }));
+        }
+        if (modelSettings.loras) {
+          setLoras(modelSettings.loras);
+        }
+        if (modelSettings.selectedPreset) {
+          setSelectedPreset(modelSettings.selectedPreset);
+        }
+      }
       fetchModelPresets(selectedModel);
     }
   }, [selectedModel]);
+  
+  // Save model-specific settings when they change
+  useEffect(() => {
+    if (selectedModel && provider === 'comfyui') {
+      const modelSettings = {
+        generationParams,
+        advancedParams,
+        loras,
+        selectedPreset
+      };
+      saveModelSettings(selectedModel, modelSettings);
+    }
+  }, [generationParams, advancedParams, loras, selectedPreset, selectedModel, provider]);
+
+  useEffect(() => {
+    if (provider === 'openai') {
+      setActiveTab('video');
+      setSelectedModel(prev => (prev && prev.startsWith('sora-') ? prev : 'sora-2'));
+    }
+  }, [provider]);
 
   // Filter and sort models when serverInfo or search query changes
   useEffect(() => {
@@ -157,6 +203,28 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
       setFilteredModels([]);
     }
   }, [serverInfo, modelSearchQuery]);
+  
+  // Filter LoRAs based on search queries
+  const getFilteredLoras = (loraIndex) => {
+    if (!serverInfo?.loras || !Array.isArray(serverInfo.loras)) {
+      return [];
+    }
+    
+    let loras = [...serverInfo.loras];
+    // Sort alphabetically by name
+    loras.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+    
+    // Apply search filter if exists for this specific LoRA slot
+    const searchQuery = loraSearchQueries[loraIndex] || '';
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      loras = loras.filter(lora =>
+        lora.name.toLowerCase().includes(query)
+      );
+    }
+    
+    return loras;
+  };
 
   // Helper function to get online servers only
   const getOnlineServers = () => {
@@ -236,37 +304,70 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
     }));
   };
 
+  const toggleModelSelection = (modelName) => {
+    if (useMultipleModels) {
+      setSelectedModels(prev => {
+        if (prev.includes(modelName)) {
+          return prev.filter(m => m !== modelName);
+        } else {
+          return [...prev, modelName];
+        }
+      });
+    } else {
+      setSelectedModel(modelName);
+    }
+  };
+
+  const clearModelSelection = () => {
+    setSelectedModel('');
+    setSelectedModels([]);
+  };
+
   const fetchGallery = async () => {
     if (!clip?.id) return;
     
     try {
       const response = await axios.get(`${API}/clips/${clip.id}/gallery`);
       setGallery(response.data);
+      
+      // Auto-select the first image/video if none is selected
+      if (response.data.images?.length > 0 && !response.data.images.some(img => img.is_selected)) {
+        selectContent(response.data.images[0].id, 'image');
+      }
+      if (response.data.videos?.length > 0 && !response.data.videos.some(vid => vid.is_selected)) {
+        selectContent(response.data.videos[0].id, 'video');
+      }
     } catch (error) {
       console.error('Error fetching gallery:', error);
     }
   };
 
   const handleGenerate = async () => {
-    // Validate UUIDs
+    // Validate clip ID
     if (!isValidUUID(clip.id)) {
       toast.error('Invalid clip ID');
       return;
     }
 
-    if (!isValidUUID(selectedServer)) {
-      toast.error('Invalid server selection');
-      return;
-    }
-
-    if (!selectedServer || !selectedModel) {
-      toast.error('Please select a server and model');
-      return;
-    }
-
-    if (!serverInfo?.is_online) {
-      toast.error('Selected server is offline');
-      return;
+    // Provider-specific prechecks
+    if (provider === 'comfyui') {
+      if (!isValidUUID(selectedServer)) {
+        toast.error('Invalid server selection');
+        return;
+      }
+      if (!selectedServer || (!selectedModel && selectedModels.length === 0)) {
+        toast.error('Please select a server and at least one model');
+        return;
+      }
+      if (!serverInfo?.is_online) {
+        toast.error('Selected server is offline');
+        return;
+      }
+    } else {
+      // OpenAI provider: enforce video generation
+      if (activeTab !== 'video') {
+        setActiveTab('video');
+      }
     }
 
     const prompt = sanitizeInput(prompts[activeTab]);
@@ -296,10 +397,13 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
         .filter(lora => lora.name !== 'none')
         .map(lora => ({ name: lora.name, weight: lora.weight }));
 
+      // Build params
       const params = {
         ...generationParams,
         ...advancedParams,
-        seed: generationParams.seed === -1 ? Math.floor(Math.random() * 1000000) : generationParams.seed
+        seed: generationParams.seed === -1 ? Math.floor(Math.random() * 1000000) : generationParams.seed,
+        ...(provider === 'openai' ? { provider: 'openai' } : {}),
+        ...(provider === 'openai' && soraReferenceImageUrl ? { input_reference_url: soraReferenceImageUrl } : {}),
       };
 
       // Validate generation parameters
@@ -311,29 +415,33 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
         return;
       }
 
+      // Build request and endpoint based on provider
+      const isOpenAI = provider === 'openai';
+      const endpoint = isOpenAI ? `${API}/v1/generate` : `${API}/generate`;
+
       const requestData = {
         clip_id: clip.id,
-        server_id: selectedServer,
+        server_id: isOpenAI ? 'openai' : selectedServer,
         prompt: prompt.trim(),
         negative_prompt: negativePrompt.trim(),
-        model: selectedModel,
-        loras: lorasData, // Multiple LoRAs
-        generation_type: activeTab,
-        params
+        model: isOpenAI ? (selectedModel || 'sora-2') : selectedModel,
+        loras: isOpenAI ? [] : lorasData,
+        generation_type: isOpenAI ? 'video' : activeTab,
+        params,
       };
 
-      await axios.post(`${API}/generate`, requestData);
-      
-      toast.success(`${activeTab === 'image' ? 'Image' : 'Video'} generation started successfully`);
-      
+      await axios.post(endpoint, requestData);
+
+      toast.success(`${(isOpenAI || activeTab === 'video') ? 'Video' : 'Image'} generation started successfully`);
+
       // Update clip prompts
       await updateClipPrompts();
-      
+
       // Refresh gallery
       setTimeout(() => {
         fetchGallery();
       }, 2000);
-      
+
       onGenerated();
     } catch (error) {
       console.error('Error generating content:', error);
@@ -403,10 +511,29 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
       i === index ? { ...lora, [field]: field === 'weight' ? parseFloat(value) || 0 : value } : lora
     ));
   };
+  
+  const updateLoraSearch = (index, value) => {
+    const newQueries = [...loraSearchQueries];
+    newQueries[index] = value;
+    setLoraSearchQueries(newQueries);
+  };
 
   const handleContentClick = (content) => {
     setSelectedContent(content);
     setShowMediaViewer(true);
+  };
+  
+  // Get currently selected content for display
+  const getSelectedContent = (type) => {
+    const contentArray = gallery[type];
+    if (!contentArray?.length) return null;
+    
+    // First try to find the selected one
+    const selected = contentArray.find(item => item.is_selected);
+    if (selected) return selected;
+    
+    // Fall back to the first item
+    return contentArray[0];
   };
 
   const handleFaceUpload = async (event) => {
@@ -435,6 +562,35 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
     } catch (error) {
       console.error('Error uploading face image:', error);
       toast.error('Failed to upload face image');
+    } finally {
+      setIsUploadingFace(false);
+    }
+  };
+
+  const handleReferenceUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    setIsUploadingFace(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Reuse existing backend image upload endpoint
+      const response = await axios.post(`${API}/upload-face-image`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      setSoraReferenceImageUrl(response.data.file_url);
+      toast.success('Reference image uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading reference image:', error);
+      toast.error('Failed to upload reference image');
     } finally {
       setIsUploadingFace(false);
     }
@@ -559,14 +715,14 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
         ))}
       </div>
     );
-  };
+  }
 
   if (!clip) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-panel border-panel max-w-6xl max-h-[90vh] overflow-hidden">
-        <DialogHeader>
+      <DialogContent className="bg-panel border-panel max-w-6xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-primary flex items-center">
               <Wand2 className="w-5 h-5 mr-2" />
@@ -585,47 +741,168 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
           </div>
         </DialogHeader>
 
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex-1 overflow-hidden flex flex-col min-h-0">
           {showGallery ? (
-            <div className="flex-1 overflow-y-auto">
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-2 bg-panel-dark mb-4">
-                  <TabsTrigger value="image" className="data-[state=active]:bg-indigo-600">
-                    <Image className="w-4 h-4 mr-2" />
-                    Images ({gallery.images?.length || 0})
-                  </TabsTrigger>
-                  <TabsTrigger value="video" className="data-[state=active]:bg-indigo-600">
-                    <Video className="w-4 h-4 mr-2" />
-                    Videos ({gallery.videos?.length || 0})
-                  </TabsTrigger>
-                </TabsList>
+            <div className="flex-1 flex gap-4 overflow-hidden">
+              {/* Gallery Section - Left Side */}
+              <div className="w-1/2 overflow-y-auto p-4 border-r border-panel">
+                <div className="mb-4">
+                  <h3 className="text-lg font-medium text-primary mb-2">Gallery</h3>
+                  <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    <TabsList className="grid w-full grid-cols-2 bg-panel-dark">
+                      <TabsTrigger value="image" className="data-[state=active]:bg-indigo-600">
+                        <Image className="w-4 h-4 mr-2" />
+                        Images ({gallery.images?.length || 0})
+                      </TabsTrigger>
+                      <TabsTrigger value="video" className="data-[state=active]:bg-indigo-600">
+                        <Video className="w-4 h-4 mr-2" />
+                        Videos ({gallery.videos?.length || 0})
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
                 
-                <TabsContent value="image">
-                  {renderGallery(gallery.images, 'image')}
-                </TabsContent>
+                <Tabs value={activeTab} className="w-full">
+                  <TabsContent value="image" className="mt-0">
+                    {renderGallery(gallery.images, 'image')}
+                  </TabsContent>
+                  
+                  <TabsContent value="video" className="mt-0">
+                    {renderGallery(gallery.videos, 'video')}
+                  </TabsContent>
+                </Tabs>
+              </div>
+              
+              {/* Selected Content Preview - Right Side */}
+              <div className="w-1/2 overflow-y-auto p-4">
+                <div className="mb-4">
+                  <h3 className="text-lg font-medium text-primary">Current Selection</h3>
+                </div>
                 
-                <TabsContent value="video">
-                  {renderGallery(gallery.videos, 'video')}
-                </TabsContent>
-              </Tabs>
+                <div className="space-y-6">
+                  {/* Current Image */}
+                  <div>
+                    <Label className="text-sm font-medium text-primary mb-2 block">
+                      <Image className="w-4 h-4 mr-1 inline" />
+                      Selected Image
+                    </Label>
+                    <div className="bg-panel-dark rounded-lg p-4 border border-panel">
+                      {getSelectedContent('images') ? (
+                        <div 
+                          className="aspect-video bg-panel rounded mb-3 flex items-center justify-center cursor-pointer relative group"
+                          onClick={() => handleContentClick(getSelectedContent('images'))}
+                        >
+                          <img 
+                            src={getSelectedContent('images').url} 
+                            alt="Selected" 
+                            className="w-full h-full object-contain rounded"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded flex items-center justify-center">
+                            <Eye className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="aspect-video bg-panel rounded mb-3 flex items-center justify-center">
+                          <p className="text-secondary text-sm">No image selected</p>
+                        </div>
+                      )}
+                      
+                      {getSelectedContent('images') && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-secondary">
+                            Prompt: {getSelectedContent('images').prompt}
+                          </p>
+                          {getSelectedContent('images').negative_prompt && (
+                            <p className="text-xs text-secondary">
+                              Negative: {getSelectedContent('images').negative_prompt}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Current Video */}
+                  <div>
+                    <Label className="text-sm font-medium text-primary mb-2 block">
+                      <Video className="w-4 h-4 mr-1 inline" />
+                      Selected Video
+                    </Label>
+                    <div className="bg-panel-dark rounded-lg p-4 border border-panel">
+                      {getSelectedContent('videos') ? (
+                        <div 
+                          className="aspect-video bg-panel rounded mb-3 flex items-center justify-center cursor-pointer relative group"
+                          onClick={() => handleContentClick(getSelectedContent('videos'))}
+                        >
+                          <video 
+                            src={getSelectedContent('videos').url} 
+                            className="w-full h-full object-contain rounded"
+                            controls={false}
+                            onMouseEnter={(e) => e.target.play()}
+                            onMouseLeave={(e) => e.target.pause()}
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded flex items-center justify-center">
+                            <Eye className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="aspect-video bg-panel rounded mb-3 flex items-center justify-center">
+                          <p className="text-secondary text-sm">No video selected</p>
+                        </div>
+                      )}
+                      
+                      {getSelectedContent('videos') && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-secondary">
+                            Prompt: {getSelectedContent('videos').prompt}
+                          </p>
+                          {getSelectedContent('videos').negative_prompt && (
+                            <p className="text-xs text-secondary">
+                              Negative: {getSelectedContent('videos').negative_prompt}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
-            <div className="flex-1 overflow-y-auto space-y-6">
-              {/* Generation Type Tabs */}
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-2 bg-panel-dark">
-                  <TabsTrigger value="image" className="data-[state=active]:bg-indigo-600">
-                    <Image className="w-4 h-4 mr-2" />
-                    Image Generation
-                  </TabsTrigger>
-                  <TabsTrigger value="video" className="data-[state=active]:bg-indigo-600">
-                    <Video className="w-4 h-4 mr-2" />
-                    Video Generation
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {/* Generation Type Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-2 bg-panel-dark">
+                <TabsTrigger value="image" className="data-[state=active]:bg-indigo-600">
+                  <Image className="w-4 h-4 mr-2" />
+                  Image Generation
+                </TabsTrigger>
+                <TabsTrigger value="video" className="data-[state=active]:bg-indigo-600">
+                  <Video className="w-4 h-4 mr-2" />
+                  Video Generation
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
 
-              {/* Server Selection */}
+            {/* Provider Selection */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-primary">Provider</Label>
+              <Select value={provider} onValueChange={setProvider}>
+                <SelectTrigger className="form-input" data-testid="provider-select">
+                  <SelectValue placeholder="Select provider" />
+                </SelectTrigger>
+                <SelectContent className="bg-panel border-panel">
+                  <SelectItem value="comfyui" className="text-primary hover:bg-panel-dark">
+                    ComfyUI (Servers)
+                  </SelectItem>
+                  <SelectItem value="openai" className="text-primary hover:bg-panel-dark">
+                    OpenAI Sora (Video)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Server Selection (ComfyUI only) */}
+              {provider === 'comfyui' && (
               <div className="space-y-3">
                 <Label className="text-sm font-medium text-primary">ComfyUI Server</Label>
                 {servers.length === 0 ? (
@@ -664,10 +941,10 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                     
                     {serverInfo && (
                       <div className="flex items-center space-x-3">
-                        <Badge 
+                        <Badge
                           variant={serverInfo.is_online ? 'default' : 'secondary'}
                           className={
-                            serverInfo.is_online 
+                            serverInfo.is_online
                               ? 'bg-green-500/20 text-green-400 border-green-500/30'
                               : 'bg-red-500/20 text-red-400 border-red-500/30'
                           }
@@ -682,8 +959,10 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                   </>
                 )}
               </div>
+              )}
+            </div>
 
-              {serverInfo?.is_online && (
+              {(provider === 'openai' || serverInfo?.is_online) && (
                 <>
                   {/* Prompts */}
                   <div className="grid grid-cols-1 gap-4">
@@ -718,6 +997,50 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                     </div>
                   </div>
 
+                  {/* Reference Image (OpenAI Sora - optional first frame) */}
+                  {provider === 'openai' && activeTab === 'video' && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-primary">Reference Image (First Frame - optional)</Label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleReferenceUpload}
+                          className="hidden"
+                          id="sora-reference-upload"
+                          data-testid="sora-reference-upload-input"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => document.getElementById('sora-reference-upload')?.click()}
+                          disabled={isUploadingFace}
+                          className="btn-secondary"
+                          data-testid="sora-reference-upload-btn"
+                        >
+                          {isUploadingFace ? 'Uploading...' : 'Upload Reference Image'}
+                        </Button>
+                        {soraReferenceImageUrl && (
+                          <Badge variant="outline" className="text-xs">✓ Reference added</Badge>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-secondary">Or enter reference image URL</Label>
+                        <Input
+                          className="form-input text-sm"
+                          placeholder="/uploads/your-image.webp or full http(s) URL"
+                          value={soraReferenceImageUrl}
+                          onChange={(e) => setSoraReferenceImageUrl(e.target.value)}
+                          data-testid="sora-reference-url-input"
+                        />
+                        <div className="text-xs text-secondary">
+                          Tip: For best results, use the same resolution as your target video size.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Model Selection */}
                   <div className="space-y-4">
                     <div className="space-y-2">
@@ -731,48 +1054,133 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                         )}
                       </Label>
 
-                      {/* Model Search Input */}
-                      <div className="relative">
-                        <Input
-                          placeholder="Search models..."
-                          value={modelSearchQuery}
-                          onChange={(e) => setModelSearchQuery(e.target.value)}
-                          className="form-input pr-8"
+                      {/* Multiple Model Toggle */}
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          checked={useMultipleModels}
+                          onCheckedChange={(checked) => {
+                            setUseMultipleModels(checked);
+                            if (checked) {
+                              setSelectedModels(selectedModel ? [selectedModel] : []);
+                              setSelectedModel('');
+                            } else {
+                              setSelectedModel(selectedModels.length > 0 ? selectedModels[0] : '');
+                              setSelectedModels([]);
+                            }
+                          }}
+                          data-testid="multiple-models-toggle"
                         />
-                        {modelSearchQuery && (
-                          <button
-                            onClick={() => setModelSearchQuery('')}
-                            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-secondary hover:text-primary"
+                        <Label className="text-xs text-secondary">Select multiple models</Label>
+                        {(selectedModels.length > 0 || selectedModel) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={clearModelSelection}
+                            className="h-6 px-2 text-xs"
                           >
-                            <X className="w-4 h-4" />
-                          </button>
+                            <X className="w-3 h-3 mr-1" />
+                            Clear
+                          </Button>
                         )}
                       </div>
 
-                      <Select value={selectedModel} onValueChange={setSelectedModel}>
-                        <SelectTrigger className="form-input" data-testid="model-select">
-                          <SelectValue placeholder="Select model" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-panel border-panel max-h-64 overflow-y-auto">
-                          {filteredModels.length === 0 ? (
-                            <div className="px-2 py-4 text-center text-secondary text-sm">
-                              {modelSearchQuery ? 'No models match your search' : 'No models available'}
-                            </div>
-                          ) : (
-                            filteredModels.map((model, index) => (
-                              <SelectItem
-                                key={index}
-                                value={model.name}
-                                className="text-primary hover:bg-panel-dark"
-                              >
-                                {model.name}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                      {/* Selected Models Display */}
+                      {useMultipleModels && selectedModels.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {selectedModels.map(model => (
+                            <Badge
+                              key={model}
+                              variant="secondary"
+                              className="text-xs cursor-pointer hover:bg-red-500/20"
+                              onClick={() => toggleModelSelection(model)}
+                            >
+                              {model}
+                              <X className="w-3 h-3 ml-1" />
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
 
+                      {/* Model selection varies by provider */}
+                      {provider === 'openai' ? (
+                        <Select value={selectedModel} onValueChange={setSelectedModel}>
+                          <SelectTrigger className="form-input">
+                            <SelectValue placeholder="Select Sora model" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-panel border-panel max-h-48 overflow-y-auto">
+                            <SelectItem value="sora-2" className="text-primary hover:bg-panel-dark">
+                              <span>sora-2 (faster)</span>
+                            </SelectItem>
+                            <SelectItem value="sora-2-pro" className="text-primary hover:bg-panel-dark">
+                              <span>sora-2-pro (higher fidelity)</span>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <>
+                        {/* Model Search Input */}
+                        <div className="relative">
+                          <Input
+                            placeholder="Search models..."
+                            value={modelSearchQuery}
+                            onChange={(e) => setModelSearchQuery(e.target.value)}
+                            className="form-input pr-8"
+                          />
+                          {modelSearchQuery && (
+                            <button
+                              onClick={() => setModelSearchQuery('')}
+                              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-secondary hover:text-primary"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+
+                        <Select
+                          value={useMultipleModels ? "" : selectedModel}
+                          onValueChange={(value) => {
+                            if (useMultipleModels) {
+                              toggleModelSelection(value);
+                            } else {
+                              setSelectedModel(value);
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="form-input" data-testid="model-select">
+                            <SelectValue placeholder={useMultipleModels ? "Select models..." : "Select model"} />
+                          </SelectTrigger>
+                          <SelectContent className="bg-panel border-panel max-h-64 overflow-y-auto">
+                            {filteredModels.length === 0 ? (
+                              <div className="px-2 py-4 text-center text-secondary text-sm">
+                                {modelSearchQuery ? 'No models match your search' : 'No models available'}
+                              </div>
+                            ) : (
+                              filteredModels.map((model, index) => (
+                                <SelectItem
+                                  key={index}
+                                  value={model.name}
+                                  className={`text-primary hover:bg-panel-dark ${
+                                    (useMultipleModels && selectedModels.includes(model.name)) ||
+                                    (!useMultipleModels && selectedModel === model.name)
+                                      ? 'bg-indigo-500/20' : ''
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between w-full">
+                                    <span>{model.name}</span>
+                                    {((useMultipleModels && selectedModels.includes(model.name)) ||
+                                      (!useMultipleModels && selectedModel === model.name)) && (
+                                      <div className="w-2 h-2 bg-indigo-500 rounded-full ml-2" />
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                        </>
+                      )}
+                    </div>
+                    
                     {/* Model Presets */}
                     {Object.keys(modelPresets).length > 0 && (
                       <div className="space-y-2">
@@ -809,7 +1217,8 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                       </div>
                     )}
                     
-                    {/* Multiple LoRAs */}
+                    {/* Multiple LoRAs (ComfyUI only) */}
+                    {provider === 'comfyui' && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <Label className="text-sm font-medium text-primary">LoRAs</Label>
@@ -826,60 +1235,98 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                         </Button>
                       </div>
                       <div className="space-y-2">
-                        {loras.map((lora, index) => (
-                          <div key={index} className="flex items-center space-x-2">
-                            <Select 
-                              value={lora.name} 
-                              onValueChange={(value) => updateLora(index, 'name', value)}
-                            >
-                              <SelectTrigger className="form-input flex-1">
-                                <SelectValue placeholder="Select LoRA" />
-                              </SelectTrigger>
-                              <SelectContent className="bg-panel border-panel max-h-48 overflow-y-auto">
-                                <SelectItem value="none" className="text-primary hover:bg-panel-dark">
-                                  None
-                                </SelectItem>
-                                {serverInfo.loras.map((availableLora, loraIndex) => (
-                                  <SelectItem 
-                                    key={loraIndex} 
-                                    value={availableLora.name} 
-                                    className="text-primary hover:bg-panel-dark"
-                                  >
-                                    {availableLora.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            
-                            <div className="flex items-center space-x-2 min-w-24">
-                              <Label className="text-xs text-secondary">Weight:</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                max="2"
-                                step="0.1"
-                                className="form-input w-16 text-xs"
-                                value={lora.weight}
-                                onChange={(e) => updateLora(index, 'weight', e.target.value)}
-                                disabled={lora.name === 'none'}
-                              />
-                            </div>
-                            
-                            {loras.length > 1 && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => removeLora(index)}
-                                className="btn-secondary"
+                        {loras.map((lora, index) => {
+                          const filteredLoras = getFilteredLoras(index);
+                          return (
+                          <div key={index} className="flex flex-col space-y-2">
+                            <div className="flex items-center space-x-2">
+                              <Select
+                                value={lora.name}
+                                onValueChange={(value) => updateLora(index, 'name', value)}
                               >
-                                <Minus className="w-3 h-3" />
-                              </Button>
+                                <SelectTrigger className="form-input flex-1">
+                                  <SelectValue placeholder="Select LoRA" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-panel border-panel max-h-48 overflow-y-auto">
+                                  <SelectItem value="none" className="text-primary hover:bg-panel-dark">
+                                    None
+                                  </SelectItem>
+                                  {filteredLoras.length === 0 ? (
+                                    <div className="px-2 py-4 text-center text-secondary text-sm">
+                                      {loraSearchQueries[index] ? 'No LoRAs match your search' : 'No LoRAs available'}
+                                    </div>
+                                  ) : (
+                                    filteredLoras.map((availableLora, loraIndex) => (
+                                      <SelectItem
+                                        key={loraIndex}
+                                        value={availableLora.name}
+                                        className={`text-primary hover:bg-panel-dark ${
+                                          lora.name === availableLora.name ? 'bg-indigo-500/20' : ''
+                                        }`}
+                                      >
+                                        <div className="flex items-center justify-between w-full">
+                                          <span>{availableLora.name}</span>
+                                          {lora.name === availableLora.name && (
+                                            <div className="w-2 h-2 bg-indigo-500 rounded-full ml-2" />
+                                          )}
+                                        </div>
+                                      </SelectItem>
+                                    ))
+                                  )}
+                                </SelectContent>
+                              </Select>
+                              
+                              <div className="flex items-center space-x-2 min-w-24">
+                                <Label className="text-xs text-secondary">Weight:</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max="2"
+                                  step="0.1"
+                                  className="form-input w-16 text-xs"
+                                  value={lora.weight}
+                                  onChange={(e) => updateLora(index, 'weight', e.target.value)}
+                                  disabled={lora.name === 'none'}
+                                />
+                              </div>
+                              
+                              {loras.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => removeLora(index)}
+                                  className="btn-secondary"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </Button>
+                              )}
+                            </div>
+                            {/* LoRA Search Input */}
+                            {serverInfo?.loras?.length > 10 && (
+                              <div className="relative ml-2">
+                                <Input
+                                  placeholder="Search LoRAs..."
+                                  value={loraSearchQueries[index] || ''}
+                                  onChange={(e) => updateLoraSearch(index, e.target.value)}
+                                  className="form-input pr-8 text-sm h-8"
+                                />
+                                {loraSearchQueries[index] && (
+                                  <button
+                                    onClick={() => updateLoraSearch(index, '')}
+                                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-secondary hover:text-primary"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
+                    )}
                   </div>
 
                   {/* Generation Parameters */}
@@ -1267,7 +1714,8 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                           )}
                         </div>
 
-                        {/* Custom Workflow */}
+                        {/* Custom Workflow (ComfyUI only) */}
+                        {provider === 'comfyui' && (
                         <div className="space-y-3">
                           <div className="flex items-center space-x-2">
                             <Switch
@@ -1288,6 +1736,7 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
                             </div>
                           )}
                         </div>
+                        )}
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
@@ -1307,9 +1756,13 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleGenerate}
-                disabled={isGenerating || !selectedServer || !prompts[activeTab].trim() || !serverInfo?.is_online}
+                disabled={
+                  isGenerating ||
+                  !prompts[activeTab].trim() ||
+                  (provider === 'comfyui' && (!selectedServer || !serverInfo?.is_online))
+                }
                 className="btn-primary"
                 data-testid="start-generation-btn"
               >
