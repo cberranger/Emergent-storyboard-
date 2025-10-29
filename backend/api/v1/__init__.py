@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from . import (
+    auth_router,
     characters_router,
     clips_router,
     comfyui_router,
@@ -17,6 +18,7 @@ from . import (
 
 api_v1_router = APIRouter()
 
+api_v1_router.include_router(auth_router.router)
 api_v1_router.include_router(health_router.router)
 api_v1_router.include_router(comfyui_router.router)
 api_v1_router.include_router(projects_router.router)

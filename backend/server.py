@@ -5034,10 +5034,11 @@ from config import config as app_config
 # Configure CORS to allow requests from the frontend development server
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Specific origin
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],  # Specify allowed headers
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+    expose_headers=["Content-Type", "Authorization"]
 )
 
 # Add logging and performance middleware

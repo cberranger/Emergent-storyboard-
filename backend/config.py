@@ -26,6 +26,12 @@ class Config:
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
     OPENAI_DEFAULT_VIDEO_MODEL = os.environ.get("OPENAI_DEFAULT_VIDEO_MODEL", "sora-2")
 
+    # JWT Authentication
+    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "development-secret-change-in-production")
+    JWT_ALGORITHM = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 60
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS = 30
+
     @staticmethod
     def validate_openai_config():
         """Validate OpenAI configuration on startup"""

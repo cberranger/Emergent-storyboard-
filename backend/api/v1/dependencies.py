@@ -1,21 +1,53 @@
 from __future__ import annotations
 
-from fastapi import Depends
+from fastapi import Depends, Header
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from typing import Optional
 
 from database import get_database
 from repositories.clip_repository import ClipRepository
 from repositories.comfyui_repository import ComfyUIRepository
 from repositories.project_repository import ProjectRepository
 from repositories.scene_repository import SceneRepository
+from repositories.user_repository import UserRepository
 from services.comfyui_service import ComfyUIService
 from services.generation_service import GenerationService
 from services.media_service import MediaService
 from services.project_service import ProjectService
+from services.auth_service import AuthService
 
 
 async def get_db() -> AsyncIOMotorDatabase:
     return await get_database()
+
+
+async def get_auth_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> AuthService:
+    user_repo = UserRepository(db.users)
+    return AuthService(user_repo)
+
+
+async def get_current_user_optional(
+    authorization: Optional[str] = Header(None),
+    auth_service: AuthService = Depends(get_auth_service)
+) -> Optional[dict]:
+    if not authorization:
+        return None
+    
+    if not authorization.startswith("Bearer "):
+        return None
+    
+    token = authorization.replace("Bearer ", "")
+    payload = auth_service.decode_token(token)
+    
+    if not payload or payload.get("type") != "access":
+        return None
+    
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+    
+    user = await auth_service.get_user_by_id(user_id)
+    return user
 
 
 async def get_project_service(
