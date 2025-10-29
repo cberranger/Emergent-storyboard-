@@ -1,29 +1,35 @@
-# Agent Commands & Guidelines
+# StoryCanvas Developer Guide
 
-## Setup
+## Setup & Commands
+
+### Initial Setup
 ```bash
-cd backend && python -m venv venv && venv\Scripts\activate && pip install -r requirements.txt
-cd ../frontend && yarn install
+# Backend (Python 3.8+, MongoDB required)
+cd backend
+python -m venv venv  # or .venv
+venv\Scripts\activate  # Windows PowerShell
+pip install -r requirements.txt
+
+# Frontend (Node.js 16+)
+cd frontend
+yarn install  # or npm install
 ```
 
-## Commands
+### Run Commands
+- **Dev Server**: `.\launch.bat` or `.\launch.sh` (starts both frontend & backend)
+- **Backend Only**: `cd backend && uvicorn server:app --host localhost --port 8001 --reload`
+- **Frontend Only**: `cd frontend && yarn start`
 - **Build**: `cd frontend && yarn build`
-- **Lint**: `cd frontend && npx eslint src/`
-- **Test**: `python backend/test_*.py` (no formal test framework)
-- **Dev**: `.\launch.bat` (starts backend on :8001, frontend on :3000)
+- **Lint**: No lint configured (ESLint dependencies present but not configured)
+- **Tests**: No test framework configured
 
-## Stack
-- **Backend**: FastAPI + MongoDB + Motor (async) + aiohttp
-- **Frontend**: React 18 + Shadcn UI + React DnD + Tailwind CSS
-- **Architecture**: Service layer + Repository pattern + DTOs
+## Tech Stack
+- **Backend**: FastAPI + Motor (MongoDB) + aiohttp
+- **Frontend**: React 18 + Shadcn UI + Radix UI + React DnD + Tailwind CSS
+- **Architecture**: Service layer pattern with repositories, DTOs, and API versioning (`/api/v1`)
 
-## Structure
-- `backend/server.py` - Main API server
-- `backend/services/` - Business logic (project, queue, generation, comfyui, export)
-- `backend/repositories/` - Database access layer
-- `frontend/src/components/` - React components (.jsx for UI, .js for older)
-
-## Style
-- Backend: 4-space indent, snake_case, Pydantic models for validation
-- Frontend: 2-space indent, camelCase, functional components with hooks
-- No comments unless complex logic; follow existing patterns; use shadcn/ui components
+## Code Conventions
+- **Python**: Service layer for business logic, repository pattern for data access, Pydantic models for validation
+- **React**: Functional components with hooks, shadcn/ui components via CVA (class-variance-authority), utility-first CSS with Tailwind
+- **Naming**: camelCase (JS), snake_case (Python)
+- **Styling**: Dark theme, `cn()` utility for class merging, CVA for component variants
