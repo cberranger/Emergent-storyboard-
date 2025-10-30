@@ -180,6 +180,9 @@ class ProjectService:
     # -------------------------------------------------------------------------
     async def create_clip(self, payload: ClipCreateDTO) -> ClipResponseDTO:
         await self._ensure_scene_exists(payload.scene_id)
+        
+        scene_doc = await self._scenes.find_by_id(payload.scene_id)
+        project_id = scene_doc.get("project_id") if scene_doc else None
 
         dto = ClipResponseDTO(
             id=str(uuid4()),
@@ -196,7 +199,12 @@ class ProjectService:
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
-        await self._clips.create(dto.model_dump())
+        
+        clip_dict = dto.model_dump()
+        if project_id:
+            clip_dict["project_id"] = project_id
+        
+        await self._clips.create(clip_dict)
         return dto
 
     async def list_scene_clips(self, scene_id: str) -> List[ClipResponseDTO]:

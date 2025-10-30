@@ -46,3 +46,7 @@ class SceneRepository(BaseRepository):
         updates: Dict[str, Any],
     ) -> Optional[Dict[str, Any]]:
         return await self.update_by_id(scene_id, updates)
+
+    async def find_by_project_id(self, project_id: str) -> List[Dict[str, Any]]:
+        """Find all scenes for a project"""
+        return await self.list_by_project(project_id)

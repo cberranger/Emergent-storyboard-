@@ -151,7 +151,8 @@ class QueueManager:
         params: Optional[Dict[str, Any]] = None,
         loras: Optional[List[Dict[str, Any]]] = None,
         priority: int = 0,
-        preferred_server_id: Optional[str] = None
+        preferred_server_id: Optional[str] = None,
+        max_retries: int = 3
     ) -> QueuedJob:
         """
         Add a job to the queue
@@ -185,7 +186,8 @@ class QueueManager:
             params=params or {},
             loras=loras or [],
             priority=priority,
-            server_id=preferred_server_id
+            server_id=preferred_server_id,
+            max_retries=max_retries
         )
 
         # Estimate job duration based on type

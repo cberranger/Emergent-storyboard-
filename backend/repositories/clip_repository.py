@@ -70,3 +70,7 @@ class ClipRepository(BaseRepository):
             "updated_at": datetime.now(timezone.utc),
         }
         return await self.update_by_id(clip_id, updates)
+
+    async def find_by_scene_id(self, scene_id: str) -> List[Dict[str, Any]]:
+        """Find all clips for a scene"""
+        return await self.list_by_scene(scene_id)
