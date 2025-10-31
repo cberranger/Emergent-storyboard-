@@ -28,6 +28,8 @@ const ModelCard = ({ model, onUpdate, onSyncCivitai }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [showSearch, setShowSearch] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [configurations, setConfigurations] = useState([]);
+  const [loadingConfigs, setLoadingConfigs] = useState(false);
 
   // Get background image from Civitai model
   const getBackgroundImage = () => {
@@ -145,6 +147,26 @@ const ModelCard = ({ model, onUpdate, onSyncCivitai }) => {
     if (!timestamp) return 'Never';
     return new Date(timestamp).toLocaleDateString();
   };
+
+  const fetchConfigurations = async () => {
+    if (!model.id) return;
+    
+    setLoadingConfigs(true);
+    try {
+      const configs = await modelService.getModelConfigurations(model.id);
+      setConfigurations(configs);
+    } catch (error) {
+      console.error('Error fetching configurations:', error);
+    } finally {
+      setLoadingConfigs(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showDetails) {
+      fetchConfigurations();
+    }
+  }, [showDetails, model.id]);
 
   return (
     <>
@@ -282,54 +304,90 @@ const ModelCard = ({ model, onUpdate, onSyncCivitai }) => {
                 <h4 className="font-medium text-primary">Configuration Presets</h4>
                 <Button size="sm" variant="outline">
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Preset
+                  Add Configuration
                 </Button>
               </div>
               
-              {model.configuration_presets && model.configuration_presets.length > 0 ? (
+              {loadingConfigs ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="w-6 h-6 animate-spin text-secondary mr-2" />
+                  <span className="text-secondary">Loading configurations...</span>
+                </div>
+              ) : configurations.length > 0 ? (
                 <div className="grid gap-3">
-                  {model.configuration_presets.map((preset) => (
-                    <Card key={preset.id} className="bg-panel-dark">
+                  {configurations.map((config) => (
+                    <Card key={config.id} className="bg-panel-dark">
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
-                          <CardTitle className="text-sm">{preset.name}</CardTitle>
+                          <div className="flex items-center space-x-2">
+                            <CardTitle className="text-sm">{config.name}</CardTitle>
+                            {config.is_default && (
+                              <Badge variant="default" className="text-xs">Default</Badge>
+                            )}
+                          </div>
                           <div className="flex space-x-2">
                             <Button size="sm" variant="ghost">
                               <Settings className="w-3 h-3" />
                             </Button>
                           </div>
                         </div>
-                        {preset.description && (
-                          <p className="text-xs text-secondary">{preset.description}</p>
+                        {config.description && (
+                          <p className="text-xs text-secondary">{config.description}</p>
                         )}
+                        <div className="flex items-center space-x-2 text-xs text-secondary mt-1">
+                          <span>Base Model: {config.base_model}</span>
+                        </div>
                       </CardHeader>
                       <CardContent className="pt-0">
                         <div className="grid grid-cols-3 gap-4 text-xs">
                           <div>
                             <span className="text-secondary">CFG Scale:</span>
-                            <span className="ml-2">{preset.cfg_scale}</span>
+                            <span className="ml-2">{config.cfg_scale}</span>
                           </div>
                           <div>
                             <span className="text-secondary">Steps:</span>
-                            <span className="ml-2">{preset.steps}</span>
+                            <span className="ml-2">{config.steps}</span>
                           </div>
                           <div>
                             <span className="text-secondary">Sampler:</span>
-                            <span className="ml-2">{preset.sampler}</span>
+                            <span className="ml-2">{config.sampler}</span>
+                          </div>
+                          <div>
+                            <span className="text-secondary">Scheduler:</span>
+                            <span className="ml-2">{config.scheduler}</span>
                           </div>
                           <div>
                             <span className="text-secondary">Resolution:</span>
-                            <span className="ml-2">{preset.resolution_width}x{preset.resolution_height}</span>
+                            <span className="ml-2">{config.resolution_width}x{config.resolution_height}</span>
                           </div>
                           <div>
                             <span className="text-secondary">Batch Size:</span>
-                            <span className="ml-2">{preset.batch_size}</span>
+                            <span className="ml-2">{config.batch_size}</span>
                           </div>
+                          {config.clip_skip !== -1 && (
+                            <div>
+                              <span className="text-secondary">CLIP Skip:</span>
+                              <span className="ml-2">{config.clip_skip}</span>
+                            </div>
+                          )}
                           <div>
                             <span className="text-secondary">Seed:</span>
-                            <span className="ml-2">{preset.seed === -1 ? 'Random' : preset.seed}</span>
+                            <span className="ml-2">{config.seed === -1 ? 'Random' : config.seed}</span>
                           </div>
                         </div>
+                        {config.additional_params && Object.keys(config.additional_params).length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-gray-700">
+                            <p className="text-xs text-secondary mb-2">Additional Parameters:</p>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              {Object.entries(config.additional_params).map(([key, value]) => (
+                                <div key={key}>
+                                  <span className="text-secondary">{key}:</span>
+                                  <span className="ml-2">{JSON.stringify(value)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
@@ -337,8 +395,8 @@ const ModelCard = ({ model, onUpdate, onSyncCivitai }) => {
               ) : (
                 <div className="text-center py-8 text-secondary">
                   <Settings className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p>No configuration presets found</p>
-                  <p className="text-sm">Create presets to save commonly used generation settings</p>
+                  <p>No configurations found</p>
+                  <p className="text-sm">Create configurations to save inference parameter settings</p>
                 </div>
               )}
             </TabsContent>
