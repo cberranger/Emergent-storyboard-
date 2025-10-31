@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { projectService, comfyuiService } from "@/services";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 
 // Import components
 import Sidebar from "@/components/Sidebar";
@@ -18,6 +19,7 @@ import QueueDashboard from "@/components/QueueDashboard";
 import GenerationPool from "@/components/GenerationPool";
 import ProjectDashboard from "@/components/ProjectDashboard";
 import GenerationStudio from "@/components/GenerationStudio";
+import NotificationWidget from "@/components/NotificationWidget";
 
 function App() {
   const [projects, setProjects] = useState([]);
@@ -159,25 +161,28 @@ function App() {
 
   return (
     <BrowserRouter>
-      <div className="App flex h-screen bg-slate-100 text-slate-900">
-        <Sidebar
-          currentView={currentView}
-          onViewChange={setCurrentView}
-          activeProject={activeProject}
-          onProjectSelect={() => setCurrentView('projects')}
-        />
-        
-        <main className="flex-1 overflow-hidden">
-          <Routes>
-            <Route
-              path="/*"
-              element={renderMainContent()}
-            />
-          </Routes>
-        </main>
-        
-        <Toaster theme="light" />
-      </div>
+      <NotificationProvider>
+        <div className="App flex h-screen bg-slate-100 text-slate-900">
+          <Sidebar
+            currentView={currentView}
+            onViewChange={setCurrentView}
+            activeProject={activeProject}
+            onProjectSelect={() => setCurrentView('projects')}
+          />
+          
+          <main className="flex-1 overflow-hidden">
+            <Routes>
+              <Route
+                path="/*"
+                element={renderMainContent()}
+              />
+            </Routes>
+          </main>
+          
+          <NotificationWidget />
+          <Toaster theme="light" />
+        </div>
+      </NotificationProvider>
     </BrowserRouter>
   );
 }

@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { toast } from 'sonner';
 import { comfyuiService, modelService, clipService, sceneService, characterService, generationService, poolService } from '@/services';
+import { useNotifications } from '@/contexts/NotificationContext';
 import MediaViewerDialog from './MediaViewerDialog';
 import ResultsPreviewPanel from './ResultsPreviewPanel';
 import {
@@ -31,6 +32,8 @@ import {
 } from '@/utils/generationSettings';
 
 const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerated }) => {
+  const { addTrackedJob } = useNotifications();
+  
   // Load persistent settings on component mount
   const savedSettings = loadGenerationSettings();
   
@@ -420,10 +423,20 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
         params,
       };
 
+      let response;
       if (isOpenAI) {
-        await generationService.generateV1(requestData);
+        response = await generationService.generateV1(requestData);
       } else {
-        await generationService.generate(requestData);
+        response = await generationService.generate(requestData);
+      }
+
+      if (response?.job_id) {
+        addTrackedJob({
+          id: response.job_id,
+          generation_type: isOpenAI ? 'video' : activeTab,
+          status: 'pending',
+          params: { prompt: prompt.trim() }
+        });
       }
 
       toast.success(`${(isOpenAI || activeTab === 'video') ? 'Video' : 'Image'} generation started successfully`);

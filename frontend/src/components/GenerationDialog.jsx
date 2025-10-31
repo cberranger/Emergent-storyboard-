@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { comfyuiService, generationService } from '@/services';
+import { useNotifications } from '@/contexts/NotificationContext';
 import {
   saveGenerationSettings,
   loadGenerationSettings,
@@ -19,6 +20,8 @@ import {
 } from '@/utils/generationSettings';
 
 const GenerationDialog = ({ open, onOpenChange, clip, servers, onGenerated }) => {
+  const { addTrackedJob } = useNotifications();
+  
   // Load persistent settings on component mount
   const savedSettings = loadGenerationSettings();
   
@@ -156,7 +159,16 @@ const GenerationDialog = ({ open, onOpenChange, clip, servers, onGenerated }) =>
           params,
         };
 
-        await generationService.generateV1(requestData);
+        const response = await generationService.generateV1(requestData);
+
+        if (response?.job_id) {
+          addTrackedJob({
+            id: response.job_id,
+            generation_type: 'video',
+            status: 'pending',
+            params: { prompt: prompt.trim() }
+          });
+        }
 
         toast.success('Video generation started with OpenAI Sora');
         onGenerated();
@@ -202,7 +214,16 @@ const GenerationDialog = ({ open, onOpenChange, clip, servers, onGenerated }) =>
           },
         };
 
-        await generationService.generate(requestData);
+        const response = await generationService.generate(requestData);
+
+        if (response?.job_id) {
+          addTrackedJob({
+            id: response.job_id,
+            generation_type: generationType,
+            status: 'pending',
+            params: { prompt: prompt.trim() }
+          });
+        }
 
         toast.success(`${generationType === 'image' ? 'Image' : 'Video'} generation started successfully`);
         onGenerated();

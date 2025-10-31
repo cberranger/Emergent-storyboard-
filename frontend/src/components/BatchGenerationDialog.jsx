@@ -22,6 +22,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { comfyuiService, generationService } from '@/services';
+import { useNotifications } from '@/contexts/NotificationContext';
 import {
   Wand2,
   Loader2,
@@ -40,6 +41,8 @@ const BatchGenerationDialog = ({
   servers = [],
   onBatchStart
 }) => {
+  const { addTrackedJob } = useNotifications();
+  
   const [selectedClipIds, setSelectedClipIds] = useState([]);
   const [generationType, setGenerationType] = useState('image');
   const [selectedServer, setSelectedServer] = useState('');
@@ -121,7 +124,7 @@ const BatchGenerationDialog = ({
         seed
       };
 
-      await generationService.generateBatch({
+      const response = await generationService.generateBatch({
         clip_ids: selectedClipIds,
         server_id: selectedServer,
         generation_type: generationType,
@@ -132,11 +135,22 @@ const BatchGenerationDialog = ({
         loras: []
       });
 
+      if (response?.job_ids) {
+        response.job_ids.forEach(jobId => {
+          addTrackedJob({
+            id: jobId,
+            generation_type: generationType,
+            status: 'pending',
+            params: { prompt: prompt || '' }
+          });
+        });
+      }
+
       toast.success(`Batch generation started for ${selectedClipIds.length} clips`);
 
       // Notify parent and close dialog
       if (onBatchStart) {
-        onBatchStart(response.data);
+        onBatchStart(response);
       }
 
       onOpenChange(false);

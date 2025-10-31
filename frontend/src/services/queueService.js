@@ -6,6 +6,11 @@ export const queueService = {
     return response.data;
   },
 
+  getJob: async (jobId) => {
+    const response = await apiClient.get(`/queue/jobs/${jobId}`);
+    return response.data;
+  },
+
   retryJob: async (jobId) => {
     const response = await apiClient.post(`/queue/jobs/${jobId}/retry`);
     return response.data;
