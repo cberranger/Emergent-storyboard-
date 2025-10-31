@@ -382,15 +382,21 @@ class ProjectService:
         if not clip:
             raise ClipNotFoundError(clip_id)
 
+        images = [
+            GeneratedContentDTO(**image)
+            for image in clip.get("generated_images", [])
+        ]
+        videos = [
+            GeneratedContentDTO(**video)
+            for video in clip.get("generated_videos", [])
+        ]
+        
+        images.sort(key=lambda x: x.created_at, reverse=True)
+        videos.sort(key=lambda x: x.created_at, reverse=True)
+
         return ClipGalleryResponseDTO(
-            images=[
-                GeneratedContentDTO(**image)
-                for image in clip.get("generated_images", [])
-            ],
-            videos=[
-                GeneratedContentDTO(**video)
-                for video in clip.get("generated_videos", [])
-            ],
+            images=images,
+            videos=videos,
             selected_image_id=clip.get("selected_image_id"),
             selected_video_id=clip.get("selected_video_id"),
         )

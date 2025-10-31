@@ -15,6 +15,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { toast } from 'sonner';
 import { comfyuiService, modelService, clipService, sceneService, characterService, generationService, poolService } from '@/services';
 import MediaViewerDialog from './MediaViewerDialog';
+import ResultsPreviewPanel from './ResultsPreviewPanel';
 import {
   isValidUUID,
   validatePromptLength,
@@ -698,7 +699,7 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-panel border-panel max-w-6xl max-h-[90vh] flex flex-col">
+      <DialogContent className="bg-panel border-panel max-w-7xl max-h-[90vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-primary flex items-center">
@@ -718,7 +719,8 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+        <div className="flex-1 overflow-hidden flex gap-4 min-h-0">
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
           {showGallery ? (
             <div className="flex-1 flex gap-4 overflow-hidden">
               {/* Gallery Section - Left Side */}
@@ -1757,6 +1759,17 @@ const EnhancedGenerationDialog = ({ open, onOpenChange, clip, servers, onGenerat
               </Button>
             </div>
           )}
+          </div>
+
+          {/* Results Preview Panel - Right Side */}
+          <div className="w-80 flex-shrink-0 overflow-hidden">
+            <ResultsPreviewPanel
+              clipId={clip?.id}
+              contentType={activeTab === 'image' ? 'image' : activeTab === 'video' ? 'video' : 'all'}
+              limit={3}
+              onContentClick={handleContentClick}
+            />
+          </div>
         </div>
 
         {/* Media Viewer Dialog */}
