@@ -4,6 +4,7 @@ from fastapi import Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from database import get_database
+from active_models_service import ActiveModelsService
 from repositories.clip_repository import ClipRepository
 from repositories.comfyui_repository import ComfyUIRepository
 from repositories.project_repository import ProjectRepository
@@ -31,7 +32,10 @@ async def get_comfyui_service(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> ComfyUIService:
     repository = ComfyUIRepository(db.comfyui_servers)
-    return ComfyUIService(repository)
+    # Initialize ActiveModelsService for the ComfyUIService
+    from database import db_manager
+    active_models_service = ActiveModelsService(db_manager.client, db_manager.db_name)
+    return ComfyUIService(repository, active_models_service)
 
 
 async def get_media_service(
