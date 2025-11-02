@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { comfyuiService, characterService } from '@/services';
 import { toast } from 'sonner';
-import { Users, Plus, Edit, Trash2, Image as ImageIcon, Sparkles, X, Upload, Play, Server } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Image as ImageIcon, Sparkles, X, Upload, Play, Server, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,7 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AdvancedCharacterCreator from './AdvancedCharacterCreator';
-import FaceFusionProcessor from './FaceFusionProcessor';
+import FaceFusionUI from './FaceFusionUI';
 
 const CharacterManager = ({ activeProject }) => {
   const [characters, setCharacters] = useState([]);
@@ -45,6 +45,8 @@ const CharacterManager = ({ activeProject }) => {
   const [showSamplesDialog, setShowSamplesDialog] = useState(false);
   const [selectedServer, setSelectedServer] = useState('');
   const [comfyUIServers, setComfyUIServers] = useState([]);
+  const [showFaceFusionDialog, setShowFaceFusionDialog] = useState(false);
+  const [faceFusionCharacter, setFaceFusionCharacter] = useState(null);
 
   useEffect(() => {
     if (activeProject) {
@@ -209,6 +211,11 @@ const CharacterManager = ({ activeProject }) => {
       style_notes: character.style_notes || ''
     });
     setImageUrls((character.reference_images || []).join(', '));
+  };
+
+  const openFaceFusion = (character) => {
+    setFaceFusionCharacter(character);
+    setShowFaceFusionDialog(true);
   };
 
   if (!activeProject) {
@@ -435,13 +442,15 @@ const CharacterManager = ({ activeProject }) => {
                         Generate
                       </Button>
                     </div>
-                    <FaceFusionProcessor
-                      character={character}
-                      onProcessComplete={(processedImageUrl) => {
-                        // Update character with processed image if needed
-                        toast.success('FaceFusion processing completed');
-                      }}
-                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-2"
+                      onClick={() => openFaceFusion(character)}
+                    >
+                      <Wand2 className="w-4 h-4" />
+                      FaceFusion
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -449,6 +458,12 @@ const CharacterManager = ({ activeProject }) => {
           </div>
         )}
       </div>
+
+      <FaceFusionUI 
+        character={faceFusionCharacter}
+        isOpen={showFaceFusionDialog}
+        onClose={() => setShowFaceFusionDialog(false)}
+      />
 
       {/* Create/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
