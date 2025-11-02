@@ -57,72 +57,481 @@ def get_database():
 
 # FaceFusion integration
 class FaceFusionClient:
-    def __init__(self, base_url: str = "http://localhost:7870"):
+    def __init__(self, base_url: str = "http://192.168.1.10:9002"):
         self.base_url = base_url.rstrip('/')
+        self._gradio_client = None
+        self._job_cache = {}
     
-    async def enhance_face(self, image_path: str, enhancement_model: str = "gfpgan_1.4") -> Optional[str]:
-        """Enhance face quality using FaceFusion"""
+    def _get_gradio_client(self):
+        """Lazy initialize Gradio client"""
+        if self._gradio_client is None:
+            try:
+                from gradio_client import Client
+                self._gradio_client = Client(self.base_url)
+            except ImportError:
+                logging.error("gradio_client not installed. Install with: pip install gradio_client")
+                raise
+        return self._gradio_client
+    
+    async def swap_face(
+        self,
+        source_face: str,
+        target_media: str,
+        face_swapper_model: str = "inswapper_128",
+        source_face_index: int = 0,
+        target_face_index: int = 0,
+        reference_face_distance: float = 0.6,
+        face_mask_types: Optional[List[str]] = None,
+        face_mask_blur: float = 0.3,
+        face_mask_padding: Optional[tuple] = None,
+        face_mask_regions: Optional[List[List[List[int]]]] = None,
+        face_detector_model: str = "scrfd",
+        face_detector_size: str = "640x640",
+        face_detector_score: float = 0.5,
+        face_enhancer_model: Optional[str] = None,
+        face_enhancer_blend: float = 0.8,
+        output_path: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Swap face with comprehensive parameter control"""
+        try:
+            client = self._get_gradio_client()
+            
+            params = {
+                "source_face": source_face,
+                "target_media": target_media,
+                "face_swapper_model": face_swapper_model,
+                "source_face_index": source_face_index,
+                "target_face_index": target_face_index,
+                "reference_face_distance": reference_face_distance,
+                "face_mask_types": face_mask_types or ["occlusion"],
+                "face_mask_blur": face_mask_blur,
+                "face_detector_model": face_detector_model,
+                "face_detector_size": face_detector_size,
+                "face_detector_score": face_detector_score
+            }
+            
+            if face_mask_padding:
+                params["face_mask_padding"] = face_mask_padding
+            if face_mask_regions:
+                params["face_mask_regions"] = face_mask_regions
+            if face_enhancer_model:
+                params["face_enhancer_model"] = face_enhancer_model
+                params["face_enhancer_blend"] = face_enhancer_blend
+            if output_path:
+                params["output_path"] = output_path
+            
+            result = await asyncio.to_thread(client.predict, **params, fn_index=0)
+            return self._parse_gradio_result(result)
+        except Exception as e:
+            logging.error(f"Error in face swap: {e}")
+            return None
+    
+    async def enhance_face(
+        self,
+        target_media: str,
+        face_enhancer_model: str = "gfpgan_1.4",
+        face_enhancer_blend: float = 0.8,
+        face_enhancer_iterations: int = 1,
+        face_detector_model: str = "scrfd",
+        face_detector_size: str = "640x640",
+        target_face_index: int = 0,
+        output_path: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Enhance face with model selection and iteration control"""
+        try:
+            client = self._get_gradio_client()
+            
+            params = {
+                "target_media": target_media,
+                "face_enhancer_model": face_enhancer_model,
+                "face_enhancer_blend": face_enhancer_blend,
+                "face_enhancer_iterations": face_enhancer_iterations,
+                "face_detector_model": face_detector_model,
+                "face_detector_size": face_detector_size,
+                "target_face_index": target_face_index
+            }
+            
+            if output_path:
+                params["output_path"] = output_path
+            
+            result = await asyncio.to_thread(client.predict, **params, fn_index=1)
+            return self._parse_gradio_result(result)
+        except Exception as e:
+            logging.error(f"Error in face enhancement: {e}")
+            return None
+    
+    async def edit_face_age(
+        self,
+        target_media: str,
+        face_editor_age: int,
+        face_editor_age_direction: str = "auto",
+        face_editor_blend: float = 0.9,
+        face_editor_model: str = "live_portrait",
+        face_enhancer_model: Optional[str] = None,
+        face_enhancer_blend: float = 0.7,
+        target_face_index: int = 0,
+        output_path: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Edit face age with direction control"""
+        try:
+            client = self._get_gradio_client()
+            
+            params = {
+                "target_media": target_media,
+                "face_editor_age": face_editor_age,
+                "face_editor_age_direction": face_editor_age_direction,
+                "face_editor_blend": face_editor_blend,
+                "face_editor_model": face_editor_model,
+                "target_face_index": target_face_index
+            }
+            
+            if face_enhancer_model:
+                params["face_enhancer_model"] = face_enhancer_model
+                params["face_enhancer_blend"] = face_enhancer_blend
+            if output_path:
+                params["output_path"] = output_path
+            
+            result = await asyncio.to_thread(client.predict, **params, fn_index=2)
+            return self._parse_gradio_result(result)
+        except Exception as e:
+            logging.error(f"Error in age editing: {e}")
+            return None
+    
+    async def edit_face_expression(
+        self,
+        target_media: str,
+        face_editor_eyebrow_direction: Optional[str] = None,
+        face_editor_eye_gaze: Optional[str] = None,
+        face_editor_eye_open_ratio: float = 1.0,
+        face_editor_lip_open_ratio: float = 1.0,
+        face_editor_mouth_grim: float = 0.0,
+        face_editor_mouth_pout: float = 0.0,
+        face_editor_mouth_purse: float = 0.0,
+        face_editor_mouth_smile: float = 0.0,
+        face_editor_mouth_position: float = 0.0,
+        face_editor_head_pitch: float = 0.0,
+        face_editor_head_yaw: float = 0.0,
+        face_editor_head_roll: float = 0.0,
+        face_editor_blend: float = 0.85,
+        target_face_index: int = 0,
+        output_path: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Edit face expression and pose"""
+        try:
+            client = self._get_gradio_client()
+            
+            params = {
+                "target_media": target_media,
+                "face_editor_eye_open_ratio": face_editor_eye_open_ratio,
+                "face_editor_lip_open_ratio": face_editor_lip_open_ratio,
+                "face_editor_mouth_grim": face_editor_mouth_grim,
+                "face_editor_mouth_pout": face_editor_mouth_pout,
+                "face_editor_mouth_purse": face_editor_mouth_purse,
+                "face_editor_mouth_smile": face_editor_mouth_smile,
+                "face_editor_mouth_position": face_editor_mouth_position,
+                "face_editor_head_pitch": face_editor_head_pitch,
+                "face_editor_head_yaw": face_editor_head_yaw,
+                "face_editor_head_roll": face_editor_head_roll,
+                "face_editor_blend": face_editor_blend,
+                "target_face_index": target_face_index
+            }
+            
+            if face_editor_eyebrow_direction:
+                params["face_editor_eyebrow_direction"] = face_editor_eyebrow_direction
+            if face_editor_eye_gaze:
+                params["face_editor_eye_gaze"] = face_editor_eye_gaze
+            if output_path:
+                params["output_path"] = output_path
+            
+            result = await asyncio.to_thread(client.predict, **params, fn_index=3)
+            return self._parse_gradio_result(result)
+        except Exception as e:
+            logging.error(f"Error in expression editing: {e}")
+            return None
+    
+    async def edit_face_features(
+        self,
+        target_media: str,
+        face_editor_face_shape: float = 0.0,
+        face_editor_nose_length: float = 1.0,
+        face_editor_nose_width: float = 1.0,
+        face_editor_eye_distance: float = 1.0,
+        face_editor_eye_size: float = 1.0,
+        face_editor_lip_size: float = 1.0,
+        face_editor_hair_style: Optional[int] = None,
+        face_editor_hair_color: Optional[str] = None,
+        face_editor_blend: float = 0.85,
+        target_face_index: int = 0,
+        output_path: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Edit face features like nose, eyes, lips"""
+        try:
+            client = self._get_gradio_client()
+            
+            params = {
+                "target_media": target_media,
+                "face_editor_face_shape": face_editor_face_shape,
+                "face_editor_nose_length": face_editor_nose_length,
+                "face_editor_nose_width": face_editor_nose_width,
+                "face_editor_eye_distance": face_editor_eye_distance,
+                "face_editor_eye_size": face_editor_eye_size,
+                "face_editor_lip_size": face_editor_lip_size,
+                "face_editor_blend": face_editor_blend,
+                "target_face_index": target_face_index
+            }
+            
+            if face_editor_hair_style is not None:
+                params["face_editor_hair_style"] = face_editor_hair_style
+            if face_editor_hair_color:
+                params["face_editor_hair_color"] = face_editor_hair_color
+            if output_path:
+                params["output_path"] = output_path
+            
+            result = await asyncio.to_thread(client.predict, **params, fn_index=4)
+            return self._parse_gradio_result(result)
+        except Exception as e:
+            logging.error(f"Error in feature editing: {e}")
+            return None
+    
+    async def process_video(
+        self,
+        source_face: str,
+        target_video: str,
+        face_swapper_model: str = "inswapper_128",
+        trim_frame_start: int = 0,
+        trim_frame_end: Optional[int] = None,
+        output_video_fps: float = 30.0,
+        output_video_encoder: str = "libx264",
+        output_video_preset: str = "medium",
+        output_video_quality: int = 85,
+        skip_audio: bool = False,
+        face_enhancer_model: Optional[str] = None,
+        face_enhancer_blend: float = 0.8,
+        video_memory_strategy: str = "moderate",
+        output_path: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Process video with face swapping"""
+        try:
+            client = self._get_gradio_client()
+            
+            params = {
+                "source_face": source_face,
+                "target_media": target_video,
+                "face_swapper_model": face_swapper_model,
+                "trim_frame_start": trim_frame_start,
+                "output_video_fps": output_video_fps,
+                "output_video_encoder": output_video_encoder,
+                "output_video_preset": output_video_preset,
+                "output_video_quality": output_video_quality,
+                "skip_audio": skip_audio,
+                "video_memory_strategy": video_memory_strategy
+            }
+            
+            if trim_frame_end:
+                params["trim_frame_end"] = trim_frame_end
+            if face_enhancer_model:
+                params["face_enhancer_model"] = face_enhancer_model
+                params["face_enhancer_blend"] = face_enhancer_blend
+            if output_path:
+                params["output_path"] = output_path
+            
+            result = await asyncio.to_thread(client.predict, **params, fn_index=5)
+            return self._parse_gradio_result(result)
+        except Exception as e:
+            logging.error(f"Error in video processing: {e}")
+            return None
+    
+    async def extract_frames(
+        self,
+        video_path: str,
+        extract_frame_format: str = "jpg",
+        extract_frame_quality: int = 95,
+        trim_frame_start: int = 0,
+        trim_frame_end: Optional[int] = None,
+        output_path: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Extract frames from video"""
+        try:
+            client = self._get_gradio_client()
+            
+            params = {
+                "video_path": video_path,
+                "extract_frames": True,
+                "extract_frame_format": extract_frame_format,
+                "extract_frame_quality": extract_frame_quality,
+                "trim_frame_start": trim_frame_start
+            }
+            
+            if trim_frame_end:
+                params["trim_frame_end"] = trim_frame_end
+            if output_path:
+                params["output_path"] = output_path
+            
+            result = await asyncio.to_thread(client.predict, **params, fn_index=6)
+            return self._parse_gradio_result(result)
+        except Exception as e:
+            logging.error(f"Error extracting frames: {e}")
+            return None
+    
+    async def submit_job(
+        self,
+        operation: str,
+        params: Dict[str, Any],
+        priority: int = 5,
+        callback_url: Optional[str] = None
+    ) -> Optional[str]:
+        """Submit async job to FaceFusion queue"""
+        try:
+            job_id = str(uuid.uuid4())
+            
+            job_data = {
+                "job_id": job_id,
+                "operation": operation,
+                "params": params,
+                "priority": priority,
+                "callback_url": callback_url,
+                "status": "queued",
+                "submitted_at": datetime.now(timezone.utc).isoformat()
+            }
+            
+            self._job_cache[job_id] = job_data
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{self.base_url}/api/queue/submit",
+                    json=job_data
+                ) as response:
+                    if response.status == 200:
+                        return job_id
+            return None
+        except Exception as e:
+            logging.error(f"Error submitting job: {e}")
+            return None
+    
+    async def get_job_status(self, job_id: str) -> Optional[Dict[str, Any]]:
+        """Get status of queued job"""
+        try:
+            if job_id in self._job_cache:
+                cached = self._job_cache[job_id]
+                if cached.get("status") in ["completed", "failed"]:
+                    return cached
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{self.base_url}/api/queue/status/{job_id}"
+                ) as response:
+                    if response.status == 200:
+                        status_data = await response.json()
+                        self._job_cache[job_id] = status_data
+                        return status_data
+            return None
+        except Exception as e:
+            logging.error(f"Error getting job status: {e}")
+            return None
+    
+    async def poll_job(
+        self,
+        job_id: str,
+        poll_interval: int = 2,
+        timeout: int = 300
+    ) -> Optional[Dict[str, Any]]:
+        """Poll job until completion or timeout"""
+        start_time = asyncio.get_event_loop().time()
+        
+        while True:
+            status = await self.get_job_status(job_id)
+            
+            if not status:
+                return None
+            
+            if status.get("status") in ["completed", "failed"]:
+                return status
+            
+            elapsed = asyncio.get_event_loop().time() - start_time
+            if elapsed > timeout:
+                logging.error(f"Job {job_id} timed out after {timeout}s")
+                return None
+            
+            await asyncio.sleep(poll_interval)
+    
+    async def cancel_job(self, job_id: str) -> bool:
+        """Cancel queued or processing job"""
         try:
             async with aiohttp.ClientSession() as session:
-                # Create enhancement job
-                job_data = {
-                    "source_path": image_path,
-                    "face_enhancer_model": enhancement_model,
-                    "face_enhancer_blend": 1.0
-                }
-                
-                async with session.post(f"{self.base_url}/api/v1/enhance-face", json=job_data) as response:
-                    if response.status == 200:
-                        result = await response.json()
-                        return result.get("output_path")
+                async with session.post(
+                    f"{self.base_url}/api/queue/cancel/{job_id}"
+                ) as response:
+                    return response.status == 200
         except Exception as e:
-            logging.error(f"Error enhancing face with FaceFusion: {e}")
-        return None
+            logging.error(f"Error canceling job: {e}")
+            return False
     
-    async def adjust_face_age(self, image_path: str, target_age: int) -> Optional[str]:
-        """Adjust face age using FaceFusion"""
+    async def get_job_result(self, job_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve result of completed job"""
         try:
+            status = await self.get_job_status(job_id)
+            
+            if not status or status.get("status") != "completed":
+                return None
+            
+            result_url = status.get("result_url")
+            if not result_url:
+                return status.get("result")
+            
             async with aiohttp.ClientSession() as session:
-                job_data = {
-                    "source_path": image_path,
-                    "face_editor_age": target_age,
-                    "face_editor_blend": 1.0
-                }
-                
-                async with session.post(f"{self.base_url}/api/v1/adjust-face", json=job_data) as response:
+                async with session.get(result_url) as response:
                     if response.status == 200:
-                        result = await response.json()
-                        return result.get("output_path")
+                        content_type = response.headers.get("Content-Type", "")
+                        
+                        if "application/json" in content_type:
+                            return await response.json()
+                        else:
+                            data = await response.read()
+                            return {
+                                "data": data,
+                                "content_type": content_type,
+                                "url": result_url
+                            }
+            return None
         except Exception as e:
-            logging.error(f"Error adjusting face age with FaceFusion: {e}")
-        return None
-    
-    async def swap_face(self, source_face_path: str, target_image_path: str) -> Optional[str]:
-        """Swap face using FaceFusion"""
-        try:
-            async with aiohttp.ClientSession() as session:
-                job_data = {
-                    "source_face_path": source_face_path,
-                    "target_image_path": target_image_path,
-                    "face_swapper_model": "inswapper_128"
-                }
-                
-                async with session.post(f"{self.base_url}/api/v1/swap-face", json=job_data) as response:
-                    if response.status == 200:
-                        result = await response.json()
-                        return result.get("output_path")
-        except Exception as e:
-            logging.error(f"Error swapping face with FaceFusion: {e}")
-        return None
+            logging.error(f"Error retrieving job result: {e}")
+            return None
     
     async def check_connection(self) -> bool:
         """Check if FaceFusion server is accessible"""
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(f"{self.base_url}/api/v1/status") as response:
+                async with session.get(f"{self.base_url}/", timeout=aiohttp.ClientTimeout(total=5)) as response:
                     return response.status == 200
         except Exception:
             return False
+    
+    def _parse_gradio_result(self, result: Any) -> Optional[Dict[str, Any]]:
+        """Parse Gradio API result into standardized format"""
+        try:
+            if isinstance(result, dict):
+                return result
+            
+            if isinstance(result, (list, tuple)) and len(result) > 0:
+                first_item = result[0]
+                
+                if isinstance(first_item, dict):
+                    if "name" in first_item and "data" in first_item:
+                        return {
+                            "file_name": first_item.get("name"),
+                            "file_data": first_item.get("data"),
+                            "is_file": first_item.get("is_file", True),
+                            "orig_name": first_item.get("orig_name")
+                        }
+                    return first_item
+                
+                elif isinstance(first_item, str):
+                    return {"output_path": first_item}
+            
+            return {"raw_result": result}
+        except Exception as e:
+            logging.error(f"Error parsing Gradio result: {e}")
+            return None
 
 # Create the main app without a prefix
 app = FastAPI(

@@ -11,6 +11,17 @@ except Exception as e:
     exit(1)
 
 try:
+    from dtos.character_dtos import (
+        FaceFusionProcessingHistoryEntry,
+        FaceFusionPreferredSettings,
+        FaceFusionOutputGallery,
+    )
+    print("[OK] FaceFusion DTOs imported successfully")
+except Exception as e:
+    print(f"[FAIL] FaceFusion DTOs import failed: {e}")
+    exit(1)
+
+try:
     from repositories.inference_configuration_repository import ModelConfigurationRepository
     print("[OK] Repository imported successfully")
 except Exception as e:
@@ -29,6 +40,13 @@ try:
     print("[OK] Router imported successfully")
 except Exception as e:
     print(f"[FAIL] Router import failed: {e}")
+    exit(1)
+
+try:
+    from api.v1 import facefusion_router
+    print("[OK] FaceFusion router imported successfully")
+except Exception as e:
+    print(f"[FAIL] FaceFusion router import failed: {e}")
     exit(1)
 
 print("\n[OK] All imports validated successfully!")
