@@ -14,6 +14,7 @@ from dtos.comfyui_dtos import (
     ModelDTO,
 )
 from repositories.comfyui_repository import ComfyUIRepository
+from active_models_service import ActiveModelsService
 from services.model_config import MODEL_DEFAULTS, detect_model_type
 
 logger = logging.getLogger(__name__)
@@ -652,8 +653,9 @@ class ComfyUIClient:
 class ComfyUIService:
     """Service layer encapsulating ComfyUI server operations."""
 
-    def __init__(self, repository: ComfyUIRepository):
+    def __init__(self, repository: ComfyUIRepository, active_models_service: Optional[ActiveModelsService] = None):
         self._repository = repository
+        self._active_models_service = active_models_service
 
     async def register_server(self, payload: ComfyUIServerCreateDTO) -> ComfyUIServerDTO:
         server_dict = payload.dict()
@@ -671,7 +673,6 @@ class ComfyUIService:
     async def list_servers(self) -> List[ComfyUIServerDTO]:
         raw_servers = await self._repository.find_many({})
         return [ComfyUIServerDTO(**server) for server in raw_servers]
-
     async def get_server(self, server_id: str) -> Optional[ComfyUIServerDTO]:
         data = await self._repository.find_by_id(server_id)
         return ComfyUIServerDTO(**data) if data else None
@@ -691,6 +692,53 @@ class ComfyUIService:
         models_data = await client.get_models()
         models = [ModelDTO(name=name, type="checkpoint") for name in models_data.get("checkpoints", [])]
         loras = [ModelDTO(name=name, type="lora") for name in models_data.get("loras", [])]
+
+        # Store models in active_backend_models collection if service is available
+        if self._active_models_service:
+            try:
+                # Prepare models data for storage
+                all_models = []
+                
+                # Add checkpoints
+                for model_name in models_data.get("checkpoints", []):
+                    all_models.append({
+                        "id": model_name,  # Use model name as ID
+                        "name": model_name,
+                        "path": f"checkpoints/{model_name}",  # Default path
+                        "type": "checkpoint"
+                    })
+                
+                # Add LoRAs
+                for model_name in models_data.get("loras", []):
+                    all_models.append({
+                        "id": model_name,
+                        "name": model_name,
+                        "path": f"loras/{model_name}",  # Default path
+                        "type": "lora"
+                    })
+                
+                # Add VAEs
+                for model_name in models_data.get("vaes", []):
+                    all_models.append({
+                        "id": model_name,
+                        "name": model_name,
+                        "path": f"vae/{model_name}",  # Default path
+                        "type": "vae"
+                    })
+                
+                # Update the active models database
+                await self._active_models_service.update_backend_models(
+                    backend_id=server.id,
+                    backend_name=server.name,
+                    backend_url=server.url,
+                    models_data=all_models
+                )
+                
+                logger.info(f"Stored {len(all_models)} models from backend {server.name}")
+                
+            except Exception as e:
+                logger.error(f"Failed to store models from backend {server.name}: {e}")
+                # Continue without failing the request
 
         return ComfyUIServerInfoDTO(server=server, models=models, loras=loras, is_online=True)
 
