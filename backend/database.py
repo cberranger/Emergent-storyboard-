@@ -2,11 +2,29 @@
 import os
 import logging
 from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
+from pymongo import ASCENDING, DESCENDING
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError, PyMongoError
 import asyncio
-from typing import Optional
+from typing import Optional, List
 
 logger = logging.getLogger(__name__)
+
+
+REQUIRED_COLLECTIONS = [
+    "projects",
+    "scenes",
+    "clips",
+    "characters",
+    "style_templates",
+    "comfyui_servers",
+    "generation_batches",
+    "facefusion_jobs",
+    "facefusion_presets",
+    "database_models",
+    "inference_configurations",
+    "civitai_models",
+    "users",
+]
 
 
 class DatabaseManager:
@@ -19,6 +37,7 @@ class DatabaseManager:
         self.db_name = os.environ.get('DB_NAME', 'storyboard')
         self.max_retries = 5
         self.retry_delay = 3  # seconds
+        self._collections_validated = False
 
     def _get_mongo_url(self) -> str:
         """Get MongoDB URL from environment with validation"""
@@ -64,6 +83,12 @@ class DatabaseManager:
                 self.db = self.client[self.db_name]
 
                 logger.info(f"Successfully connected to MongoDB database: {self.db_name}")
+                
+                # Validate and create collections if needed
+                if not self._collections_validated:
+                    await self._validate_collections()
+                    self._collections_validated = True
+                
                 return True
 
             except ServerSelectionTimeoutError as e:
@@ -110,6 +135,109 @@ class DatabaseManager:
             logger.error(f"Database health check failed: {e}")
             return False
 
+    async def _validate_collections(self) -> None:
+        """Validate that all required collections exist and create missing ones"""
+        try:
+            existing_collections = set(await self.db.list_collection_names())
+            missing_collections = set(REQUIRED_COLLECTIONS) - existing_collections
+            
+            if missing_collections:
+                logger.warning(f"Missing collections detected: {', '.join(sorted(missing_collections))}")
+                logger.info("Creating missing collections...")
+                
+                for col in sorted(missing_collections):
+                    try:
+                        await self.db.create_collection(col)
+                        logger.info(f"Created collection: {col}")
+                        
+                        # Create indexes for newly created collections
+                        await self._ensure_collection_indexes(col)
+                        
+                    except PyMongoError as e:
+                        logger.error(f"Failed to create collection {col}: {e}")
+                
+                logger.info("Collection validation complete")
+            else:
+                logger.info("All required collections exist")
+                
+        except Exception as e:
+            logger.error(f"Collection validation failed: {e}")
+
+    async def _ensure_collection_indexes(self, collection_name: str) -> None:
+        """Create indexes for a specific collection"""
+        try:
+            col = self.db[collection_name]
+            
+            # Core Collections
+            if collection_name == "projects":
+                await col.create_index([("id", ASCENDING)], unique=True)
+                await col.create_index([("created_at", DESCENDING)])
+            
+            elif collection_name == "scenes":
+                await col.create_index([("id", ASCENDING)], unique=True)
+                await col.create_index([("project_id", ASCENDING), ("order", ASCENDING)])
+                await col.create_index([("parent_scene_id", ASCENDING)])
+                await col.create_index([("is_alternate", ASCENDING)])
+            
+            elif collection_name == "clips":
+                await col.create_index([("id", ASCENDING)], unique=True)
+                await col.create_index([("scene_id", ASCENDING), ("order", ASCENDING)])
+                await col.create_index([("scene_id", ASCENDING), ("timeline_position", ASCENDING)])
+            
+            elif collection_name == "characters":
+                await col.create_index([("id", ASCENDING)], unique=True)
+                await col.create_index([("project_id", ASCENDING), ("name", ASCENDING)])
+            
+            elif collection_name == "style_templates":
+                await col.create_index([("id", ASCENDING)], unique=True)
+                await col.create_index([("project_id", ASCENDING), ("name", ASCENDING)])
+            
+            elif collection_name == "comfyui_servers":
+                await col.create_index([("id", ASCENDING)], unique=True)
+                await col.create_index([("url", ASCENDING)], unique=True)
+                await col.create_index([("is_active", ASCENDING)])
+            
+            elif collection_name == "generation_batches":
+                await col.create_index([("id", ASCENDING)], unique=True)
+                await col.create_index([("project_id", ASCENDING), ("created_at", DESCENDING)])
+                await col.create_index([("status", ASCENDING)])
+            
+            # FaceFusion Collections
+            elif collection_name == "facefusion_jobs":
+                await col.create_index([("id", ASCENDING)], unique=True)
+                await col.create_index([("status", ASCENDING), ("priority", DESCENDING), ("created_at", ASCENDING)])
+                await col.create_index([("character_id", ASCENDING)])
+                await col.create_index([("project_id", ASCENDING), ("created_at", DESCENDING)])
+            
+            elif collection_name == "facefusion_presets":
+                await col.create_index([("id", ASCENDING)], unique=True)
+                await col.create_index([("name", ASCENDING)])
+                await col.create_index([("operation_type", ASCENDING), ("is_public", ASCENDING)])
+            
+            # Model Management Collections
+            elif collection_name == "database_models":
+                await col.create_index([("id", ASCENDING)], unique=True)
+                await col.create_index([("is_active", ASCENDING), ("type", ASCENDING)])
+                await col.create_index([("base_model", ASCENDING), ("is_active", ASCENDING)])
+            
+            elif collection_name == "inference_configurations":
+                await col.create_index([("model_id", ASCENDING), ("preset_type", ASCENDING)], unique=True)
+            
+            elif collection_name == "civitai_models":
+                await col.create_index([("id", ASCENDING)], unique=True)
+                await col.create_index([("type", ASCENDING), ("nsfw", ASCENDING)])
+            
+            # Authentication Collections
+            elif collection_name == "users":
+                await col.create_index([("id", ASCENDING)], unique=True)
+                await col.create_index([("username", ASCENDING)], unique=True)
+                await col.create_index([("email", ASCENDING)], unique=True)
+            
+            logger.info(f"Indexes created for collection: {collection_name}")
+            
+        except PyMongoError as e:
+            logger.error(f"Failed to create indexes for {collection_name}: {e}")
+
     async def disconnect(self):
         """Close database connection gracefully"""
         if self.client:
@@ -117,6 +245,7 @@ class DatabaseManager:
             self.client.close()
             self.client = None
             self.db = None
+            self._collections_validated = False
 
     def get_database(self):
         """

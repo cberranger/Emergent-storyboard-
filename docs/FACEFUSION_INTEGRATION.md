@@ -24,6 +24,19 @@ FaceFusion provides face manipulation capabilities:
 Frontend → Backend → FaceFusionClient → FaceFusion Server (192.168.1.10:9002)
 ```
 
+### Database Integration
+
+FaceFusion operations are tightly integrated with the character system. See `docs/DATABASE_SCHEMA.md` for complete schema documentation.
+
+**Character Collection Integration:**
+- `facefusion_processing_history`: Array storing all operations with parameters and results
+- `facefusion_preferred_settings`: Character-specific default settings
+- `facefusion_output_gallery`: Categorized output images (enhanced, age variants, swaps, etc.)
+
+**Job Queue Collections:**
+- `facefusion_jobs`: Batch processing queue with priority and status tracking
+- `facefusion_presets`: Saved parameter presets for quick reuse
+
 ## Complete Parameter Reference
 
 ### Face Enhancement Parameters
