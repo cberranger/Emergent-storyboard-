@@ -11,7 +11,7 @@ load_dotenv(ROOT_DIR / '.env')
 print("🔍 Environment Configuration:")
 print(f"MONGO_URL: {os.environ.get('MONGO_URL', 'NOT SET')}")
 print(f"DB_NAME: {os.environ.get('DB_NAME', 'NOT SET')}")
-print(f"CORS_ORIGINS: {os.environ.get('CORS_ORIGINS', 'NOT SET')}")
+print("CORS_POLICY: allow-all (no origin restrictions)")
 print(f"PORT: {os.environ.get('PORT', 'NOT SET')}")
 
 # Test database connection using same settings

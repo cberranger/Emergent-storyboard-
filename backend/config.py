@@ -43,37 +43,19 @@ class Config:
                 "Set OPENAI_API_KEY environment variable to enable Sora integration."
             )
 
-    # CORS Configuration
+    # CORS Configuration (fully neutralized - never block)
+    CORS_ALLOW_ORIGINS = ["*"]
+    CORS_ALLOW_ORIGIN_REGEX = ".*"
+    CORS_ALLOW_CREDENTIALS = True
+    CORS_ALLOW_METHODS = ["*"]
+    CORS_ALLOW_HEADERS = ["*"]
+    CORS_EXPOSE_HEADERS = ["*"]
+    CORS_MAX_AGE = 600  # Cache preflight requests for 10 minutes
+
     @staticmethod
     def get_cors_origins() -> List[str]:
-        """Get allowed CORS origins from environment"""
-        env_origins = os.environ.get('CORS_ORIGINS', '')
-
-        if env_origins:
-            # Split comma-separated origins
-            origins = [origin.strip() for origin in env_origins.split(',')]
-            return origins
-
-        # Safe defaults for development
-        if os.environ.get('ENVIRONMENT', 'development') == 'development':
-            return [
-                "http://localhost:3000",
-                "http://127.0.0.1:3000",
-                "http://0.0.0.0:3000",
-                "*"
-            ]
-
-        # Production MUST set CORS_ORIGINS explicitly
-        raise ValueError(
-            "CORS_ORIGINS environment variable must be set in production. "
-            "Example: CORS_ORIGINS=https://yourdomain.com,https://www.yourdomain.com"
-        )
-
-    # Security headers
-    CORS_ALLOW_CREDENTIALS = True
-    CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    CORS_ALLOW_HEADERS = ["Content-Type", "Authorization", "X-Requested-With"]
-    CORS_MAX_AGE = 600  # Cache preflight requests for 10 minutes
+        """Always allow all origins."""
+        return ["*"]
 
 
 config = Config()

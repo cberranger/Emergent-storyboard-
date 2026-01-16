@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Server, Wifi, WifiOff, RefreshCw, Monitor, Cpu, HardDrive, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -159,6 +159,9 @@ const ComfyUIManager = ({ servers, onAddServer, onRefresh, onDeleteServer }) => 
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
                     <DialogTitle>Add ComfyUI Server</DialogTitle>
+                    <DialogDescription>
+                      Register a new ComfyUI server to connect to for AI generation
+                    </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleAddServer} className="space-y-4">
                     <div>

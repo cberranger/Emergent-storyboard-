@@ -39,7 +39,7 @@ function App() {
   const fetchProjects = async () => {
     try {
       const data = await projectService.getProjects();
-      setProjects(data);
+      setProjects(data.projects);
     } catch (error) {
       console.error('Error fetching projects:', error);
     } finally {

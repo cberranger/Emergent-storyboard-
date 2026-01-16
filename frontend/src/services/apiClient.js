@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { config } from '../config';
 
-const BASE_URL = `${config.apiUrl}/v1`;
+const BASE_URL = config.apiUrl;
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -72,19 +72,19 @@ apiClient.interceptors.response.use(
  */
 export const withRetry = async (requestFn, maxRetries = 3, delayMs = 1000) => {
   let lastError;
-  
+
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       return await requestFn();
     } catch (error) {
       lastError = error;
-      
+
       if (attempt < maxRetries - 1) {
         await new Promise((resolve) => setTimeout(resolve, delayMs * (attempt + 1)));
       }
     }
   }
-  
+
   throw lastError;
 };
 

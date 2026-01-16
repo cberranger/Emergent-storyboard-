@@ -254,7 +254,7 @@ class DatabaseManager:
         Returns:
             Database instance or None if not connected
         """
-        if not self.db:
+        if self.db is None:
             logger.error("Database not connected. Call connect() first.")
             return None
         return self.db
@@ -274,7 +274,7 @@ async def get_database():
             items = await db.items.find().to_list(100)
             return items
     """
-    if not db_manager.db:
+    if db_manager.db is None:
         logger.error("Database not initialized. Attempting reconnection...")
         success = await db_manager.connect()
         if not success:

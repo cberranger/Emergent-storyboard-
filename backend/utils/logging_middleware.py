@@ -63,8 +63,14 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                     except:
                         request_body = "[binary data]"
                 
+                received = False
+
                 async def receive() -> Message:
-                    return {"type": "http.request", "body": body_bytes}
+                    nonlocal received
+                    if received:
+                        return {"type": "http.request", "body": b"", "more_body": False}
+                    received = True
+                    return {"type": "http.request", "body": body_bytes, "more_body": False}
                 request._receive = receive
             except:
                 pass

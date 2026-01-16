@@ -25,7 +25,7 @@ async def create_project(
     return await service.create_project(project_data)
 
 
-@router.get("", response_model=List[ProjectListResponseDTO])
+@router.get("", response_model=ProjectListResponseDTO)
 async def list_projects(
     service: ProjectService = Depends(get_project_service),
     current_user: Optional[dict] = Depends(get_current_user_optional)

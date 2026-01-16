@@ -447,7 +447,7 @@ class GenerationService:
 
     @staticmethod
     async def _get_db():
-        if not db_manager.db:
+        if db_manager.db is None:
             connected = await db_manager.connect()
             if not connected:
                 raise ServiceUnavailableError("Database", "Unable to connect")

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, HttpUrl, validator
+from pydantic import BaseModel, Field, HttpUrl, field_validator, ConfigDict
 
 
 class ModelDTO(BaseModel):
@@ -21,7 +21,29 @@ class ComfyUIServerCreateDTO(BaseModel):
     server_type: str = Field(default="standard", pattern="^(standard|runpod)$")
     api_key: Optional[str] = None
 
-    @validator("url")
+    @field_validator("url")
+    @classmethod
+    def strip_trailing_slash(cls, value: HttpUrl) -> HttpUrl:
+        return HttpUrl(str(value).rstrip("/"))  # type: ignore[arg-type]
+
+
+class ModelDTO(BaseModel):
+    """Represents a model entry exposed to clients."""
+
+    name: str
+    type: str  # checkpoint, lora, vae, etc.
+
+
+class ComfyUIServerCreateDTO(BaseModel):
+    """Payload for registering a new ComfyUI server."""
+
+    name: str
+    url: HttpUrl
+    server_type: str = Field(default="standard", pattern="^(standard|runpod)$")
+    api_key: Optional[str] = None
+
+    @field_validator("url")
+    @classmethod
     def strip_trailing_slash(cls, value: HttpUrl) -> HttpUrl:
         return HttpUrl(str(value).rstrip("/"))  # type: ignore[arg-type]
 

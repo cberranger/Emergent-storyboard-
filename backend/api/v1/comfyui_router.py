@@ -1,4 +1,5 @@
 """ComfyUI server management router for API v1."""
+
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Optional
 
@@ -17,16 +18,22 @@ router = APIRouter(prefix="/comfyui", tags=["comfyui"])
 async def create_server(
     server_data: ComfyUIServerCreateDTO,
     service: ComfyUIService = Depends(get_comfyui_service),
-    current_user: Optional[dict] = Depends(get_current_user_optional)
 ):
     """Register a new ComfyUI server"""
-    return await service.create_server(server_data)
+    try:
+        return await service.create_server(server_data)
+    except Exception as e:
+        logger.error(f"Error in create_server: {type(e).__name__}: {e}")
+        import traceback
+
+        logger.error(traceback.format_exc())
+        raise
 
 
 @router.get("/servers", response_model=List[ComfyUIServerDTO])
 async def list_servers(
     service: ComfyUIService = Depends(get_comfyui_service),
-    current_user: Optional[dict] = Depends(get_current_user_optional)
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """Get all registered ComfyUI servers"""
     return await service.list_servers()
@@ -36,7 +43,7 @@ async def list_servers(
 async def get_server_info(
     server_id: str,
     service: ComfyUIService = Depends(get_comfyui_service),
-    current_user: Optional[dict] = Depends(get_current_user_optional)
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """Get detailed information about a ComfyUI server including models and status"""
     return await service.get_server_info(server_id)
@@ -47,7 +54,7 @@ async def update_server(
     server_id: str,
     server_data: ComfyUIServerCreateDTO,
     service: ComfyUIService = Depends(get_comfyui_service),
-    current_user: Optional[dict] = Depends(get_current_user_optional)
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """Update a ComfyUI server configuration"""
     return await service.update_server(server_id, server_data)
@@ -57,7 +64,7 @@ async def update_server(
 async def delete_server(
     server_id: str,
     service: ComfyUIService = Depends(get_comfyui_service),
-    current_user: Optional[dict] = Depends(get_current_user_optional)
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """Delete a ComfyUI server"""
     await service.delete_server(server_id)

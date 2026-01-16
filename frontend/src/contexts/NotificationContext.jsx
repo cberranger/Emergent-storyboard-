@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { queueService } from '@/services';
 import { toast } from 'sonner';
 
@@ -21,6 +21,7 @@ export const NotificationProvider = ({ children }) => {
   const [dismissedJobs, setDismissedJobs] = useState(new Set());
   const [isExpanded, setIsExpanded] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
+  const dismissedJobsRef = useRef(dismissedJobs);
 
   useEffect(() => {
     loadFromStorage();
@@ -30,6 +31,11 @@ export const NotificationProvider = ({ children }) => {
       stopPolling();
     };
   }, []);
+
+  useEffect(() => {
+    dismissedJobsRef.current = dismissedJobs;
+  }, [dismissedJobs]);
+
 
   const loadFromStorage = () => {
     try {
@@ -68,38 +74,41 @@ export const NotificationProvider = ({ children }) => {
         limit: 50
       });
 
-      const jobs = data.jobs || [];
+      const jobs = Array.isArray(data) ? data : (data.jobs || []);
       const active = jobs.filter(job => 
         job.status === 'processing' || job.status === 'pending'
       );
-      const newCompleted = jobs.filter(job => 
-        job.status === 'completed' && !dismissedJobs.has(job.id)
+      const dismissed = dismissedJobsRef.current;
+      const newCompleted = jobs.filter(job =>
+        job.status === 'completed' && !dismissed.has(job.id)
       );
 
       setActiveJobs(active);
 
-      const previousCompletedIds = new Set(completedJobs.map(j => j.id));
-      const justCompleted = newCompleted.filter(job => !previousCompletedIds.has(job.id));
-      
-      if (justCompleted.length > 0) {
-        setIsExpanded(true);
-        justCompleted.forEach(job => {
-          toast.success(`Job completed: ${job.generation_type} generation`);
-        });
-      }
+      setCompletedJobs(prevCompleted => {
+        const previousCompletedIds = new Set(prevCompleted.map(j => j.id));
+        const justCompleted = newCompleted.filter(job => !previousCompletedIds.has(job.id));
 
-      const updatedCompleted = [
-        ...completedJobs.filter(job => !dismissedJobs.has(job.id)),
-        ...justCompleted
-      ];
-      
-      setCompletedJobs(updatedCompleted);
-      saveToStorage(updatedCompleted, dismissedJobs);
-      
+        if (justCompleted.length > 0) {
+          setIsExpanded(true);
+          justCompleted.forEach(job => {
+            toast.success(`Job completed: ${job.generation_type} generation`);
+          });
+        }
+
+        const updatedCompleted = [
+          ...prevCompleted.filter(job => !dismissed.has(job.id)),
+          ...justCompleted
+        ];
+
+        saveToStorage(updatedCompleted, dismissed);
+        return updatedCompleted;
+      });
+
     } catch (error) {
       console.error('Error polling jobs:', error);
     }
-  }, [dismissedJobs, completedJobs]);
+  }, []);
 
   const startPolling = () => {
     setIsPolling(true);

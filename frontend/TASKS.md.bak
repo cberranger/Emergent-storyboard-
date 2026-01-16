@@ -1,0 +1,288 @@
+# Frontend - Development Tasks
+
+## Overview
+
+Frontend-specific development tasks organized by phase. See [../TASKS.md](../TASKS.md) for master task list and backend tasks.
+
+**Reference Documents:**
+- [../AGENT_RULES.md](../AGENT_RULES.md) - Universal operating rules
+- [../AGENTS.md](../AGENTS.md) - Project overview
+- [AGENTS.md](AGENTS.md) - Frontend component context
+- [DESIGN.md](DESIGN.md) - Frontend technical specification
+
+---
+
+## PHASE 2.5: FRONTEND-BACKEND INTEGRATION ✅ COMPLETED
+
+### 2.5.1 Character Management
+- [x] Character Management UI (CharacterManager.jsx)
+  - Character grid view with reference images
+  - Create/edit character dialog
+  - Apply character to clip functionality
+  - Project-based filtering
+  - Usage tracking display
+
+### 2.5.2 Style Templates
+- [x] Style Templates Library UI (StyleTemplateLibrary.jsx)
+  - Template library with search/filter
+  - Create/edit template dialog
+  - Category filtering (Custom, Cinematic, Anime, etc.)
+  - Usage count tracking
+  - JSON parameter editor
+
+### 2.5.3 Queue Management
+- [x] Queue Management Dashboard (QueueDashboard.jsx)
+  - Real-time queue status display (5-second refresh)
+  - Job list with status badges
+  - Stats cards (Total, Pending, Processing, Completed, Failed)
+  - Job actions: Retry, Cancel, Delete
+  - Bulk actions: Clear Completed, Clear Failed
+
+### 2.5.4 Batch Generation
+- [ ] Batch Generation UI Enhancements
+  - Multi-select clips in timeline (Ctrl+click, Shift+click)
+  - "Generate Batch" button when multiple clips selected
+  - Enhanced batch progress tracker modal
+  - Individual clip status within batch visualization
+  - **Current State**: Backend complete, UI needs multi-select enhancement
+
+### 2.5.5 Project Export
+- [x] Project Export UI (ExportDialog.jsx)
+  - Format selector (FCPXML, EDL, Resolve, JSON)
+  - Export service methods implemented
+  - Download functionality working
+
+### 2.5.6 Project Dashboard
+- [x] Project Details Dashboard (ProjectDashboard.jsx)
+  - Project stats cards (Total Scenes, Total Clips, Duration, Completion Rate)
+  - Music file player with full controls
+  - Audio waveform/progress visualization
+  - Scene list with navigation
+  - Project settings editor dialog
+
+### 2.5.7 Scene Details
+- [ ] Scene Details View Enhancement
+  - Enhanced scene detail modal/panel
+  - Scene statistics visualization (clip count, duration)
+  - Scene-level prompt templates
+  - Reorder scenes drag-and-drop
+  - Duplicate scene functionality
+  - **Current State**: Basic scene editing exists, needs enhancement
+
+### 2.5.8 Clip Details
+- [ ] Clip Details Dialog (ClipDetailsDialog.jsx)
+  - Full clip information display
+  - Edit clip name, lyrics, length
+  - Generation history view
+  - Version comparison (side-by-side)
+  - Metadata display enhancement
+  - Character assignment UI
+  - **Current State**: Clip editing exists in SceneManager, needs dedicated dialog
+
+### 2.5.9 Model Browser
+- [ ] Model Browser Enhancement
+  - Model categories display
+  - Enhanced filter models by type
+  - Model type badges
+  - Improved search functionality
+  - Model preset quick-apply
+  - **Current State**: Basic browser exists, needs enhancements
+
+### 2.5.10 Admin Dashboard
+- [ ] Admin Dashboard (AdminDashboard.jsx)
+  - System health status display
+  - Database connection status
+  - ComfyUI server health checks
+  - API response time monitoring
+  - Error rate display
+  - Server uptime visualization
+  - **Current State**: Health endpoints exist, UI not created
+
+### 2.5.11 API Service Layer
+- [x] API Service Layer Implementation
+  - Created 8 service modules (Project, Scene, Clip, Character, Template, Queue, Generation, ComfyUI)
+  - Centralized axios client with interceptors
+  - Centralized error handling
+  - Request/response transformers
+
+- [x] API Version Migration to /api/v1
+  - All 8 services using v1 endpoints
+  - All components updated to use versioned endpoints
+
+### 2.5.12 Notifications
+- [ ] Batch Progress Notifications (NotificationCenter.jsx)
+  - Real-time batch progress notifications
+  - Enhanced toast notifications for job completion
+  - Notification center with history
+  - Desktop notifications (browser API)
+  - Sound notifications (optional)
+  - **Current State**: Toast system exists (Shadcn UI), needs dedicated center
+
+### 2.5.13 Gallery Navigation
+- [ ] Enhanced Gallery Navigation
+  - Keyboard navigation (arrow keys)
+  - Bulk selection and delete enhancement
+  - Compare mode (side-by-side)
+  - Lightbox view for full-screen
+  - Filter by server, model, or date
+  - Sort options (newest, oldest, by server)
+  - **Current State**: Gallery exists, needs navigation enhancements
+
+---
+
+## PHASE 2.6: TIMELINE SYSTEM WITH ALTERNATES ✅ COMPLETED
+
+### 2.6.1 Timeline UI
+- [x] ProjectTimeline Component (ProjectTimeline.jsx)
+  - Horizontal timeline with time ruler
+  - Scene blocks laid out sequentially
+  - Clips displayed within scenes at timeline_position
+  - Scene grouping by parent (stacks alternates visually)
+  - Clip grouping by parent (stacks alternates within scenes)
+  - Dynamic zoom control (2-50 pixels per second)
+  - Professional color scheme (neutral grays)
+  - "Create Alternate" button on each scene
+  - Playhead visualization with red line
+  - Play/pause controls
+
+---
+
+## PHASE 2.7: GENERATION POOL ✅ COMPLETED
+
+### 2.7.1 Pool UI
+- [x] GenerationPool Component (GenerationPool.jsx)
+  - Grid and list view modes with toggle buttons
+  - Search functionality (searches name, description, and tags)
+  - Content type filter (All Types / Images / Videos)
+  - Tag-based filtering with toggle chips
+  - Thumbnail display with hover actions overlay
+  - Action buttons: Apply to Clip, Delete
+
+### 2.7.2 Gallery Integration
+- [x] EnhancedGenerationDialog Integration
+  - "Send to Pool" functionality
+  - Button appears for both images and videos in gallery
+  - Database icon + text label
+  - Professional styling with hover effect
+
+---
+
+## PHASE 5: FRONTEND IMPROVEMENTS
+
+### 5.1 State Management
+- [ ] Add State Management (Zustand)
+  - Create frontend store structure
+  - Replace props drilling with global state
+  - Implement state slices for projects, scenes, clips, queue
+  - Add state persistence to localStorage
+  - **Priority**: HIGH | **Time**: 8h
+
+### 5.2 Data Fetching
+- [ ] Implement React Query
+  - Set up QueryClient with proper configuration
+  - Create query hooks for all API calls
+  - Implement caching and automatic refetching
+  - Add optimistic updates
+  - **Priority**: HIGH | **Time**: 6h
+
+### 5.3 Error Handling
+- [ ] Add Error Boundaries
+  - Create global error boundary component
+  - Implement error fallback UI
+  - Add error reporting to Sentry
+  - Log errors to console for debugging
+  - **Priority**: MEDIUM | **Time**: 4h
+
+### 5.4 Performance
+- [ ] Code Splitting & Lazy Loading
+  - Implement route-based code splitting
+  - Lazy load large components (ExportDialog, PresentationMode)
+  - Use React.lazy and Suspense
+  - Optimize bundle size
+  - **Priority**: MEDIUM | **Time**: 6h
+
+### 5.5 TypeScript Migration
+- [ ] Migrate Frontend to TypeScript
+  - Set up TypeScript configuration
+  - Convert components to TypeScript incrementally
+  - Add type definitions for all data models
+  - Fix type errors as they appear
+  - **Priority**: HIGH | **Time**: 24h (3-4 weeks)
+
+---
+
+## PHASE 8: TESTING INFRASTRUCTURE
+
+### 8.1 Unit Tests
+- [ ] Frontend Unit Tests (Jest)
+  - Set up Jest testing framework
+  - Write unit tests for all components
+  - Write unit tests for all services
+  - Write unit tests for hooks (useHotkeys)
+  - Write unit tests for utilities (config, validators)
+  - Achieve >80% test coverage
+  - **Priority**: CRITICAL | **Time**: 8h
+
+### 8.2 Integration Tests
+- [ ] Frontend Integration Tests
+  - Test API client with mocked responses
+  - Test service layer integration
+  - Test component integration with mocked services
+  - **Priority**: CRITICAL | **Time**: 6h
+
+### 8.3 E2E Tests
+- [ ] E2E Tests (Playwright)
+  - Set up Playwright testing framework
+  - Write E2E tests for complete workflows
+  - Test project creation and editing
+  - Test generation workflows
+  - Test export workflows
+  - Test keyboard shortcuts
+  - **Priority**: HIGH | **Time**: 8h
+
+---
+
+## Success Criteria
+
+- [ ] All Phase 2.5 tasks completed (✅ DONE)
+- [ ] All Phase 2.6 tasks completed (✅ DONE)
+- [ ] All Phase 2.7 tasks completed (✅ DONE)
+- [ ] All Phase 5 tasks completed (frontend improvements)
+- [ ] All Phase 8 tasks completed (testing)
+- [ ] All tests passing
+- [ ] No lint errors/warnings
+- [ ] Code follows ESLint and Prettier standards
+- [ ] Application loads in < 3 seconds
+
+---
+
+## Future Enhancements
+
+<!-- Add ideas here instead of implementing them now -->
+- [ ] Progressive Web App (PWA) support
+- [ ] Offline support with service workers
+- [ ] Virtual scrolling for large lists
+- [ ] Drag-and-drop file uploads
+- [ ] Image preview before upload
+- [ ] Undo/redo system for operations
+- [ ] Advanced search with filters
+- [ ] Dark/light theme toggle
+- [ ] Custom theme support
+- [ ] Accessibility improvements (WCAG 2.1 AA)
+
+---
+
+## Review Items
+
+<!-- Edge cases and questions that need human input -->
+- [ ] REVIEW: Should we use Zustand or Redux Toolkit?
+- [ ] REVIEW: Priority order for Phase 5 tasks?
+- [ ] REVIEW: Should we implement PWA support?
+- [ ] REVIEW: Should we add theme customization?
+
+---
+
+*Last Updated: December 2024*
+*Total Frontend Tasks: 20+ | Completed: 7 (Phase 2.5-2.7) | Remaining: 13+*
+*Phase Completion:2.5, 2.6, 2.7 done; 5, 8 pending*
+*Current Focus: Phase 5 - Frontend Improvements*

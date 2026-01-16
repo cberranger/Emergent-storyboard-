@@ -13,7 +13,7 @@ class Config {
 
         // Development default
         if (this.isDevelopment) {
-            return 'http://localhost:8001';
+            return 'http://localhost:8000';
         }
 
         // Production MUST have explicit config

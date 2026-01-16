@@ -29,26 +29,29 @@ async def get_auth_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> AuthSe
 
 async def get_current_user_optional(
     authorization: Optional[str] = Header(None),
-    auth_service: AuthService = Depends(get_auth_service)
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> Optional[dict]:
     if not authorization:
         return None
-    
+
     if not authorization.startswith("Bearer "):
         return None
-    
+
     token = authorization.replace("Bearer ", "")
-    payload = auth_service.decode_token(token)
-    
-    if not payload or payload.get("type") != "access":
+    try:
+        payload = auth_service.decode_token(token)
+        if not payload or payload.get("type") != "access":
+            return None
+
+        user_id = payload.get("sub")
+        if not user_id:
+            return None
+
+        user = await auth_service.get_user_by_id(user_id)
+        return user
+    except Exception:
+        # Invalid token or auth service error, return None
         return None
-    
-    user_id = payload.get("sub")
-    if not user_id:
-        return None
-    
-    user = await auth_service.get_user_by_id(user_id)
-    return user
 
 
 async def get_project_service(
@@ -64,8 +67,12 @@ async def get_comfyui_service(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> ComfyUIService:
     repository = ComfyUIRepository(db.comfyui_servers)
-    # Initialize ActiveModelsService for the ComfyUIService
+    # Initialize ActiveModelsService for ComfyUIService
     from database import db_manager
+
+    # Ensure client is available before using it
+    if db_manager.client is None:
+        raise HTTPException(status_code=503, detail="Database client not available")
     active_models_service = ActiveModelsService(db_manager.client, db_manager.db_name)
     return ComfyUIService(repository, active_models_service)
 

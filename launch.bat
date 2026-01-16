@@ -53,8 +53,8 @@ echo # Database Configuration
 echo MONGO_URL=mongodb://192.168.1.10:27017
 echo DB_NAME=storyboard
 echo.
-echo # CORS Configuration
-echo CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://0.0.0.0:3000
+echo # CORS Policy (allow-all)
+echo CORS_ORIGINS=*
 echo.
 echo # Server Configuration
 echo PORT=%BACKEND_PORT%
@@ -116,7 +116,7 @@ echo.
 echo 🚀 Starting backend server...
 cd backend
 if exist "venv\Scripts\activate.bat" call venv\Scripts\activate.bat
-start "StoryCanvas Backend" cmd /k "uvicorn server:app --host %BACKEND_IP% --port %BACKEND_PORT% --reload"
+start "StoryCanvas Backend" cmd /k "uvicorn server:app --host %BACKEND_IP% --port %BACKEND_PORT% --reload --reload-dir . --reload-exclude venv --reload-exclude uploads --reload-exclude *.log --reload-exclude *.env"
 cd ..
 
 :: Wait for backend
