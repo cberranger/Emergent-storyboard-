@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Play, Pause, SkipBack, SkipForward, Upload, Download, Image, Video, Wand2, Settings, Volume2, Clock, Edit3 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Plus, Play, Pause, SkipBack, SkipForward, Upload, Download, Image, Video, Wand2, Settings, Volume2, Clock, Edit3, CheckCircle2, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +22,7 @@ const ItemTypes = {
   CLIP: 'clip'
 };
 
-const DraggableClip = ({ clip, onMove, onEdit, onGenerate }) => {
+const DraggableClip = ({ clip, onMove, onEdit, onGenerate, isSelected, onSelect, onDeselect }) => {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: ItemTypes.CLIP,
     item: { id: clip.id, position: clip.timeline_position },
@@ -33,18 +33,50 @@ const DraggableClip = ({ clip, onMove, onEdit, onGenerate }) => {
 
   const activeVersion = clip.versions.find(v => v.version_number === clip.active_version) || clip.versions[0];
 
+  const handleClick = useCallback((e) => {
+    // Handle multi-select: Ctrl+click or Cmd+click (Mac)
+    if (e.ctrlKey || e.metaKey) {
+      e.stopPropagation();
+      if (isSelected) {
+        onDeselect(clip.id);
+      } else {
+        onSelect(clip.id);
+      }
+    } else if (e.shiftKey) {
+      // Range selection will be handled by parent
+      e.stopPropagation();
+      onSelect(clip.id, true); // true = range selection
+    } else if (!isSelected) {
+      // Single click selects clip
+      e.stopPropagation();
+      onSelect(clip.id);
+    }
+  }, [isSelected, onSelect, onDeselect, clip.id]);
+
   return (
     <div
       ref={drag}
-      className={`clip-item relative p-3 min-w-32 h-20 flex flex-col justify-between ${
+      onClick={handleClick}
+      className={`clip-item relative p-3 min-w-32 h-20 flex flex-col justify-between cursor-pointer ${
         isDragging ? 'opacity-50' : 'opacity-100'
+      } ${
+        isSelected
+          ? 'ring-2 ring-indigo-500 bg-indigo-500/20'
+          : 'hover:ring-1 hover:ring-indigo-500/50'
       }`}
-      style={{ 
+      style={{
         left: `${clip.timeline_position * 100}px`,
-        width: `${clip.length * 100}px` 
+        width: `${clip.length * 100}px`
       }}
       data-testid={`timeline-clip-${clip.id}`}
     >
+      {/* Selection indicator badge */}
+      {isSelected && (
+        <div className="absolute -top-1 -left-1 z-10">
+          <CheckCircle2 className="w-5 h-5 text-indigo-400" />
+        </div>
+      )}
+
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <h4 className="text-xs font-medium text-white truncate">{clip.name}</h4>
@@ -63,18 +95,18 @@ const DraggableClip = ({ clip, onMove, onEdit, onGenerate }) => {
           )}
         </div>
       </div>
-      
+
       <div className="flex items-center justify-between text-xs text-white/60">
         <span>{clip.length}s</span>
         <div className="flex space-x-1">
-          <button 
+          <button
             onClick={(e) => { e.stopPropagation(); onEdit(clip); }}
             className="hover:text-white transition-colors"
             data-testid={`edit-clip-${clip.id}-btn`}
           >
             <Edit3 className="w-3 h-3" />
           </button>
-          <button 
+          <button
             onClick={(e) => { e.stopPropagation(); onGenerate(clip); }}
             className="hover:text-white transition-colors"
             data-testid={`generate-clip-${clip.id}-btn`}
@@ -87,7 +119,7 @@ const DraggableClip = ({ clip, onMove, onEdit, onGenerate }) => {
   );
 };
 
-const TimelineTrack = ({ scenes, clips, onClipMove, onClipEdit, onClipGenerate }) => {
+const TimelineTrack = ({ scenes, clips, onClipMove, onClipEdit, onClipGenerate, selectedClips, onClipSelect, onClipDeselect }) => {
   const [, drop] = useDrop(() => ({
     accept: ItemTypes.CLIP,
     drop: (item, monitor) => {
@@ -97,6 +129,8 @@ const TimelineTrack = ({ scenes, clips, onClipMove, onClipEdit, onClipGenerate }
       onClipMove(item.id, newPosition);
     },
   }));
+
+  const sortedClips = [...clips].sort((a, b) => a.timeline_position - b.timeline_position);
 
   return (
     <div
@@ -119,16 +153,19 @@ const TimelineTrack = ({ scenes, clips, onClipMove, onClipEdit, onClipGenerate }
           ))}
         </div>
       </div>
-      
+
       {/* Clips */}
       <div className="absolute top-6 left-0 right-0 bottom-0">
-        {clips.map((clip) => (
+        {sortedClips.map((clip) => (
           <DraggableClip
             key={clip.id}
             clip={clip}
             onMove={onClipMove}
             onEdit={onClipEdit}
             onGenerate={onClipGenerate}
+            isSelected={selectedClips.includes(clip.id)}
+            onSelect={onClipSelect}
+            onDeselect={onClipDeselect}
           />
         ))}
       </div>
@@ -145,6 +182,8 @@ const Timeline = ({ project, comfyUIServers }) => {
   const [showBatchGenerationDialog, setShowBatchGenerationDialog] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [selectedClip, setSelectedClip] = useState(null);
+  const [selectedClips, setSelectedClips] = useState([]);
+  const [lastSelectedClipId, setLastSelectedClipId] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [musicFile, setMusicFile] = useState(null);
@@ -268,6 +307,83 @@ const Timeline = ({ project, comfyUIServers }) => {
     setShowGenerationDialog(true);
   };
 
+  // Multi-select handlers
+  const handleClipSelect = useCallback((clipId, isRange = false) => {
+    const sortedClips = [...clips].sort((a, b) => a.timeline_position - b.timeline_position);
+
+    if (isRange && lastSelectedClipId) {
+      // Range selection: select all clips between last selected and current
+      const lastClipIndex = sortedClips.findIndex(c => c.id === lastSelectedClipId);
+      const currentClipIndex = sortedClips.findIndex(c => c.id === clipId);
+
+      if (lastClipIndex !== -1 && currentClipIndex !== -1) {
+        const start = Math.min(lastClipIndex, currentClipIndex);
+        const end = Math.max(lastClipIndex, currentClipIndex);
+        const rangeClipIds = sortedClips.slice(start, end + 1).map(c => c.id);
+
+        setSelectedClips(prev => {
+          // Add range to selection, removing previously selected clips in range
+          const newSelection = prev.filter(id => !rangeClipIds.includes(id));
+          return [...newSelection, ...rangeClipIds];
+        });
+      }
+    } else {
+      // Single selection or Ctrl+click toggle
+      setSelectedClips(prev => {
+        if (prev.includes(clipId)) {
+          return prev.filter(id => id !== clipId);
+        } else {
+          return [...prev, clipId];
+        }
+      });
+    }
+
+    setLastSelectedClipId(clipId);
+  }, [clips, lastSelectedClipId]);
+
+  const handleClipDeselect = useCallback((clipId) => {
+    setSelectedClips(prev => prev.filter(id => id !== clipId));
+  }, []);
+
+  const handleSelectAllClips = useCallback(() => {
+    setSelectedClips(clips.map(clip => clip.id));
+  }, [clips]);
+
+  const handleDeselectAllClips = useCallback(() => {
+    setSelectedClips([]);
+  }, []);
+
+  const handleGenerateBatch = useCallback(() => {
+    if (selectedClips.length === 0) {
+      toast.warning('Please select clips to generate');
+      return;
+    }
+    setShowBatchGenerationDialog(true);
+  }, [selectedClips]);
+
+  // Keyboard shortcuts for multi-select
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl+A: Select all clips
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        e.preventDefault();
+        handleSelectAllClips();
+      }
+      // Escape: Deselect all clips
+      if (e.key === 'Escape') {
+        handleDeselectAllClips();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleSelectAllClips, handleDeselectAllClips]);
+
+  // Clear selection when changing scenes
+  useEffect(() => {
+    handleDeselectAllClips();
+  }, [activeScene, handleDeselectAllClips]);
+
   const handleSceneUpdate = async () => {
     if (!activeScene?.id) return;
     
@@ -358,7 +474,7 @@ const Timeline = ({ project, comfyUIServers }) => {
               <Upload className="w-4 h-4 mr-2" />
               Upload Music
             </Button>
-            
+
             <Button
               variant="outline"
               onClick={() => setShowExportDialog(true)}
@@ -369,16 +485,38 @@ const Timeline = ({ project, comfyUIServers }) => {
               Export Project
             </Button>
 
-            <Button
-              variant="outline"
-              onClick={() => setShowBatchGenerationDialog(true)}
-              className="btn-secondary"
-              disabled={clips.length === 0}
-              data-testid="batch-generate-btn"
-            >
-              <Wand2 className="w-4 h-4 mr-2" />
-              Batch Generate
-            </Button>
+            {/* Batch Generate Button - appears when clips are selected */}
+            {selectedClips.length > 0 ? (
+              <div className="flex items-center space-x-2">
+                <Button
+                  onClick={handleGenerateBatch}
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                  data-testid="batch-selected-btn"
+                >
+                  <Layers className="w-4 h-4 mr-2" />
+                  Generate Batch ({selectedClips.length})
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleDeselectAllClips}
+                  className="btn-secondary"
+                  data-testid="deselect-all-btn"
+                >
+                  Clear Selection
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => setShowBatchGenerationDialog(true)}
+                className="btn-secondary"
+                disabled={clips.length === 0}
+                data-testid="batch-generate-btn"
+              >
+                <Wand2 className="w-4 h-4 mr-2" />
+                Batch Generate
+              </Button>
+            )}
 
             <Button
               onClick={() => setShowSceneManager(true)}
@@ -628,6 +766,9 @@ const Timeline = ({ project, comfyUIServers }) => {
                 onClipMove={handleClipMove}
                 onClipEdit={handleClipEdit}
                 onClipGenerate={handleClipGenerate}
+                selectedClips={selectedClips}
+                onClipSelect={handleClipSelect}
+                onClipDeselect={handleClipDeselect}
               />
             ) : (
               <div className="text-center py-16">
@@ -682,9 +823,10 @@ const Timeline = ({ project, comfyUIServers }) => {
           onOpenChange={setShowBatchGenerationDialog}
           clips={clips}
           servers={comfyUIServers}
+          selectedClipIds={selectedClips}
           onBatchStart={(batchInfo) => {
             toast.success(`Batch generation started with ${batchInfo.total_jobs} jobs`);
-            // Optionally navigate to queue dashboard or show progress
+            handleDeselectAllClips(); // Clear selection after starting batch
           }}
         />
 

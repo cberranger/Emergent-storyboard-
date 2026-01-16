@@ -39,10 +39,11 @@ const BatchGenerationDialog = ({
   onOpenChange,
   clips = [],
   servers = [],
+  selectedClipIds: propSelectedClipIds = [],
   onBatchStart
 }) => {
   const { addTrackedJob } = useNotifications();
-  
+
   const [selectedClipIds, setSelectedClipIds] = useState([]);
   const [generationType, setGenerationType] = useState('image');
   const [selectedServer, setSelectedServer] = useState('');
@@ -76,6 +77,14 @@ const BatchGenerationDialog = ({
       console.error('Error fetching server info:', error);
     }
   };
+
+  // Pre-select clips when dialog opens with selectedClipIds prop
+  useEffect(() => {
+    if (open && propSelectedClipIds.length > 0) {
+      setSelectedClipIds(propSelectedClipIds);
+    }
+  }, [open, propSelectedClipIds]);
+
 
   const getOnlineServers = () => {
     return servers.filter(server => server.is_active !== false);
