@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { sceneService, clipService } from '@/services';
+import ClipDetailsDialog from './ClipDetailsDialog';
 
 const SceneManager = ({ 
   open, 
@@ -51,6 +52,15 @@ const SceneManager = ({
     imagePrompt: '',
     videoPrompt: ''
   });
+
+  // Clip details dialog state
+  const [clipDetailsOpen, setClipDetailsOpen] = useState(false);
+  const [selectedClipDetails, setSelectedClipDetails] = useState(null);
+
+  const handleOpenClipDetails = (clip) => {
+    setSelectedClipDetails(clip);
+    setClipDetailsOpen(true);
+  };
 
   const handleDragOver = (sceneId) => {
     setDragOverScene(sceneId);
@@ -606,14 +616,25 @@ const SceneManager = ({
                   <h3 className="text-lg font-medium text-primary">
                     Clips for "{activeScene.name}"
                   </h3>
-                  <Button 
-                    onClick={() => setIsCreatingClip(true)} 
-                    className="btn-primary"
-                    data-testid="create-clip-btn"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    New Clip
-                  </Button>
+                  <div className="flex space-x-2">
+                    {selectedClip && (
+                      <Button
+                        onClick={() => handleOpenClipDetails(selectedClip)}
+                        className="btn-primary"
+                        variant="outline"
+                      >
+                        View Clip Details
+                      </Button>
+                    )}
+                    <Button
+                      onClick={() => setIsCreatingClip(true)}
+                      className="btn-primary"
+                      data-testid="create-clip-btn"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      New Clip
+                    </Button>
+                  </div>
                 </div>
                 
                 {isCreatingClip && (
@@ -693,72 +714,18 @@ const SceneManager = ({
                       </form>
                     </CardContent>
                   </Card>
-                )}
-                
-                {/* Clip editing for selected clip */}
-                {selectedClip && editingClip && editingClip.id === selectedClip.id && (
-                  <Card className="glass-panel">
-                    <CardHeader>
-                      <CardTitle className="text-primary">Edit Clip: {selectedClip.name}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <Input
-                            className="form-input"
-                            placeholder="Clip name"
-                            value={editingClip.name}
-                            onChange={(e) => setEditingClip({ ...editingClip, name: e.target.value })}
-                            data-testid="edit-clip-name-input"
-                          />
-                          <div className="flex space-x-2">
-                            <Input
-                              type="number"
-                              step="0.1"
-                              min="0.1"
-                              className="form-input"
-                              placeholder="Length (s)"
-                              value={editingClip.length}
-                              onChange={(e) => setEditingClip({ ...editingClip, length: parseFloat(e.target.value) })}
-                              data-testid="edit-clip-length-input"
-                            />
-                            <div className="flex items-center text-sm text-secondary">
-                              <Clock className="w-4 h-4 mr-1" />
-                              {editingClip.timeline_position}s
-                            </div>
-                          </div>
-                        </div>
-                        <Textarea
-                          className="form-input"
-                          placeholder="Lyrics or script"
-                          value={editingClip.lyrics}
-                          onChange={(e) => setEditingClip({ ...editingClip, lyrics: e.target.value })}
-                          data-testid="edit-clip-lyrics-input"
-                        />
-                        <div className="flex justify-end space-x-2">
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            onClick={() => setEditingClip(null)}
-                            className="btn-secondary"
-                            data-testid="cancel-edit-clip-btn"
-                          >
-                            Cancel
-                          </Button>
-                          <Button 
-                            onClick={handleUpdateClip} 
-                            className="btn-primary"
-                            data-testid="save-clip-btn"
-                          >
-                            Save Changes
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            ) : (
+                  )}
+
+                  {/* Clip Details Dialog */}
+                  <ClipDetailsDialog
+                    open={clipDetailsOpen}
+                    onOpenChange={setClipDetailsOpen}
+                    clip={selectedClipDetails}
+                    scene={activeScene}
+                    onClipUpdate={onClipsChange}
+                  />
+                </div>
+              ) : (
               <div className="text-center py-16">
                 <h4 className="text-lg font-medium text-secondary mb-2">No active scene</h4>
                 <p className="text-secondary">Select a scene to manage its clips</p>
