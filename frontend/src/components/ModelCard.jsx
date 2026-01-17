@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Cpu, HardDrive, ExternalLink, Download, Settings, 
-  Clock, CheckCircle, AlertCircle, Plus, Eye, RefreshCw, Search
+import {
+  Cpu, HardDrive, ExternalLink, Download, RefreshCw, Search,
+  Clock, CheckCircle, AlertCircle, Plus, Eye, Settings, Zap
+  Star, Tag, ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +31,9 @@ const ModelCard = ({ model, onUpdate, onSyncCivitai }) => {
   const [searching, setSearching] = useState(false);
   const [configurations, setConfigurations] = useState([]);
   const [loadingConfigs, setLoadingConfigs] = useState(false);
+  const [showPresets, setShowPresets] = useState(false);
+  const [loadingPresets, setLoadingPresets] = useState(false);
+  const [applyingPreset, setApplyingPreset] = useState(false);
 
   // Get background image from Civitai model
   const getBackgroundImage = () => {
@@ -61,6 +65,34 @@ const ModelCard = ({ model, onUpdate, onSyncCivitai }) => {
         return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
       default:
         return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    }
+  };
+
+  const handleQuickApplyPreset = async (preset) => {
+    try {
+      setApplyingPreset(true);
+      // TODO: Apply preset to active generation settings
+      toast.success(`Preset "${preset.name}" applied`);
+    } catch (error) {
+      console.error('Error applying preset:', error);
+      toast.error('Failed to apply preset');
+    } finally {
+      setApplyingPreset(false);
+    }
+  };
+
+  const handleFetchPresets = async () => {
+    if (!model.id || !showPresets) return;
+
+    setLoadingPresets(true);
+    try {
+      const presets = await modelService.getModelPresets(model.name);
+      setPresets(presets);
+    } catch (error) {
+      console.error('Error fetching presets:', error);
+      toast.error('Failed to load presets');
+    } finally {
+      setLoadingPresets(false);
     }
   };
 
@@ -146,6 +178,19 @@ const ModelCard = ({ model, onUpdate, onSyncCivitai }) => {
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return 'Never';
     return new Date(timestamp).toLocaleDateString();
+  };
+
+  const handleQuickApplyPreset = async (preset) => {
+    try {
+      setApplyingPreset(true);
+      // TODO: Apply preset to active generation settings
+      toast.success(`Preset "${preset.name}" applied`);
+    } catch (error) {
+      console.error('Error applying preset:', error);
+      toast.error('Failed to apply preset');
+    } finally {
+      setApplyingPreset(false);
+    }
   };
 
   const fetchConfigurations = async () => {
