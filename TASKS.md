@@ -186,19 +186,19 @@ Complete roadmap for StoryCanvas implementation across 10 phases, covering criti
   - Full integration with 7 project endpoints
 
 ### 2.5.7 Scene Details
-- [ ] **Task 13.11**: Scene Details View Enhancement
+- [x] **Task 13.11**: Scene Details View Enhancement
   - Enhance `SceneManager.jsx`
   - Enhanced scene detail modal, scene statistics visualization
   - Scene-level prompt templates, reorder scenes drag-and-drop
-  - **Current State**: Basic scene editing exists, needs enhancement
+  - **Status**: COMPLETED - drag-drop, prompt templates, duplicate scene all implemented
 
 ### 2.5.8 Clip Details
-- [ ] **Task 13.12**: Clip Details Dialog
+- [x] **Task 13.12**: Clip Details Dialog
   - File: `frontend/src/components/ClipDetailsDialog.jsx`
   - Dedicated clip details dialog with full information and editing
   - Generation history view, version comparison (side-by-side)
   - Character assignment UI
-  - **Current State**: Clip editing exists in SceneManager, needs dedicated dialog
+  - **Status**: COMPLETED
 
 ### 2.5.9 Model Browser
 - [ ] **Task 13.13**: Model Browser Enhancement

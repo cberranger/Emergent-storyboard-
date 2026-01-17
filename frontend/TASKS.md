@@ -65,23 +65,23 @@ Frontend-specific development tasks organized by phase. See [../TASKS.md](../TAS
   - Project settings editor dialog
 
 ### 2.5.7 Scene Details
-- [ ] Scene Details View Enhancement
+- [x] Scene Details View Enhancement
   - Enhanced scene detail modal/panel
   - Scene statistics visualization (clip count, duration)
   - Scene-level prompt templates
   - Reorder scenes drag-and-drop
   - Duplicate scene functionality
-  - **Current State**: Basic scene editing exists, needs enhancement
+  - **Status**: COMPLETED - drag-drop, prompt templates, duplicate scene all implemented
 
 ### 2.5.8 Clip Details
-- [ ] Clip Details Dialog (ClipDetailsDialog.jsx)
+- [x] Clip Details Dialog (ClipDetailsDialog.jsx)
   - Full clip information display
   - Edit clip name, lyrics, length
   - Generation history view
   - Version comparison (side-by-side)
   - Metadata display enhancement
   - Character assignment UI
-  - **Current State**: Clip editing exists in SceneManager, needs dedicated dialog
+  - **Status**: COMPLETED
 
 ### 2.5.9 Model Browser
 - [ ] Model Browser Enhancement
