@@ -84,13 +84,11 @@ Frontend-specific development tasks organized by phase. See [../TASKS.md](../TAS
   - **Status**: COMPLETED
 
 ### 2.5.9 Model Browser
-- [ ] Model Browser Enhancement
-  - Model categories display
-  - Enhanced filter models by type
-  - Model type badges
+- [x] Model Browser Enhancement
+  - Enhanced model type badges on cards
   - Improved search functionality
-  - Model preset quick-apply
-  - **Current State**: Basic browser exists, needs enhancements
+  - Model preset quick-apply buttons
+  - **Status**: COMPLETED
 
 ### 2.5.10 Admin Dashboard
 - [ ] Admin Dashboard (AdminDashboard.jsx)
