@@ -4,7 +4,7 @@
 
 ## Overview
 
-The frontend is a React 18 SPA with Shadcn UI components providing professional storyboarding and AI content generation workflows. It includes 76 components (30 feature + 46 UI primitives), centralized API service layer with 8 modules for backend communication, professional dark theme with accessibility support, real-time updates with 5-second polling, complete CRUD operations for projects, scenes, clips, characters, templates, and queue management. The application supports timeline visualization with drag-and-drop, model browsing with Civitai integration, batch generation dialogs, media viewers, and export to professional video editing formats.
+The frontend is a React 18 SPA with Shadcn UI components providing professional storyboarding and AI content generation workflows. It includes 77 components (31 feature + 46 UI primitives), centralized API service layer with 8 modules for backend communication, professional dark theme with accessibility support, real-time updates with 5-second polling, complete CRUD operations for projects, scenes, clips, characters, templates, and queue management. The application supports timeline visualization with drag-and-drop, model browsing with Civitai integration, batch generation dialogs, media viewers, and export to professional video editing formats.
 
 ## CORS Policy
 
@@ -16,7 +16,7 @@ Backend CORS is intentionally allow-all. Do not add origin restrictions or clien
 ┌─────────────────────────────────────────────────────────────────┐
 │                      React 18 Application                     │
 ├─────────────────────────────────────────────────────────────────┤
-│  Main Components (30)                                        │
+│  Main Components (31)                                        │
 │  ├─ ProjectView.jsx              # Project management          │
 │  ├─ ProjectDashboard.jsx         # Stats & overview            │
 │  ├─ ProjectTimeline.jsx          # Timeline visualization       │
@@ -32,7 +32,7 @@ Backend CORS is intentionally allow-all. Do not add origin restrictions or clien
 │  ├─ BatchGenerationDialog.jsx    # Batch generation         │
 │  ├─ ComfyUIManager.jsx          # Server management        │
 │  ├─ ModelBrowser.jsx            # Model browsing            │
-│  ├─ PresentationMode.jsx        # Full-screen presentation  │
+│ │  ├─ ClipDetailsDialog.jsx       # Clip details management   ││  ├─ PresentationMode.jsx        # Full-screen presentation  │
 │  ├─ ExportDialog.jsx            # Export to editors        │
 │  ├─ HotkeyHelpDialog.jsx        # Keyboard shortcuts       │
 │  ├─ MediaViewerDialog.jsx       # Media viewing            │
