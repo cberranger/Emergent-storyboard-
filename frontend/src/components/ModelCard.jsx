@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Cpu, HardDrive, ExternalLink, Download, RefreshCw, Search,
-  Clock, CheckCircle, AlertCircle, Plus, Eye, Settings, Zap
+  Clock, CheckCircle, AlertCircle, Plus, Eye, Settings, Zap,
   Star, Tag, ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -178,19 +178,6 @@ const ModelCard = ({ model, onUpdate, onSyncCivitai }) => {
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return 'Never';
     return new Date(timestamp).toLocaleDateString();
-  };
-
-  const handleQuickApplyPreset = async (preset) => {
-    try {
-      setApplyingPreset(true);
-      // TODO: Apply preset to active generation settings
-      toast.success(`Preset "${preset.name}" applied`);
-    } catch (error) {
-      console.error('Error applying preset:', error);
-      toast.error('Failed to apply preset');
-    } finally {
-      setApplyingPreset(false);
-    }
   };
 
   const fetchConfigurations = async () => {

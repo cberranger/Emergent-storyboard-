@@ -433,13 +433,15 @@ const SceneManager = ({
                         )}
                       </div>
                       {scene.lyrics && (
-                        <Label className="text-xs text-secondary">Scene Lyrics</Label>
-                        <div className="text-sm text-primary mt-1 p-3 bg-panel rounded border border-panel whitespace-pre-wrap">
-                          {scene.lyrics}
+                        <div className="mt-2 space-y-1">
+                          <Label className="text-xs text-secondary">Scene Lyrics</Label>
+                          <div className="text-sm text-primary p-3 bg-panel rounded border border-panel whitespace-pre-wrap">
+                            {scene.lyrics}
+                          </div>
                         </div>
                       )}
-                    </div>
-                  </CardContent>
+                    </CardContent>
+                </Card>
                  ))}
               </div>
 

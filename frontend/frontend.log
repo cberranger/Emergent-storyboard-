@@ -1,0 +1,60 @@
+
+> frontend@0.1.0 start
+> craco start
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+Attempting to bind to HOST environment variable: localhost
+If this was unintentional, check that you haven't mistakenly set it in your shell.
+Learn more here: https://cra.link/advanced-config
+
+(node:43536) [DEP_WEBPACK_DEV_SERVER_ON_AFTER_SETUP_MIDDLEWARE] DeprecationWarning: 'onAfterSetupMiddleware' option is deprecated. Please use the 'setupMiddlewares' option.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:43536) [DEP_WEBPACK_DEV_SERVER_ON_BEFORE_SETUP_MIDDLEWARE] DeprecationWarning: 'onBeforeSetupMiddleware' option is deprecated. Please use the 'setupMiddlewares' option.
+Starting the development server...
+
+Failed to compile.
+
+Attempted import error: 'DialogTabs' is not exported from '@/components/ui/dialog' (imported as 'DialogTabs').
+ERROR in ./src/components/ClipDetailsDialog.jsx 174:37-47
+export 'DialogTabs' (imported as 'DialogTabs') was not found in '@/components/ui/dialog' (possible exports: Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger)
+
+ERROR in ./src/components/ClipDetailsDialog.jsx 178:40-54
+export 'DialogTabsList' (imported as 'DialogTabsList') was not found in '@/components/ui/dialog' (possible exports: Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger)
+
+ERROR in ./src/components/ClipDetailsDialog.jsx 180:42-59
+export 'DialogTabsTrigger' (imported as 'DialogTabsTrigger') was not found in '@/components/ui/dialog' (possible exports: Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger)
+
+ERROR in ./src/components/ClipDetailsDialog.jsx 187:41-58
+export 'DialogTabsTrigger' (imported as 'DialogTabsTrigger') was not found in '@/components/ui/dialog' (possible exports: Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger)
+
+ERROR in ./src/components/ClipDetailsDialog.jsx 194:41-58
+export 'DialogTabsTrigger' (imported as 'DialogTabsTrigger') was not found in '@/components/ui/dialog' (possible exports: Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger)
+
+ERROR in ./src/components/ClipDetailsDialog.jsx 201:41-58
+export 'DialogTabsTrigger' (imported as 'DialogTabsTrigger') was not found in '@/components/ui/dialog' (possible exports: Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger)
+
+ERROR in ./src/components/ClipDetailsDialog.jsx 208:41-58
+export 'DialogTabsTrigger' (imported as 'DialogTabsTrigger') was not found in '@/components/ui/dialog' (possible exports: Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger)
+
+ERROR in ./src/components/ClipDetailsDialog.jsx 215:41-58
+export 'DialogTabsTrigger' (imported as 'DialogTabsTrigger') was not found in '@/components/ui/dialog' (possible exports: Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger)
+
+ERROR in ./src/components/ClipDetailsDialog.jsx 227:39-56
+export 'DialogTabsContent' (imported as 'DialogTabsContent') was not found in '@/components/ui/dialog' (possible exports: Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger)
+
+ERROR in ./src/components/ClipDetailsDialog.jsx 597:39-56
+export 'DialogTabsContent' (imported as 'DialogTabsContent') was not found in '@/components/ui/dialog' (possible exports: Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger)
+
+ERROR in ./src/components/ClipDetailsDialog.jsx 852:39-56
+export 'DialogTabsContent' (imported as 'DialogTabsContent') was not found in '@/components/ui/dialog' (possible exports: Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger)
+
+ERROR in ./src/components/ClipDetailsDialog.jsx 1222:39-56
+export 'DialogTabsContent' (imported as 'DialogTabsContent') was not found in '@/components/ui/dialog' (possible exports: Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger)
+
+ERROR in ./src/components/ClipDetailsDialog.jsx 1324:39-56
+export 'DialogTabsContent' (imported as 'DialogTabsContent') was not found in '@/components/ui/dialog' (possible exports: Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger)
+
+ERROR in ./src/components/ClipDetailsDialog.jsx 1540:39-56
+export 'DialogTabsContent' (imported as 'DialogTabsContent') was not found in '@/components/ui/dialog' (possible exports: Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger)
+
+webpack compiled with 14 errors

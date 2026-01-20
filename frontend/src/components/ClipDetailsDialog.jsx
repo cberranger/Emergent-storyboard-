@@ -3,12 +3,14 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
-  DialogTabs,
-  DialogTabsList,
-  DialogTabsTrigger,
-  DialogTabsContent
+  DialogTitle
 } from '@/components/ui/dialog';
+import {
+  Tabs as DialogTabs,
+  TabsList as DialogTabsList,
+  TabsTrigger as DialogTabsTrigger,
+  TabsContent as DialogTabsContent
+} from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
